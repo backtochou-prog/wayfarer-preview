@@ -1,0 +1,4 @@
+{
+  "redirects": [{ "source": "/", "destination": "/dev.html", "permanent": false }],
+  "headers": [{ "source": "/(.*)", "headers": [{ "key": "Cache-Control", "value": "no-cache" }, { "key": "X-Robots-Tag", "value": "noindex" }] }]
+}

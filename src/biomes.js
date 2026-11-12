@@ -1,0 +1,129 @@
+// Shared colour constants and biome definitions. Add a biome by adding an entry here
+// (plus scenery/prop sprites in sprites.js and a segment in track.js).
+const C = {
+  ink: '#1b1420', plum: '#2e2233',
+  burg: '#6b2737', burgD: '#4a1a2b', burgL: '#8e3a4a',
+  amber: '#e8a33d', amberL: '#f3cf7a', amberD: '#b87a2a',
+  teal: '#2b7a78', tealD: '#17484f', tealL: '#7fc4b8',
+  forest: '#2f6b3a', forestD: '#1d4a2c', moss: '#5d8a3c', mossL: '#8aab4e',
+  earth: '#8a6a4a', earthD: '#5a4232', sand: '#c9a979', sandD: '#b3935f', sandL: '#e3cfa0',
+  terra: '#a5533d', terraD: '#7d3a2e', terraL: '#c46a47',
+  stone: '#8d8478', stoneD: '#675f58', stoneL: '#b3aa9b', bone: '#efe3c8',
+};
+
+const BIOMES = {
+  city: {
+    name: 'OLD TOWN', skyline: 'city', props: 'city', density: 0.3, margin: 0.5,
+    sky: ['#22434f', '#2f5e66', '#5f9c98', '#e0aa5c'],
+    ground: ['#6a5444', '#725b49'],
+    road: ['#8d8478', '#80776c'],
+    curb: [C.sand, C.sandD],
+    line: C.amber,
+    layers: ['#52304a', '#8a4636', '#5a2a30'], detail: 'cobble',
+    scenery: ['homeA', 'homeB', 'lamp', 'homeA', 'fenceC', 'homeB', 'shopSign', 'tower', 'lamp', 'fenceC'],
+  },
+  forest: {
+    name: 'GREENWOOD', skyline: 'forest', props: 'forest', density: 0.08, margin: 0.3, deep: true,
+    sky: ['#17353a', '#25504c', '#4f8c74', '#c2c075'],
+    ground: ['#3a6a32', '#336030'],
+    road: ['#8a6a4a', '#7d6044'],
+    curb: [C.moss, '#4f7a34'],
+    line: '#8a6a4a',
+    layers: ['#1f4a45', '#1d4a2c', '#153a25'], detail: 'dirt',
+    scenery: ['conifer', 'pine', 'conifer', 'rock', 'broad', 'fenceW', 'pine', 'bush', 'fenceW', 'conifer'],
+  },
+  // warm, busy city detour: more buildings, lamps and market furniture
+  market: {
+    name: 'MARKET', skyline: 'city', props: 'city', density: 0.15, margin: 0.4,
+    sky: ['#3b2f4f', '#7c3f50', '#c9704a', '#f2b862'],
+    ground: ['#7a5a46', '#84634c'],
+    road: ['#a08c74', '#948068'],
+    curb: [C.sandL, C.sand],
+    line: C.amberL,
+    layers: ['#52304a', '#8a4636', '#5a2a30'], detail: 'cobble',
+    scenery: ['homeB', 'stall', 'lamp', 'homeA', 'shopSign', 'stall', 'bench', 'lamp', 'homeB', 'fenceC'],
+  },
+};
+
+// night neon quarter (the 3D build's NEON QUARTER district; the 2D game just gets a dark palette so the shared track works)
+BIOMES.neon = {
+  name: 'NEON QUARTER', skyline: 'city', props: 'city', density: 0.2, margin: 0.4,
+  sky: ['#05060f', '#120a2a', '#2a1250', '#5a1c6a'],
+  ground: ['#0e1424', '#0b1020'],
+  road: ['#1a2238', '#141c30'],
+  curb: ['#2a1a4a', '#241540'],
+  line: '#ff2fd0',
+  layers: ['#1a1030', '#2a1448', '#14102a'], detail: 'cobble',
+  scenery: ['homeB', 'lamp', 'tower', 'shopSign', 'lamp', 'homeA', 'tower', 'lamp', 'shopSign', 'homeB'],
+};
+
+// sunset tram street (the 3D build's TRAM STREET district; the 2D game just gets a warm dusk palette so the shared track works)
+BIOMES.tram = {
+  name: 'SAINT-GILLES', skyline: 'city', props: 'city', density: 0.25, margin: 0.4,
+  sky: ['#7b8fa6', '#b8a898', '#e8b080', '#f6c48c'],
+  ground: ['#5a3c36', '#52362f'],
+  road: ['#6a4a46', '#5e4140'],
+  curb: ['#a89484', '#9c8878'],
+  line: '#cfc7c0',
+  layers: ['#4a2f38', '#7a4a3e', '#5a3036'], detail: 'cobble',
+  scenery: ['homeA', 'lamp', 'homeB', 'shopSign', 'lamp', 'homeA', 'fenceC', 'homeB', 'lamp', 'tower'],
+};
+
+// the two new destinations (the 3D build's SUNSET COAST and MOSSY RUINS; the 2D game just gets a palette for each so the shared track works; the Neon District branch uses BIOMES.neon)
+BIOMES.coast = {
+  name: 'SUNSET COAST', skyline: 'city', props: 'city', density: 0.12, margin: 0.4,
+  sky: ['#4a5c9a', '#b8687e', '#f0946a', '#ffc780'],
+  ground: ['#c9a979', '#d3b384'],
+  road: ['#9a8c80', '#8f8176'],
+  curb: ['#efe0b8', '#e3d0a0'],
+  line: '#fff1d0',
+  layers: ['#7a4a6a', '#c26a5a', '#9a5a60'], detail: 'dirt',
+  scenery: ['homeA', 'fenceC', 'lamp', 'homeB', 'fenceC', 'lamp', 'bench', 'fenceC', 'homeA', 'lamp'],
+};
+BIOMES.ruins = {
+  name: 'MOSSY RUINS', skyline: 'forest', props: 'forest', density: 0.12, margin: 0.3, deep: true,
+  sky: ['#0b1f1c', '#1b4236', '#3f7a5c', '#9fd6a4'],
+  ground: ['#2f4f2f', '#2a472b'],
+  road: ['#4b5a48', '#44523f'],
+  curb: ['#7f8a76', '#747f6c'],
+  line: '#7a8f6a',
+  layers: ['#173a30', '#1d4a3a', '#10302a'], detail: 'dirt',
+  scenery: ['rock', 'conifer', 'fenceW', 'rock', 'broad', 'bush', 'rock', 'conifer', 'fenceW', 'bush'],
+};
+
+// the Gare du Midi (the end of Saint-Gilles): the same atmosphere as BIOMES.tram (`atmo`: the sky, fog and light do not dip back to the city's when the road enters the station)
+// the TERRASSE GASPERI detour (3D: src3d/env_terrace.js); the 2D game gets a warm night palette
+BIOMES.terrace = Object.assign({}, BIOMES.market, { name: 'TERRASSE', sky: ['#0e1428', '#2a2236', '#4a2a3a', '#6a3a40'], road: ['#5b5550', '#54504b'], layers: ['#2a1e2a', '#3a2430', '#1f3a2a'] });
+BIOMES.gare = Object.assign({}, BIOMES.tram, { name: 'GARE DU MIDI', atmo: 'tram', density: 0.2 });
+// UTRECHT (the canal zone, after the train): three stretches that share one atmosphere (the 3D build gives them their own look, ENV3D.utrecht*; the 2D game just gets the dusk palette so the shared track works)
+for (const id of ['utrecht', 'utrechtA', 'utrechtB', 'utrechtQuay']) BIOMES[id] = Object.assign({}, BIOMES.tram, { name: 'UTRECHT', atmo: 'utrecht', density: 0.2 });
+
+const _rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+function lerpHex(a, b, t) {
+  if (t <= 0) return a;
+  const A = _rgb(a), B = _rgb(b);
+  return '#' + A.map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, '0')).join('');
+}
+function lerpPalette(a, b, t) {
+  const o = { line: lerpHex(a.line, b.line, t) };
+  for (const k of ['sky', 'ground', 'road', 'curb']) o[k] = a[k].map((c, i) => lerpHex(c, b[k][i], t));
+  return o;
+}
+// Palette between the opening biome and `toId`, quantised to 8 steps so the shift reads as pixel bands.
+const _palCache = new Map();
+function paletteFor(toId, t) {
+  const q = Math.round(t * 8), key = toId + q;
+  if (!_palCache.has(key)) _palCache.set(key, lerpPalette(BIOMES[TRACK.base || TRACK.segments[TRACK.sequence[0].seg].biome], BIOMES[toId], q / 8));
+  return _palCache.get(key);
+}
+// the independent coastal zone's other lights (the 3D build gives them their own sky: ENV3D.coastMorning / coastNoon / coastBlue; the 2D game just uses the coast's palette)
+for (const id of ['coastMorning', 'coastNoon', 'coastBlue']) BIOMES[id] = Object.assign({}, BIOMES.coast, { name: 'SUNSET COAST' });
+for (const [id, base] of [['coastTown', 'coast'], ['coastTownNoon', 'coastNoon'], ['coastTownBlue', 'coastBlue'], ['coastTownMorning', 'coastMorning']]) BIOMES[id] = Object.assign({}, BIOMES[base], { atmo: base });          // the coastal town: the coast's palettes and the coast's atmosphere (the game switches to it at once: no dip, and no break in the coast music, between the coast and the town)
+// the aquarium tunnel to the island (3D: ENV3D.coastAqua; the 2D game wears the blue-hour coast palette): `keep` = the game keeps the atmosphere it had (the 3D renderer blends the look under the sea in by depth, never a cut), `label` = the name the HUD shows inside it
+BIOMES.coastAqua = Object.assign({}, BIOMES.coastBlue, { keep: true, label: 'AQUARIUM TUNNEL' });
+
+// VIC (the narrow streets of the old town): the 3D build has its own look (ENV3D.vic); the 2D game gets the tram street's palette in warm light
+BIOMES.vic = Object.assign({}, BIOMES.tram, { name: 'VIC', atmo: 'vic', density: 0.2 });
+BIOMES.vicSquare = Object.assign({}, BIOMES.vic, { name: 'VIC' });
+BIOMES.vicAlley = Object.assign({}, BIOMES.vic, { name: 'VIC' });
+BIOMES.vicMedina = Object.assign({}, BIOMES.vic, { name: 'RUELLE' });

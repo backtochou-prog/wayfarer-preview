@@ -1,0 +1,617 @@
+// Canvas renderer: sky/parallax, perspective road with curves, depth-sorted objects, HUD and overlays.
+// Every world->screen x goes through the same formula: perspective scale + a "sway" term that is zero
+// at the player's depth, so the road can lean toward a chosen branch while the runner stays put.
+const LOW_PROPS = new Set(['lamp', 'fenceC', 'fenceW', 'bench', 'rock', 'bush', 'shopSign']); // hug the road edge
+const PARALLAX = [['far', 4, 0], ['mid', 9, 1], ['near', 18, 2]];                              // layer, speed, colour index
+
+class Renderer {
+  constructor(cv) {
+    this.ctx = cv.getContext('2d');
+    this.ctx.imageSmoothingEnabled = false;
+    buildSprites();
+    this.layers = { city: Skyline.city(), forest: Skyline.forest() };
+    const pc = mk(2, 2, r => { r(C.ink, 0, 0, 1, 1); r(C.ink, 1, 1, 1, 1); });
+    this.dither = this.ctx.createPattern(pc, 'repeat');
+    this.dk = {};
+  }
+
+  sx(wx, s) { return 160 + (wx - this.camW) * LPX * s + this.sway * (1 - s / S20); }
+  dark(c) { return this.dk[c] || (this.dk[c] = lerpHex(c, C.ink, 0.22)); }
+
+  draw(g) {
+    const ctx = this.ctx, p = g.p;
+    this.camW = g.camX + g.camOff; this.sway = g.sway; this.camZ = p.z - PLAYER_D;
+    ctx.save();
+    if (g.shake > 0) ctx.translate(Math.round(Math.sin(g.time * 90) * g.shake * 8), Math.round(Math.cos(g.time * 70) * g.shake * 6));
+    this.drawSky(g);
+    this.drawRoad(g.world);
+    this.drawObjects(g);
+    this.drawBeams(g);
+    this.drawCanopy(g);
+    for (const f of g.fx) {
+      const x = Math.round(f.x), y = Math.round(f.y);
+      if (f.txt) { drawText(ctx, f.txt, x + 1, y + 1, C.ink); drawText(ctx, f.txt, x, y, f.col); }
+      else { ctx.fillStyle = f.col; ctx.fillRect(x, y, f.s || 2, f.s || 2); }
+    }
+    ctx.restore();
+    this.drawUI(g);
+  }
+
+  // the race zone's HUD: two progress bars (the player in turquoise, the robot in red), the gap, the speed, the boost or brake, the rare tokens, the countdown and the result
+  drawRaceHud(g) {
+    const R = g.race, p = R.p, ctx = this.ctx, x0 = 80, w = 160, gap = R.gap(), kmh = Math.round(p.speed * 3.6);
+    if (R.kart) this.holo(x0 - 30, 3, w + 36, 25, g.time, 4, true); else { ctx.fillStyle = 'rgba(8,4,16,0.72)'; ctx.fillRect(x0 - 4, 3, w + 8, 27); }      // (the kart: the gauges in the holographic panel)
+    const bh = R.kart ? 2 : 5, bar = (frac, y, col) => { y += R.kart ? 1 : 0; ctx.fillStyle = R.kart ? 'rgba(4,30,44,0.3)' : '#1a1030'; ctx.fillRect(x0, y, w, bh); ctx.fillStyle = col; ctx.fillRect(x0, y, Math.round(w * Math.max(0, Math.min(1, frac))), bh); ctx.fillStyle = '#fff'; ctx.fillRect(x0 + Math.round(w * Math.max(0, Math.min(1, frac))) - 1, y - 1, R.kart ? 1 : 2, bh + 2); };
+    bar(p.s / R.len, 6, '#35e6ff'); bar(R.bot.s / R.len, 16, R.kart ? '#ff9a2a' : '#ff2a4a');
+    this.txt('YOU', x0 - 24, 5, '#35e6ff'); this.txt('BOT', x0 - 24, 15, R.kart ? '#ff9a2a' : '#ff2a4a');
+    if (R.kart) this.drawComm(g, R.keepLeft(p.s) && p.lane > -1);      // the detour's notification, as a holographic comm panel      // (the detour: blinking until the kart is in the left lane)
+    if (R.kart) { const pl = R.place(), lap = Math.min(KART.LAPS, 1 + Math.floor(p.s / KART.LAP)); this.ctr('TOUR ' + lap + '/' + KART.LAPS + '   PLACE ' + pl + '/' + (R.bots.length + 1), 33, pl === 1 ? '#7affc8' : '#ffd24a'); }      // (the kart: the player's place among the nine karts)
+    else this.ctr(gap > 0 ? 'ROBOT +' + Math.round(gap) + ' M' : 'YOU +' + Math.round(-gap) + ' M', 33, gap > 0 ? '#ff6a7a' : '#7affc8');
+    this.txt('RARE ' + g.rare, 6, 6, '#ffd24a');
+    this.ctr(kmh + ' KM/H', 160, '#f2ead6');
+    if (p.brakeT > 0) this.ctr('BRAKE', 146, '#ff4fd8'); else if (p.hitT > 0) this.ctr('HIT', 146, '#ff4a4a'); else if (p.boostT > 0) this.ctr('BOOST +' + Math.round(p.boost * 3.6), 146, ['#ff5a6a', '#d070ff', '#7aff40', '#d8ff30'][RACE.SPIRAL.findIndex(c => c.add === p.boost)] || '#fff');
+    if (p.pedal && !(p.brakeT > 0 || p.hitT > 0 || p.boostT > 0)) this.ctr(p.pedal === 'brake' ? 'BRAKE' : 'ACCEL', 146, p.pedal === 'brake' ? '#ff8aa0' : '#7affc8');      // the pedals (held)
+    if (R.menu) {                                                                          // THE KART QUICK MENU: a see-through panel over the circuit
+      this.holo(84, 40, 152, 112, g.time, 9); this.txt('KARTING // NAV', 90, 44, '#ff9a2a'); if (Math.floor(g.time * 2) % 2) { ctx.fillStyle = '#ff9a2a'; ctx.fillRect(226, 44, 4, 4); }
+      const vrOk = !!(g.r && g.r.xr && g.r.xr.button);
+      for (const b of KMENU) {                                                             // see-through buttons with a neon edge (green; turquoise under the pointer; grey when VR is not available)
+        const m = g.mouse, hov = m.x >= b.x && m.x <= b.x + b.w && m.y >= b.y && m.y <= b.y + b.h, off = b.id === 'vr' && !vrOk, col = off ? '#6a7890' : hov ? '#ffffff' : '#bff8ff';
+        ctx.fillStyle = hov && !off ? 'rgba(60,230,255,0.28)' : 'rgba(10,60,90,0.35)'; ctx.fillRect(b.x, b.y, b.w, b.h);
+        ctx.fillStyle = off ? '#4a5060' : hov ? '#ffd27a' : '#ff9a2a'; ctx.fillRect(b.x, b.y, b.w, 1); ctx.fillRect(b.x, b.y + b.h - 1, b.w, 1); ctx.fillRect(b.x, b.y, 2, b.h); ctx.fillRect(b.x + b.w - 2, b.y, 2, b.h);
+        this.txt(b.label, Math.round(b.x + (b.w - textW(b.label, 2)) / 2), b.y + 3, col, 2, '#0a3a4a');
+      }
+      if (!(g.r && g.r.xr && g.r.xr.button)) this.ctr('VR: CASQUE REQUIS', 138, '#8a86a0');
+      return;
+    }
+    const cy = R.kart ? 44 : 70, cs = R.kart ? 4 : 6;      // (the kart's camera is close: the countdown stands above the kart, not over it, in neon green)
+    if (R.intro > 0) { this.ctr('TOUCHE POUR PASSER', 146, '#c8c0e0'); return; }      // (the kart's flyover: no countdown yet, nothing but the hint)
+    if (R.cd > 0) this.ctr(R.cd > 0.5 ? String(Math.ceil(R.cd - 0.5)) : 'GO', cy, R.kart ? '#2bff6a' : '#fff', cs);
+    else if (R.t < 1.2) this.ctr('GO', cy, '#7affc8', cs);
+    if (R.done) { const win = R.result === 'win'; ctx.fillStyle = 'rgba(8,4,16,0.6)'; ctx.fillRect(0, 62, VW, 54); this.ctr(win ? 'YOU WIN' : 'ROBOT WINS', 68, win ? '#7affc8' : '#ff6a7a', 4); this.ctr(win ? '+30 COINS' : 'BACK TO THE ROAD', 98, '#f2ead6'); this.ctr('THE SPHERE IS CLOSED UNTIL THE NEXT ZONE', 108, '#a090c0'); }
+  }
+
+  // THE COMM PANEL (the user: a pop-up like a virtual communication on a sophisticated spaceship: an orange frame, inside a see-through blue glass a little turquoise): it pops open
+  // (grows from a line in 0.25 s), hums (scanlines, a faint flicker), and folds away when the kart is in the left lane
+  // the holographic panel of the kart circuit: blue-turquoise see-through glass, drifting scanlines, a glint, an orange frame with corner brackets
+  holo(x0, y0, W, h, t, c, lite) {
+    const ctx = this.ctx; c = c || 7; const q = lite ? 0.45 : 1, bw = lite ? 1 : 2;      // (lite: more see-through, thinner brackets)
+    ctx.fillStyle = 'rgba(20,120,170,' + (0.30 * q) + ')'; ctx.fillRect(x0, y0, W, h);
+    ctx.fillStyle = 'rgba(60,230,255,' + (0.10 * q) + ')'; for (let y = y0 + ((t * 20) | 0) % 3; y < y0 + h; y += 3) ctx.fillRect(x0 + 1, y, W - 2, 1);
+    ctx.fillStyle = 'rgba(140,250,255,0.18)'; ctx.fillRect(x0 + 1, y0 + 1, W - 2, 1);
+    ctx.fillStyle = 'rgba(255,154,42,' + (0.55 * q) + ')'; ctx.fillRect(x0, y0, W, 1); ctx.fillRect(x0, y0 + h - 1, W, 1); ctx.fillRect(x0, y0, 1, h); ctx.fillRect(x0 + W - 1, y0, 1, h);
+    ctx.fillStyle = '#ff9a2a'; for (const [bx, by, sx, sy] of [[x0, y0, 1, 1], [x0 + W, y0, -1, 1], [x0, y0 + h, 1, -1], [x0 + W, y0 + h, -1, -1]]) { ctx.fillRect(sx > 0 ? bx - 1 : bx - c + 1, sy > 0 ? by - 1 : by - bw, c, bw); ctx.fillRect(sx > 0 ? bx - 1 : bx - bw + 1, sy > 0 ? by - 1 : by - c + 1, bw, Math.min(c, h + 2)); }
+  }
+  drawComm(g, on) {
+    const ctx = this.ctx, t = g.time; this.commK = Math.max(0, Math.min(1, (this.commK || 0) + (on ? 1 : -1) * (this._commT === undefined ? 0 : Math.max(0, t - this._commT)) * 4)); this._commT = t;
+    const k = this.commK; if (k <= 0.01) return;
+    const W = 150, H = 26, x0 = (VW - W) / 2, cy = 88, h = Math.max(2, Math.round(H * k)), y0 = Math.round(cy - h / 2), fl = 0.9 + 0.1 * Math.sin(t * 37) * Math.sin(t * 11);
+    ctx.save(); ctx.globalAlpha = fl;
+    this.holo(x0, y0, W, h, t, 7); const o = '#ff9a2a';                                                                          // the orange frame: thin edges and heavier corner brackets
+    if (k > 0.85) {
+      ctx.globalAlpha = fl * (k - 0.85) / 0.15;
+      this.txt('COMM // NAV', x0 + 5, y0 + 3, o); if (Math.floor(t * 2) % 2) { ctx.fillStyle = o; ctx.fillRect(x0 + W - 8, y0 + 3, 3, 3); }      // the live light
+      const msg = '<< SERREZ A GAUCHE'; this.txt(msg, Math.round(x0 + (W - textW(msg, 1)) / 2), y0 + 14, '#bff8ff', 1, '#0a3a4a');
+    }
+    ctx.restore();
+  }
+
+  // HUD, touch controls and screens; also used on its own as the overlay of the 3D front end
+  drawUI(g) {
+    const ctx = this.ctx;
+    if (g.state === 'race' && g.race) { this.drawRaceHud(g); this.drawTouch(g); if (g.fadeIn > 0) this.drawSceneOverlay(g); return; }
+    // (g.vr: the 3D build in immersive VR, src3d/xr3d.js. This canvas is then a floating panel, so what covers the whole screen (the flash, the portal light, the fades, the letterbox) and the
+    // screen-space scooter disc are left out of it, and so are the keyboard / touch hints; nothing else changes)
+    if (g.state === 'over' && g.flash > 0 && !g.vr) { ctx.globalAlpha = 0.5; ctx.fillStyle = C.burg; ctx.fillRect(0, 0, VW, VH); ctx.globalAlpha = 1; }
+    if (g.portal && (g.portal.k > 0.004 || g.portal.flash > 0.01) && g.state !== 'title' && !g.vr) this.drawPortalFx(g);              // the journey through a Stargate, under the HUD
+    if (g.state !== 'title') this.drawHud(g);
+    this.drawTouch(g);
+    if (g.state === 'play' && !g.vr) this.drawScooterHint(g);
+    if (g.scene || g.fadeIn > 0) this.drawSceneOverlay(g);
+    if (g.state === 'title') this.drawTitle(g);
+    else if (g.state === 'pause') this.drawPause(g);
+    else if (g.state === 'over' && g.overT > g.overDelay) this.drawOver(g);
+    if (g.sfx && g.state !== 'play' && g.state !== 'scene') this.drawSoundBtn(g);
+  }
+
+  // the sound on / off icon (bottom-right of the menu, pause and game-over screens): a speaker with waves when on, crossed out when off
+  drawSoundBtn(g) {
+    const b = BTN.sound, c = this.ctx, m = g.mouse, hov = m.x >= b.x && m.x <= b.x + b.w && m.y >= b.y && m.y <= b.y + b.h, off = g.sfx.muted;
+    c.fillStyle = C.ink; c.fillRect(b.x - 1, b.y - 1, b.w + 2, b.h + 2); c.fillStyle = hov ? '#3a2d52' : C.plum; c.fillRect(b.x, b.y, b.w, b.h);
+    const x = b.x + 3, y = b.y + 4, col = off ? C.stoneD : C.tealL;
+    c.fillStyle = col; c.fillRect(x, y + 3, 3, 4); c.fillRect(x + 3, y + 2, 1, 6); c.fillRect(x + 4, y + 1, 1, 8); c.fillRect(x + 5, y, 1, 10);
+    if (off) { c.fillStyle = C.terraL; for (let k = 0; k < 6; k++) { c.fillRect(x + 8 + k, y + 2 + k, 1, 1); c.fillRect(x + 13 - k, y + 2 + k, 1, 1); } }
+    else { c.fillStyle = col; c.fillRect(x + 8, y + 3, 1, 4); c.fillRect(x + 10, y + 1, 1, 8); }
+  }
+
+  drawSky(g) {
+    const ctx = this.ctx, pal = paletteFor(g.bgTo, g.bgT);
+    [[0, 22], [22, 18], [40, 14], [54, 10]].forEach(([y, h], i) => { ctx.fillStyle = pal.sky[i]; ctx.fillRect(0, y, VW, h); });
+    const toF = BIOMES[g.bgTo].skyline === 'forest', t = g.bgT;
+    const sunY = 52 + (toF ? t * 16 : 0);
+    ctx.fillStyle = C.amberL; ctx.fillRect(228, sunY - 10, 16, 20); ctx.fillRect(225, sunY - 6, 22, 12); ctx.fillRect(227, sunY - 8, 18, 16);
+    if ((toF ? 1 - t : 1) > 0.4) { // city: a few slow, flat evening clouds
+      const cc = lerpHex(pal.sky[2], pal.sky[3], 0.6), cs = lerpHex(cc, C.burg, 0.45);
+      for (let k = 0; k < 3; k++) {
+        const x = Math.round(((g.time * 2.5 + k * 130) % (VW + 80)) - 40), y = 14 + k * 10 + (k & 1) * 4;
+        ctx.fillStyle = cc; ctx.fillRect(x + 6, y, 16, 2); ctx.fillRect(x, y + 2, 30, 3);
+        ctx.fillStyle = cs; ctx.fillRect(x + 2, y + 5, 26, 1);
+      }
+    }
+    const cityShift = toF ? t * 46 : 0, forestShift = toF ? (1 - t) * 46 : 46;
+    const L = this.layers, par = this.camW - this.sway * 0.06, N = Skyline.N;
+    for (const [key, k, ci] of PARALLAX) {
+      this.layer(L.city[key], BIOMES.city.layers[ci], par * k, cityShift);
+      if (key === 'mid') {
+        const off = Math.floor(par * k); ctx.fillStyle = C.amber;
+        for (const [lx, ly] of L.city.lights) { const sx = (((lx - off) % N) + N) % N; if (sx < VW) ctx.fillRect(sx, HY - ly + Math.round(cityShift), 1, 2); }
+      }
+      this.layer(L.forest[key], BIOMES.forest.layers[ci], par * k, forestShift);
+    }
+  }
+
+  layer(arr, col, off, shift) {
+    if (shift >= 46) return;
+    const ctx = this.ctx, N = Skyline.N; off = Math.floor(off); ctx.fillStyle = col;
+    for (let x = 0; x < VW;) {
+      const idx = (((x + off) % N) + N) % N, h = arr[idx]; let run = 1;
+      while (x + run < VW && arr[(((x + run + off) % N) + N) % N] === h) run++;
+      if (h > 0) ctx.fillRect(x, HY - h + Math.round(shift), run, h + 2);
+      x += run;
+    }
+  }
+
+  drawRoad(w) {
+    const ctx = this.ctx, camZ = this.camZ;
+    for (let y = HY; y < VH; y++) {
+      const t = (y + 0.5 - HY) / (VH - HY), d = K * (1 / t - 1), z = camZ + d;
+      const stripe = d > 420 ? 0 : (Math.floor(z / 36) & 1);
+      const bands = w.bandsAt(z), b0 = bands[0], b1 = bands[bands.length - 1];
+      const X = wx => Math.round(this.sx(wx, t));
+      const split = clamp(bands.length > 1 ? Math.round((X(b0.hi + b0.off) + X(b1.lo + b1.off)) / 2) : X(b0.off), 0, VW);
+      const pl = paletteFor(b0.eL.to, b0.eL.t), pr = paletteFor(b1.eR.to, b1.eR.t);
+      ctx.fillStyle = pl.ground[stripe]; ctx.fillRect(0, y, split, 1);
+      ctx.fillStyle = pr.ground[stripe]; ctx.fillRect(split, y, VW - split, 1);
+      // the chosen road is drawn last so it stays on top where the two roads overlap in the merge
+      const order = bands.length > 1 && bands[0].chosen ? [bands[1], bands[0]] : bands;
+      for (const b of order) {
+        const pal = paletteFor(b.to, b.t);
+        const a = X(b.lo + b.off), e = X(b.hi + b.off), cw = Math.max(1, Math.round(0.14 * LPX * t));
+        ctx.fillStyle = pal.curb[stripe]; ctx.fillRect(a, y, e - a, 1);
+        ctx.fillStyle = pal.road[stripe]; ctx.fillRect(a + cw, y, e - a - 2 * cw, 1);
+        if (bands.length === 1 && stripe === 0) {
+          const lw = Math.max(1, Math.round(0.05 * LPX * t));
+          ctx.fillStyle = pal.line; ctx.fillRect(X(b.off) - (lw >> 1), y, lw, 1);
+        }
+        if (d < 300) this.roadDetail(w, b, z, y, t, a + cw, e - cw, stripe, pal, X);
+      }
+    }
+  }
+
+  // cobblestone flecks on city roads, wheel ruts and pebbles on forest tracks
+  roadDetail(w, b, z, y, t, x0, x1, stripe, pal, X) {
+    const ctx = this.ctx, bi = BIOMES[b.t > 0.5 ? b.to : w.baseBiome], dc = this.dark(pal.road[stripe]);
+    if (x1 - x0 < 4) return;
+    ctx.fillStyle = dc;
+    if (bi.detail === 'cobble') {
+      const key = Math.floor(z / 7);
+      for (let k = 0; k < 4; k++) ctx.fillRect(x0 + Math.floor(rnd(key, k + 7 * (b.side + 2)) * (x1 - x0 - 1)), y, 1 + (t > 0.5 ? 1 : 0), 1);
+    } else {
+      const c = (b.lo + b.hi) / 2 + b.off, rw = Math.max(1, Math.round(0.04 * LPX * t));
+      ctx.fillRect(X(c - 0.3) - (rw >> 1), y, rw, 1); ctx.fillRect(X(c + 0.3) - (rw >> 1), y, rw, 1);
+      const key = Math.floor(z / 11);
+      if (rnd(key, 3 + b.side) > 0.6) { ctx.fillStyle = pal.curb[0]; ctx.fillRect(x0 + Math.floor(rnd(key, 5) * (x1 - x0 - 1)), y, 1, 1); }
+    }
+  }
+
+  drawObjects(g) {
+    const ctx = this.ctx, w = g.world, p = g.p, camZ = this.camZ, list = [];
+    const SLOT = 50, i0 = Math.floor(camZ / SLOT), i1 = Math.floor((camZ + MAXD) / SLOT);
+    for (let i = i0; i <= i1; i++) {
+      const z = i * SLOT + rnd(i, 9) * 20, bands = w.bandsAt(z);
+      for (const b of bands) for (let e = 0; e < 2; e++) {
+        const k = i * 8 + (b.side + 1) * 2 + e, inf = e ? b.eR : b.eL;
+        const biome = rnd(k, 3) < inf.t ? BIOMES[inf.to] : BIOMES[w.baseBiome];
+        if (rnd(k, 1) < biome.density) continue;
+        const nm = biome.scenery[Math.floor(rnd(k, 4) * biome.scenery.length)];
+        // low props (lamps, fences, rocks) hug the road; buildings and trees stand further back
+        const off = LOW_PROPS.has(nm) ? 0.22 + rnd(k, 2) * 0.3 : biome.margin + rnd(k, 2) * 0.9;
+        const X = (e ? b.hi + off : b.lo - off) + b.off;
+        if (bands.some(o => o !== b && X > o.lo + o.off - 0.5 && X < o.hi + o.off + 0.5)) continue;
+        list.push({ z, wx: X, spr: SPR[nm] });
+        if (biome.deep) // second row: forests close in around the road
+          list.push({ z: z + 12, wx: X + (e ? 1 : -1) * (0.7 + rnd(k, 5) * 0.5), spr: SPR[biome.scenery[Math.floor(rnd(k, 6) * 5)]] });
+      }
+    }
+    for (const it of w.items) {
+      if (it.taken || it.z < camZ - 4 || it.z > camZ + MAXD) continue;
+      list.push({ z: it.z, wx: it.x + w.bandNear(it.z, it.x).off, it });
+    }
+    list.push({ z: p.z, player: true });
+    list.sort((a, b) => b.z - a.z);
+
+    for (const o of list) {
+      const d = o.z - camZ, s = K / (d + K), sc = s / S20, sy = HY + (VH - HY) * s;
+      if (o.player) { this.drawPlayer(g, 160 + (p.x - g.camX) * LPX * S20, sy); continue; }
+      let spr, lift = 0;
+      if (o.it) {
+        const it = o.it;
+        if (it.kind === 'coin') { spr = SPR.coin[Math.floor(g.time * 8 + it.z / 20) & 3]; lift = (it.h - 4) * sc; }
+        else if (it.kind === 'prop') spr = SPR[it.spr];
+        else if (it.kind === 'crate' || it.kind === 'vicHigh' || it.kind === 'vicBarrel' || it.kind === 'vicPot') spr = SPR.crate;
+        else { const kk = it.kind === 'vicLow' || it.kind === 'vicChairs' || it.kind === 'vicAJump' || it.kind === 'vicMJump' ? 'barrier' : it.kind === 'vicHang' || it.kind === 'vicASlide' || it.kind === 'vicMSlide' ? 'over' : it.kind; spr = SPR[w.themeAt(it.z, it.x) + kk[0].toUpperCase() + kk.slice(1)]; }       // (the 2D game draws the street's hazards as the usual ones)
+      } else spr = o.spr;
+      if (!spr) continue;                                                                          // (a prop that only the 3D build draws, such as the station hall)
+      const sw = Math.max(1, Math.round(spr.width * sc)), sh = Math.max(1, Math.round(spr.height * sc));
+      ctx.drawImage(spr, Math.round(this.sx(o.wx, s) - sw / 2), Math.round(sy - sh - lift), sw, sh);
+    }
+  }
+
+  drawPlayer(g, sx, feetY) {
+    const ctx = this.ctx, p = g.p;
+    feetY = Math.round(feetY); sx = Math.round(sx);
+    ctx.globalAlpha = 0.35; ctx.fillStyle = C.ink; ctx.fillRect(sx - 6, feetY - 1, 12, 2); ctx.globalAlpha = 1;
+    let spr;
+    if (g.state === 'pause') spr = SPR.run0;
+    else if (p.slide > 0) spr = SPR.slide; else if (p.jy > 0) spr = SPR.jump; else spr = SPR['run' + (Math.floor(g.time * 11) & 3)];
+    ctx.drawImage(spr, sx - 7, feetY - 24 - Math.round(p.jy) + (p.jy > 0 ? 3 : 0));
+  }
+
+  // forest: a few dithered shafts of light slanting down through the canopy
+  drawBeams(g) {
+    const n = Math.round(g.canopy * 3);
+    if (n < 1) return;
+    const ctx = this.ctx; ctx.fillStyle = lerpHex(C.amberL, C.forestD, 0.62);
+    for (let i = 0; i < n; i++) {
+      const x0 = 70 + i * 96 + Math.sin(g.time * 0.35 + i * 2) * 4 - this.sway * 0.3;
+      for (let y = 24; y < 140; y += 3) ctx.fillRect(Math.round(x0 + (y - 24) * 0.3), y, 5, 1);
+    }
+  }
+
+  // leafy ceiling that closes in as the forest mix rises
+  drawCanopy(g) {
+    const m = Math.round(g.canopy * 6) / 6;
+    if (m < 0.1) return;
+    const ctx = this.ctx, h = Math.round(20 * m), off = Math.floor(this.camW * 3);
+    for (let x = 0; x < VW; x += 6) {
+      const i = x / 6 + off, dh = Math.round(h * (0.55 + 0.45 * rnd(i, 77)));
+      ctx.fillStyle = C.forestD; ctx.fillRect(x, 0, 6, dh);
+      ctx.fillStyle = C.ink; ctx.fillRect(x, dh, 6, 1);
+      if (rnd(i, 78) > 0.5) { ctx.fillStyle = C.forest; ctx.fillRect(x + 1, Math.max(0, dh - 5), 3, 2); }
+    }
+  }
+
+  // ---- interface: compact plates and buttons share one border/plum/amber language
+  txt(s, x, y, col, sc = 1, sh = C.ink) { const o = Math.max(1, sc >> 1); drawText(this.ctx, s, x + o, y + o, sh, sc); drawText(this.ctx, s, x, y, col, sc); }
+  ctr(s, y, col, sc = 1, sh = C.ink) { this.txt(s, Math.round((VW - textW(s, sc)) / 2), y, col, sc, sh); }
+  panel(x, y, w, h) {
+    const c = this.ctx;
+    c.fillStyle = C.ink; c.fillRect(x - 1, y - 1, w + 2, h + 2);
+    c.fillStyle = C.amberD; c.fillRect(x, y, w, h);
+    c.fillStyle = C.plum; c.fillRect(x + 1, y + 1, w - 2, h - 2);
+    c.fillStyle = C.burgD; c.fillRect(x + 3, y + 3, w - 6, 1); c.fillRect(x + 3, y + h - 4, w - 6, 1); // inner rule
+    c.fillStyle = C.amber; for (const [cx, cy] of [[x, y], [x + w - 2, y], [x, y + h - 2], [x + w - 2, y + h - 2]]) c.fillRect(cx, cy, 2, 2);
+  }
+  plate(x, y, w, h, edge = C.ink) {
+    const c = this.ctx;
+    c.fillStyle = edge; c.fillRect(x - 1, y - 1, w + 2, h + 2);
+    c.fillStyle = C.plum; c.fillRect(x, y, w, h);
+  }
+  button(b, g) {
+    const m = g.mouse, hov = m.x >= b.x && m.x <= b.x + b.w && m.y >= b.y && m.y <= b.y + b.h, pr = hov && m.down, c = this.ctx;
+    const art = b.art && this[b.art];
+    if (art && art.complete && art.naturalWidth) {          // the user's artwork as the button face: a dark base (no white), the rings, a green glow on hover / a dark veil when pressed, and a dark plate behind the label
+      c.fillStyle = C.ink; c.fillRect(b.x - 1, b.y - 1, b.w + 2, b.h + 2);
+      c.fillStyle = C.ink; c.fillRect(b.x, b.y, b.w, b.h);
+      const sm = c.imageSmoothingEnabled; c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high'; c.drawImage(art, b.x, b.y, b.w, b.h); c.imageSmoothingEnabled = sm;
+      if (this.beatPulse > 0.01) { c.fillStyle = 'rgba(120,255,90,' + (0.2 * this.beatPulse).toFixed(3) + ')'; c.fillRect(b.x, b.y, b.w, b.h); }          // the button glows on the beat
+      if (pr) { c.fillStyle = 'rgba(40,10,60,0.32)'; c.fillRect(b.x, b.y, b.w, b.h); } else if (hov) { c.fillStyle = 'rgba(90,230,70,0.30)'; c.fillRect(b.x, b.y, b.w, b.h); }
+      const tw = textW(b.label, 2), tx = Math.round(b.x + (b.w - tw) / 2), ty = b.y + 3 + (pr ? 1 : 0);
+      c.fillStyle = 'rgba(14,8,26,0.82)'; c.fillRect(tx - 3, ty - 2, tw + 6, 14);
+      drawText(c, b.label, tx, ty, pr ? '#2f9a2a' : hov ? '#b4f58c' : '#5ee83c', 2);   // a green label
+      return;
+    }
+    c.fillStyle = C.ink; c.fillRect(b.x - 1, b.y - 1, b.w + 2, b.h + 2);
+    c.fillStyle = pr ? C.amberD : hov ? C.amberL : C.amber; c.fillRect(b.x, b.y, b.w, b.h);
+    if (!pr) { c.fillStyle = C.amberD; c.fillRect(b.x, b.y + b.h - 2, b.w, 2); }
+    drawText(c, b.label, Math.round(b.x + (b.w - textW(b.label, 2)) / 2), b.y + 3 + (pr ? 1 : 0), C.ink, 2);
+  }
+
+  // on-screen controls (touch devices only): each button wears the user's neon ring (TOUCH_ART) with its symbol drawn over it in pixels, light with a dark edge so it reads on the
+  // artwork; a held button grows a little and lights up. Without the image (not loaded yet) the old plates are drawn.
+  // THE SMOOTH LAYER (the user's words: "render the new control buttons and smooth them"): the buttons are drawn on their own canvas (#touch, over the 320 x 180 pixel overlay, aligned with it, at the device's
+  // resolution, not pixelated) with the 256 px version of the ring picture (TOUCH_ART.hi), the arrows and the pause bars as anti-aliased vector shapes with a soft shadow, and a held button that eases up (it grows
+  // to 1.1 and glows lilac, smoothly in about 0.15 s) instead of jumping. The 'hop off' plate of the scooter stays in the pixel overlay (it is pixel text). Without the canvas or the picture the pixel buttons below are drawn.
+  touchLayer() {
+    if (this._tl === undefined) {
+      const cv = typeof document !== 'undefined' ? document.getElementById('touch') : null;
+      this._tl = cv && typeof TOUCH_ART !== 'undefined' && TOUCH_ART.hi ? { cv, ctx: cv.getContext('2d'), img: new Image(), press: {}, t: null, dirty: false, syncT: -1e9 } : null;
+      if (this._tl) this._tl.img.src = TOUCH_ART.hi.src;
+    }
+    return this._tl;
+  }
+  smoothButton(L, g, t, p, fade) {
+    const c = L.ctx, k = L.cv.width / (VW + 2 * TOUCH_OUT), cx = t.x + (t.w >> 1), cy = t.y + (t.h >> 1), f = t.id === 'pause' ? 22 : 42, s = f * (1 + 0.1 * p);
+    c.setTransform(k, 0, 0, k, TOUCH_OUT * k, 0); c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
+    c.globalAlpha = (0.8 + 0.2 * p) * fade;
+    if (p > 0.02) { const s2 = s * (1 + 0.18 * p); c.globalAlpha = 0.35 * p * fade; c.drawImage(L.img, cx - s2 / 2, cy - s2 / 2, s2, s2); c.globalAlpha = (0.8 + 0.2 * p) * fade; }      // the glow of a held button: the ring drawn once more, larger and faint (the canvas blur it replaced is very slow on phone GPUs)
+    c.drawImage(L.img, cx - s / 2, cy - s / 2, s, s);
+    // the symbol: a soft dark shadow, then the light shape, both with rounded corners (a stroke of the same colour round the polygon)
+    const poly = pts => { c.beginPath(); pts.forEach(([x, y], i) => i ? c.lineTo(x, y) : c.moveTo(x, y)); c.closePath(); };
+    const bars = () => { for (const x of [-4.4, 1.4]) { c.beginPath(); if (c.roundRect) c.roundRect(x, -4.6, 3, 9.2, 1.1); else c.rect(x, -4.6, 3, 9.2); c.fill(); c.stroke(); } };
+    const shape = { left: [[-6.5, 0], [3, -9], [3, 9]], right: [[6.5, 0], [-3, -9], [-3, 9]], jump: [[0, -6.5], [-9, 3], [9, 3]], slide: [[0, 6.5], [-9, -3], [9, -3]] }[t.id];
+    c.save(); c.translate(cx, cy); c.scale(f / 42 * (1 + 0.1 * p), f / 42 * (1 + 0.1 * p)); c.lineJoin = 'round'; c.lineWidth = 1.6; c.globalAlpha = fade;
+    for (const [dx, dy, fill] of [[0.9, 0.9, 'rgba(24,12,36,0.75)'], [0, 0, p > 0.5 ? '#ffffff' : '#f2ead6']]) {
+      c.save(); c.translate(dx, dy); c.fillStyle = fill; c.strokeStyle = fill; if (shape) { poly(shape); c.fill(); c.stroke(); } else bars(); c.restore();
+    }
+    c.restore(); c.globalAlpha = 1;
+  }
+  drawTouch(g) {
+    const L = this.touchLayer();
+    if (!g.touch || (g.state !== 'play' && g.state !== 'race')) { if (L) { if (L.dirty) { L.ctx.setTransform(1, 0, 0, 1, 0, 0); L.ctx.clearRect(0, 0, L.cv.width, L.cv.height); L.dirty = false; } L.t = null; L.sig = null; } return; }
+    const sm = L && L.img.complete && L.img.naturalWidth ? L : null;
+    if (sm) {
+      const now = performance.now(); if (now - sm.syncT > 500 && g.fitTouch) { g.fitTouch(); sm.syncT = now; }                // (keeps the layer on the screen canvas, whatever the layout does)
+      const dt = sm.t === null ? 1 : Math.max(0, Math.min(0.1, g.time - sm.t)); sm.t = g.time; this._fade = 1 - (g.fadeIn > 0 ? Math.min(1, g.fadeIn * g.fadeIn) : 0);
+      for (const id of ['left', 'right', 'slide', 'jump', 'pause']) { const target = Object.values(g.held).includes(id) ? 1 : 0, p = sm.press[id] || 0; sm.press[id] = p + (target - p) * (1 - Math.exp(-18 * dt)); }
+      // PERFORMANCE: the layer is cleared and redrawn only when something on it changed (a button easing in or out, the fade, a resize), not on every frame: a still layer costs nothing
+      const sig = ['left', 'right', 'slide', 'jump', 'pause'].map(id => (sm.press[id] || 0).toFixed(2)).join() + '|' + this._fade.toFixed(2) + '|' + sm.cv.width + 'x' + sm.cv.height;
+      sm.redraw = sig !== sm.sig; sm.sig = sig;
+      if (sm.redraw) { sm.ctx.setTransform(1, 0, 0, 1, 0, 0); sm.ctx.clearRect(0, 0, sm.cv.width, sm.cv.height); sm.dirty = true; sm.draws = (sm.draws || 0) + 1; }
+    }
+    const c = this.ctx, on = new Set(Object.values(g.held));
+    if (!this.touchImg && typeof TOUCH_ART !== 'undefined') { this.touchImg = new Image(); this.touchImg.src = TOUCH_ART.src; }
+    const art = this.touchImg && this.touchImg.complete && this.touchImg.naturalWidth ? this.touchImg : null;
+    for (const t of TOUCH) {
+      if (t.id === 'scooter') {                                                  // 'hop off': only while riding
+        if (!g.riding) continue;
+        c.globalAlpha = 0.85; c.fillStyle = C.ink; c.fillRect(t.x - 1, t.y - 1, t.w + 2, t.h + 2); c.fillStyle = on.has('scooter') ? C.burgD : C.plum; c.fillRect(t.x, t.y, t.w, t.h);
+        c.fillStyle = C.amberD; c.fillRect(t.x, t.y, t.w, 1); c.fillRect(t.x, t.y + t.h - 1, t.w, 1); c.globalAlpha = 1;
+        this.scooterGlyph(t.x + 4, t.y + 5, C.bone); this.txt('HOP OFF', t.x + 20, t.y + 8, C.bone, 1); continue;
+      }
+      if (sm) { if (sm.redraw) this.smoothButton(sm, g, t, sm.press[t.id] || 0, this._fade); continue; }
+      const hot = on.has(t.id), cx = t.x + (t.w >> 1), cy = t.y + (t.h >> 1);
+      if (art) {
+        const f = t.id === 'pause' ? TOUCH_ART.small : TOUCH_ART.big, k = hot ? 1.1 : 1, w = Math.round(f.w * k), h = Math.round(f.h * k);
+        c.globalAlpha = hot ? 1 : 0.8; c.drawImage(art, f.x, f.y, f.w, f.h, cx - (w >> 1), cy - (h >> 1), w, h); c.globalAlpha = 1;
+      } else {
+        c.globalAlpha = 0.82;
+        c.fillStyle = C.ink; c.fillRect(t.x - 1, t.y - 1, t.w + 2, t.h + 2);
+        c.fillStyle = hot ? C.burgD : C.plum; c.fillRect(t.x, t.y, t.w, t.h);
+        c.fillStyle = hot ? C.amber : C.amberD; c.fillRect(t.x, t.y, t.w, 1); c.fillRect(t.x, t.y + t.h - 1, t.w, 1);
+        c.globalAlpha = 1;
+      }
+      for (const [dx, dy, col] of art ? [[1, 1, C.ink], [0, 0, hot ? '#ffffff' : C.bone]] : [[0, 0, hot ? C.amberL : C.bone]]) {   // the symbol: a dark shadow, then the light one
+        c.fillStyle = col; const x = cx + dx, y = cy + dy;
+        if (t.id === 'pause') { c.fillRect(x - 3, y - 3, 2, 6); c.fillRect(x + 1, y - 3, 2, 6); continue; }
+        for (let i = 0; i < 9; i++) {                                              // (a little bigger than before, like the buttons: 9 rows instead of 7)
+          if (t.id === 'left') c.fillRect(x - 6 + i, y - i, 1, 2 * i + 1);
+          else if (t.id === 'right') c.fillRect(x + 6 - i, y - i, 1, 2 * i + 1);
+          else if (t.id === 'jump') c.fillRect(x - i, y - 6 + i, 2 * i + 1, 1);
+          else c.fillRect(x - i, y + 6 - i, 2 * i + 1, 1);
+        }
+      }
+    }
+  }
+
+  // a tiny kick scooter in pixels (13 x 10), top-left at (x, y)
+  scooterGlyph(x, y, col) {
+    const c = this.ctx; c.fillStyle = col;
+    c.fillRect(x + 9, y, 1, 8); c.fillRect(x + 7, y, 4, 1);                  // stem and handlebar
+    c.fillRect(x + 1, y + 6, 9, 1);                                          // deck
+    c.fillRect(x, y + 7, 3, 3); c.fillRect(x + 9, y + 7, 3, 3);              // wheels
+  }
+
+  // the cutscene's frame: letterbox bars sliding in, the caption (GARE DU MIDI / ALL ABOARD / NEXT ZONE) and the fade to black (g.scene.fade) and from black (g.fadeIn) round it
+  drawSceneOverlay(g) {
+    const c = this.ctx, S = g.scene;
+    if (S) {
+      const k = Math.min(1, S.t / 0.7), bar = g.vr ? 0 : Math.round(24 * (k * k * (3 - 2 * k)));
+      if (bar) { c.globalAlpha = 1; c.fillStyle = C.ink; c.fillRect(0, 0, VW, bar); c.fillRect(0, VH - bar, VW, bar);
+      c.fillStyle = C.amber; c.fillRect(0, bar, VW, 1); c.fillRect(0, VH - bar - 1, VW, 1); }
+      if (S.caption) { const w2 = textW(S.caption, 2) + 14, x = Math.round((VW - w2) / 2); c.globalAlpha = 0.9; c.fillStyle = C.ink; c.fillRect(x - 1, 28, w2 + 2, 20); c.fillStyle = C.plum; c.fillRect(x, 29, w2, 18); c.fillStyle = C.amberD; c.fillRect(x, 29, w2, 1); c.fillRect(x, 46, w2, 1); c.globalAlpha = 1; this.ctr(S.caption, 33, C.amberL, 2); }
+    }
+    const a = Math.max(S ? S.fade : 0, g.fadeIn > 0 ? g.fadeIn * g.fadeIn : 0);
+    if (a > 0.003 && !g.vr) { c.globalAlpha = Math.min(1, a); c.fillStyle = '#000'; c.fillRect(0, 0, VW, VH); c.globalAlpha = 1; }
+  }
+
+  // a vehicle in pixels, to tell the player what the disc is for: a kick scooter (lime) or the electromagnetic skateboard (cyan deck, red engine ring), about 28 x 18, top-left at (x, y)
+  vehicleGlyph(kind, x, y, col) {
+    const c = this.ctx; c.fillStyle = col;
+    if (kind === 'board') {
+      c.fillRect(x + 3, y + 8, 22, 3); c.fillRect(x, y + 6, 4, 2); c.fillRect(x + 24, y + 6, 4, 2);                  // the deck with its kicked nose and tail
+      c.fillStyle = '#ff3a6a'; c.fillRect(x + 4, y + 11, 20, 1); c.fillRect(x + 8, y + 13, 12, 1);                       // the glow under it
+      c.fillStyle = col; c.fillRect(x + 11, y + 15, 2, 2); c.fillRect(x + 15, y + 15, 2, 2);                           // the magnetic pads
+    } else {
+      c.fillRect(x + 20, y, 2, 15); c.fillRect(x + 16, y, 9, 2);                                                       // stem and handlebar
+      c.fillRect(x + 3, y + 13, 19, 2);                                                                                 // deck
+      c.fillRect(x, y + 14, 6, 5); c.fillRect(x + 19, y + 14, 6, 5);                                                   // wheels
+    }
+  }
+
+  // the indicator for a parked scooter, skateboard or station (g.scooterHint, placed by Renderer3D): not a sign, a translucent DISC on the ground right under it, made from the user's green swirl
+  // picture (RING_ART, reshaped into a round disc), squashed into the ground's perspective ellipse, turning slowly and breathing a little. It is big enough to see from far away, and it says what it
+  // is for: a floating pixel drawing of the vehicle above it (lime scooter / cyan skateboard) and, below, the key (E, or TAP) and RIDE SCOOTER / RIDE SKATEBOARD. Pressing E or tapping / clicking
+  // the disc (or anything of it) gets on (Game.mount). It is armed from 140 m ahead to 60 m behind, and pinned low on its side once the vehicle is behind the camera. Until the picture has loaded
+  // (or without it) the disc is drawn with ellipses.
+  drawScooterHint(g) {
+    const h = g.scooterHint; if (!h || g.riding) return;
+    const c = this.ctx, a = Math.max(0.5, Math.min(1, 1.35 - Math.abs(h.ahead) / (h.ahead < 0 ? 90 : 150))), board = h.kind === 'board', label = g.touch ? 'TAP' : 'E', what = board ? 'RIDE SKATEBOARD' : 'RIDE SCOOTER';
+    if (!this.ringImg && typeof RING_ART !== 'undefined') { this.ringImg = new Image(); this.ringImg.src = RING_ART.a; }
+    const art = this.ringImg && this.ringImg.complete && this.ringImg.naturalWidth;
+    const rx = 14 + Math.min(36, h.rx * 1.4), ry = Math.max(h.ry * 1.25, rx * 0.42), k = 1 + 0.05 * Math.sin(g.time * 3);        // the disc's half axes on the ground (never small)
+    if (art) {
+      c.save(); c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high'; c.globalAlpha = (h.pinned ? 0.9 : 0.82) * a;
+      c.translate(h.x, h.y); c.scale(1, ry / rx); c.rotate(g.time * 0.7); c.drawImage(this.ringImg, -rx * k, -rx * k, 2 * rx * k, 2 * rx * k);          // (turned, then squashed: a disc seen at a slant)
+      c.restore();
+    } else {
+      c.save(); c.beginPath(); c.ellipse(h.x, h.y, rx, ry, 0, 0, 6.2832); c.fillStyle = '#7ddc3a'; c.globalAlpha = 0.22 * a; c.fill();
+      c.lineWidth = 1; c.strokeStyle = '#b6ff7a'; c.globalAlpha = 0.75 * a; c.beginPath(); c.ellipse(h.x, h.y, rx, ry, 0, 0, 6.2832); c.stroke(); c.restore();
+    }
+    // the vehicle floating above the disc, bobbing, in its own colour with a dark edge (translucent, no plate)
+    const bob = Math.round(Math.sin(g.time * 4) * 2), gx = Math.round(h.x - 14), gy = Math.round(h.y - ry - 28) + bob, col = board ? '#35e6ff' : '#8ff04a';
+    c.globalAlpha = 0.55 * a; this.vehicleGlyph(h.kind, gx + 1, gy + 1, C.ink); c.globalAlpha = 0.92 * a; this.vehicleGlyph(h.kind, gx, gy, col);
+    // what to press, and for what: text only (no plate, like the rest of the indicator), at the left edge under the counters, out of the road's way; the disc and the vehicle above it stay on the spot
+    const px = 5, py = 62, tcol = board ? '#9ff4ff' : '#d8ffb0';
+    c.globalAlpha = 0.6 * a; this.txt(label, px + 1, py + 1, C.ink, 2); this.txt(what, px + 1, py + 14, C.ink, 1);
+    c.globalAlpha = 0.98 * a; this.txt(label, px, py, '#d8ffb0', 2);
+    c.globalAlpha = 0.95 * a; this.txt(what, px, py + 13, tcol, 1);
+    c.globalAlpha = 1;
+  }
+
+  drawHud(g) {
+    const w = g.world, p = g.p, T = w.track, pulse = g.coinPulse > 0, pk = g.pk, dy = pk ? 9 : 0;        // pk: the 3D build's power-ups, shards and missions (null in the classic game: nothing below changes)
+    this.plate(3, 3, 62, pk ? 33 : 24);
+    this.txt('DIST ' + Math.floor(p.z / 10) + ' M', 7, 6, C.bone);
+    if (this.menu3d) {                                      // the 3D coin's rings, small: lilac rim, pink, green, cream, lime, mint core
+      const cx = 11, cy = pulse ? 18 : 19;
+      [[5, '#d9baff'], [4.4, '#ff2a8a'], [3.8, '#62d444'], [2.8, '#e9f7a8'], [2.1, '#8dff1f'], [1.4, '#52ff2e'], [0.7, '#c8ffb8']].forEach(([r, col]) => { this.ctx.fillStyle = col; this.ctx.beginPath(); this.ctx.arc(cx, cy, r, 0, 6.2832); this.ctx.fill(); });
+    } else this.ctx.drawImage(SPR.coin[pulse ? 1 : 0], 7, pulse ? 14 : 15);
+    this.txt('' + g.coins, 18, 17, pulse ? C.bone : C.amberL);
+    const pb = w.playerBand(p.z, p.x), lb = BIOMES[pb.to] && BIOMES[pb.to].label, nm = lb && pb.t > 0.5 ? lb : T.segments[pb.route].name, nw = textW(nm) + 8;     // inside the aquarium tunnel the plate shows its own name
+    this.plate(VW - 3 - nw, 3, nw, 11);
+    this.txt(nm, VW - 3 - nw + 4, 6, C.tealL);
+    if (pk) this.drawPerksHud(g);
+    if (g.prompt && g.state === 'play') { // junction visible: LEFT / RIGHT with the current pick highlighted
+      const f = g.prompt.fork, sel = g.prompt.sel;
+      const l = '< LEFT: ' + T.segments[f.left.route].name, r = 'RIGHT: ' + T.segments[f.right.route].name + ' >';
+      const lw = textW(l) + 8, rw = textW(r) + 8;
+      this.plate(5, 31 + dy, lw, 11, sel === 'left' ? C.amber : C.ink);
+      this.txt(l, 9, 34 + dy, sel === 'left' ? C.amberL : C.stoneL);
+      this.plate(VW - 5 - rw, 31 + dy, rw, 11, sel === 'right' ? C.amber : C.ink);
+      this.txt(r, VW - 5 - rw + 4, 34 + dy, sel === 'right' ? C.amberL : C.stoneL);
+    } else if (g.banner && g.banner.t > 0) {
+      const bw = textW(g.banner.text, 2) + 12;
+      this.plate(Math.round((VW - bw) / 2), 30 + dy, bw, 15, C.amber);
+      this.ctr(g.banner.text, 33 + dy, C.amberL, 2);
+    }
+  }
+
+  // The journey through a Stargate (3D build, Portal): between the entry door and the exit door of a passage the screen is lit pink from its corners (the middle stays clear: the road is still played),
+  // thin light streaks fly outward from the centre, and a flash goes over the screen as each door is crossed. `portal.k` / `portal.flash` are set by Portal.update.
+  drawPortalFx(g) {
+    const c = this.ctx, P = g.portal, k = P.k, f = P.flash, R = Math.hypot(VW, VH) / 2, still = P.reduced;
+    if (k > 0.004) {
+      const gr = c.createRadialGradient(VW / 2, VH / 2, R * 0.34, VW / 2, VH / 2, R); gr.addColorStop(0, 'rgba(255,46,150,0)'); gr.addColorStop(1, 'rgba(255,46,150,' + (0.62 * k).toFixed(3) + ')');
+      c.fillStyle = gr; c.fillRect(0, 0, VW, VH); c.lineWidth = 1;
+      for (let i = 0; i < 28; i++) {
+        const a = i / 28 * 6.2832 + Math.sin(i * 12.9898) * 0.2, ph = still ? 0.5 : (g.time * (0.9 + (i % 5) * 0.17) + i * 0.37) % 1, r0 = R * (0.4 + 0.5 * ph * ph), r1 = r0 + R * 0.12 * (0.4 + ph);
+        c.strokeStyle = 'rgba(255,214,238,' + (k * (0.12 + 0.55 * ph)).toFixed(3) + ')'; c.beginPath(); c.moveTo(VW / 2 + Math.cos(a) * r0, VH / 2 + Math.sin(a) * r0 * 0.5625); c.lineTo(VW / 2 + Math.cos(a) * r1, VH / 2 + Math.sin(a) * r1 * 0.5625); c.stroke();
+      }
+    }
+    if (f > 0.01) { c.fillStyle = 'rgba(255,238,248,' + (0.5 * f).toFixed(3) + ')'; c.fillRect(0, 0, VW, VH); }
+  }
+
+  // The 3D build's depth layer on the HUD, kept to the edges and the sky so the road stays clear: under the coin count the shards of this run and the saved total, top right the mission (run progress),
+  // top centre one small chip per active power-up (a bar for what is left, and the seconds), brief toasts above the runner, and a plate when a mission is completed.
+  drawPerksHud(g) {
+    const pk = g.pk, c = this.ctx, m = pk.mission, t = g.time, live = g.state === 'play' || g.state === 'pause';
+    const gem = (x, y, col) => { c.fillStyle = col; c.fillRect(x + 1, y, 2, 1); c.fillRect(x, y + 1, 4, 2); c.fillRect(x + 1, y + 3, 2, 1); };
+    gem(7, 29, '#c58bff'); this.txt('' + (pk.shards + pk.rewardShards), 14, 28, '#e6d2ff'); this.txt('ALL ' + pk.save.shards, 30, 28, C.stoneL);
+    if (m) {                                                                                           // the mission: what to do, how far along, and a bar
+      const done = m.done, txt = done ? 'DONE +' + REWARD.mission : m.progress + '/' + m.goal + ' ' + m.label, w = Math.max(48, textW(txt) + 11), x = VW - 3 - w, hot = pk.flash > 0 && Math.floor(t * 8) % 2 === 0;
+      this.plate(x, 17, w, 13, hot ? C.amber : done ? C.amberD : C.teal);
+      gem(x + 3, 20, '#ffd24a'); this.txt(txt, x + 9, 19, done ? C.amberL : C.bone);
+      c.fillStyle = C.ink; c.fillRect(x + 3, 26, w - 6, 2); c.fillStyle = done ? C.amberL : C.tealL; c.fillRect(x + 3, 26, Math.round((w - 6) * Math.min(1, m.progress / m.goal)), 2);
+    }
+    if (live) {
+      const list = ['magnet', 'aura', 'dash'].filter(k => pk.t[k] > 0), W = 35, x0 = Math.round(160 - list.length * (W + 2) / 2 + 1);
+      const COL = { magnet: '#ff6a7a', aura: '#5ff0d0', dash: '#ffb347' }, NAME = { magnet: 'MAG', aura: 'AURA', dash: 'DASH' };
+      list.forEach((k, i) => {
+        const x = x0 + i * (W + 2), low = pk.t[k] < 2 && Math.floor(t * 6) % 2 === 0;                       // the last two seconds blink
+        this.plate(x, 19, W, 11, COL[k]); c.fillStyle = C.plum; c.fillRect(x, 19, W, 11);
+        c.fillStyle = low ? C.stoneD : COL[k]; c.fillRect(x + 2, 27, Math.max(1, Math.round((W - 4) * pk.t[k] / pk.tot[k])), 2);
+        this.txt(NAME[k] + ' ' + Math.ceil(pk.t[k]), x + 3, 21, low ? C.stoneL : C.bone);
+      });
+      pk.pops.forEach((q, i) => {                                                                          // toasts rise from just above the runner and fade out
+        const a = q.t < 0.8 ? 1 : Math.max(0, 1 - (q.t - 0.8) / 0.3), y = Math.round(92 + i * 9 - q.t * 14);
+        c.globalAlpha = a; this.ctr(q.txt, y, q.col); c.globalAlpha = 1;
+      });
+      if (pk.flash > 0.2) {                                                                                // mission completed: a plate in the sky, gold, with the reward
+        const bw = textW('MISSION COMPLETE', 2) + 14, bx = Math.round((VW - bw) / 2);
+        c.globalAlpha = Math.min(1, pk.flash * 2); this.plate(bx, 40, bw, 24, C.amber); this.ctr('MISSION COMPLETE', 43, C.amberL, 2);
+        this.ctr('+' + REWARD.mission + '  +' + REWARD.shardsPerMission + ' SHARD', 55, C.bone); c.globalAlpha = 1;
+      }
+    }
+  }
+
+  // 3D menu: title block on the left, the animated character fills the rest of the screen
+  // a panel made of the user's artwork (an Image), optionally under a dark veil of the given strength; false if the image is not available
+  artPanel(img, x, y, w, h, veil) {
+    if (!(img && img.complete && img.naturalWidth)) return false;
+    const c = this.ctx, sm = c.imageSmoothingEnabled;
+    c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high'; c.drawImage(img, x, y, w, h); c.imageSmoothingEnabled = sm;
+    if (veil) { c.fillStyle = 'rgba(14,8,26,' + veil + ')'; c.fillRect(x, y, w, h); }
+    return true;
+  }
+
+  drawTitle3D(g) {
+    // both menu panels are the user's artwork (this.titleImg / this.controlsImg, set by the 3D front end). The title text sits over the dark part of the first, to the
+    // right of its light wall, with its glowing red line between 'PROTOTYPE 01' and 'TAKE A FORK.'; the controls panel is drawn under a dark veil so its text stays
+    // readable. Without an image the usual bordered panel is drawn.
+    const art1 = this.artPanel(this.titleImg, 8, 8, 124, 52, 0); if (!art1) this.panel(8, 8, 124, 52);
+    if (!this.artPanel(this.controlsImg, 8, 66, 124, 40, 0.25)) this.panel(8, 66, 124, 40);
+    const tx = art1 ? 34 : 14;
+    this.txt('WAYFARER', tx, 16, C.amber, 2, C.burgD);
+    this.txt('PROTOTYPE 01', tx, 38, C.tealL, 1);
+    this.txt('TAKE A FORK.', tx, 48, C.sand, 1);
+    const tc = this.controlsImg && this.controlsImg.complete && this.controlsImg.naturalWidth ? C.tealL : C.bone;     // over the artwork the controls text is light teal (no white)
+    if (g.vr) { /* VR: no keyboard / touch hints */ }
+    else if (g.touch) { this.txt('HOLD < > STEER', 14, 74, tc, 1); this.txt('UP JUMP  DOWN SLIDE', 14, 84, tc, 1); this.txt('II PAUSE', 14, 94, tc, 1); }
+    else { this.txt('Q D / ARROWS STEER', 14, 74, tc, 1); this.txt('Z / SPACE / UP  JUMP', 14, 84, tc, 1); this.txt('S / DOWN SLIDE  P PAUSE', 14, 94, tc, 1); }
+    this.button(BTN.title, g);
+    if (g.r && g.r.nextCharacter) this.button({ x: BTN.char.x, y: BTN.char.y, w: BTN.char.w, h: BTN.char.h, label: g.r.character === 'zagla' ? 'ZAGLA' : 'STRAWBERRY' }, g);       // the character button: who runs (the other one on click, or the C key)
+    if (!g.touch && !g.vr) { this.txt('OR PRESS ENTER', 24, 144, C.stoneL, 1); if (g.r && g.r.nextCharacter) this.txt('C CHARACTER', 232, 144, C.stoneL, 1); }
+  }
+
+  drawTitle(g) {
+    if (this.menu3d) return this.drawTitle3D(g);
+    this.ctx.drawImage(SPR.signForest, 14, 96); this.ctx.drawImage(SPR.signMarket, 272, 96); // the two roads, framing the panel
+    this.panel(60, 30, 200, 124);
+    this.ctr('WAYFARER', 41, C.amber, 4, C.burgD);
+    this.ctr('PROTOTYPE 01', 68, C.tealL);
+    if (g.touch) {
+      this.ctr('HOLD < > TO STEER', 84, C.bone);
+      this.ctr('UP  JUMP   DOWN  SLIDE', 93, C.bone);
+      this.ctr('II  PAUSE', 102, C.bone);
+    } else {
+      this.ctr('Q D / ARROWS  STEER', 84, C.bone);
+      this.ctr('Z / SPACE / UP  JUMP', 93, C.bone);
+      this.ctr('S / DOWN  SLIDE   P  PAUSE', 102, C.bone);
+    }
+    this.ctr('TAKE A FORK. PICK A ROAD.', 112, C.sand);
+    this.button(BTN.title, g);
+    if (!g.touch) this.ctr('OR PRESS ENTER', 145, C.stoneL);
+  }
+
+  drawPause(g) {
+    this.ctx.fillStyle = this.dither; this.ctx.fillRect(0, 0, VW, VH);
+    this.panel(100, 54, 120, 70);
+    this.ctr('PAUSED', 64, C.amber, 3, C.burgD);
+    this.button(BTN.pause, g);
+    if (!g.touch && !g.vr) this.ctr('P  ESC', 110, C.stoneL);
+  }
+
+  drawOver(g) {
+    this.ctx.fillStyle = this.dither; this.ctx.fillRect(0, 0, VW, VH);
+    if (g.pk) {                                                                    // the 3D build: a taller panel with what this run earned and what is saved
+      const pk = g.pk; this.panel(80, 14, 160, 128);
+      this.ctr('GAME OVER', 20, C.burgL, 3, C.ink);
+      this.ctr('DIST ' + Math.floor(g.p.z / 10) + ' M', 44, C.bone);
+      this.ctr('COINS ' + g.coins, 53, C.amberL);
+      this.ctr('SCORE ' + g.score(), 62, C.bone);
+      this.ctr('BEST ' + g.best, 71, C.tealL);
+      this.ctr('THIS RUN  SHARDS ' + (pk.shards + pk.rewardShards) + '  WAYMARKS ' + pk.waymarks, 83, '#e6d2ff');
+      this.ctr('MISSIONS ' + pk.missionsDone + '  NEAR ' + pk.nearMisses + '  BONUS ' + pk.bonus, 92, C.sand);
+      this.ctr('SAVED  SHARDS ' + pk.save.shards + '  MISSIONS ' + pk.save.missions.done, 101, C.stoneL);
+    } else {
+    this.panel(80, 30, 160, 112);
+    this.ctr('GAME OVER', 38, C.burgL, 3, C.ink);
+    this.ctr('DIST ' + Math.floor(g.p.z / 10) + ' M', 64, C.bone);
+    this.ctr('COINS ' + g.coins, 74, C.amberL);
+    this.ctr('SCORE ' + g.score(), 86, C.bone);
+    this.ctr('BEST ' + g.best, 96, C.tealL);
+    }
+    this.button(BTN.over, g);
+    if (!g.touch && !g.vr) this.ctr('SPACE  ENTER  R', 133, C.sand);
+  }
+}

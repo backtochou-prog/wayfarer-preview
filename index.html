@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#efb27c">
+<title>Wayfarer</title>
+<link rel="icon" href="data:,">
+<style>
+  html, body { margin: 0; height: 100%; background: #efb27c; overflow: hidden; overscroll-behavior: none; }
+  body { height: 100dvh; display: flex; align-items: center; justify-content: center; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; touch-action: none; }
+  /* the 3D view fills the window; the pixel-art HUD/menu canvas (320x180, whole-number scale) sits centred on top of it */
+  #gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  #screen { position: relative; image-rendering: pixelated; image-rendering: crisp-edges; touch-action: none; background: transparent; }
+  /* the touch buttons are drawn smooth, on their own canvas at the device's resolution, over the pixel overlay (clicks pass through it) */
+  #touch { position: fixed; left: 0; top: 0; pointer-events: none; image-rendering: auto; background: transparent; touch-action: none; }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<canvas id="screen" width="320" height="180"></canvas>
+<canvas id="touch" width="640" height="360"></canvas>
+<script src="vendor/three.min.js"></script>
+<script src="src/biomes.js"></script>
+<script src="src/track.js"></script>
+<script src="src/world.js"></script>
+<script src="src/sprites.js"></script>
+<script src="src/font.js"></script>
+<script src="src/touch_assets.js"></script><script src="src/ring_assets.js"></script><script src="src/render.js"></script>
+<script src="src/perks.js"></script>
+<script src="src/game.js"></script>
+<script src="src/audio.js"></script>
+<script src="src3d/kit.js"></script>
+<script src="src3d/stretch.js"></script>
+<script src="src3d/tree_assets.js"></script><script src="src3d/flower_assets.js"></script><script src="src3d/tree_sprite.js"></script>
+<script src="src3d/env_city.js"></script>
+<script src="src3d/env_forest.js"></script>
+<script src="src3d/env_market.js"></script><script src="src3d/env_terrace.js"></script>
+<script src="src3d/neon_assets.js"></script><script src="src3d/neon_assets2.js"></script><script src="src3d/neon_assets3.js"></script><script src="src3d/neon_assets4.js"></script><script src="src3d/neon_art.js"></script>
+<script src="src3d/neon_shops.js"></script><script src="src3d/env_neon.js"></script><script src="src3d/coast_assets.js"></script><script src="src3d/coast_art.js"></script><script src="src3d/parasol_assets.js"></script><script src="src3d/island_parasol_assets.js"></script><script src="src3d/parasol_art.js"></script><script src="src3d/env_coast.js"></script><script src="src3d/island_assets.js"></script><script src="src3d/island_art.js"></script><script src="src3d/island_places.js"></script><script src="src3d/env_town.js"></script><script src="src3d/env_aqua.js"></script><script src="src3d/env_ruins.js"></script>
+<script src="src3d/board_assets.js"></script><script src="src3d/board_art.js"></script><script src="src3d/blossom_assets.js"></script><script src="src3d/blossom_sprite.js"></script><script src="src3d/tram_art.js"></script><script src="src3d/env_tram.js"></script><script src="src3d/env_gare.js"></script><script src="src3d/train3d.js"></script><script src="src3d/crowd3d.js"></script><script src="src3d/utrecht_assets.js"></script><script src="src3d/utrecht_art.js"></script><script src="src3d/env_utrecht.js"></script><script src="src3d/env_vic.js"></script>
+<script src="src3d/signs3d.js"></script>
+<script src="src3d/runner3d.js"></script>
+<script src="src3d/avatar_assets.js"></script>
+<script src="src3d/ui_assets.js"></script>
+<script src="src3d/runner_sprite.js"></script><script src="src3d/zagla_assets.js"></script><script src="src3d/zagla3d.js"></script>
+<script src="src3d/tunnel_ring_assets.js"></script><script src="src3d/tunnel_ring_art.js"></script><script src="src3d/vic_art.js"></script><script src="src3d/sphere_assets.js"></script><script src="src3d/sphere_art.js"></script><script src="src3d/vortex_assets.js"></script><script src="src3d/vortex_art.js"></script><script src="src3d/items3d.js"></script>
+<script src="src3d/fx3d.js"></script>
+<script src="src3d/perks3d.js"></script>
+<script src="src3d/portal_assets.js"></script><script src="src3d/portal_art.js"></script><script src="src3d/portal3d.js"></script>
+<script src="src/race.js"></script><script src="src3d/race_assets.js"></script><script src="src3d/concept_assets.js"></script><script src="src3d/car3d.js"></script><script src="src3d/race3d.js"></script><script src="src3d/kart_assets.js"></script><script src="src3d/kart3d.js"></script>
+<script src="src3d/road3d.js"></script>
+<script src="src3d/saucer3d.js"></script>
+<script src="src3d/renderer3d.js"></script>
+<script src="src3d/xr_input.js"></script><script src="src3d/xr_hud.js"></script><script src="src3d/xr_comfort.js"></script><script src="src3d/xr3d.js"></script>
+<script src="src3d/music_beats.js"></script><script src="src3d/music_beats_coast.js"></script><script src="src3d/music_beats_race.js"></script><script src="src3d/music_beats_kart.js"></script>
+<script src="src3d/main3d.js"></script>
+</body>
+</html>

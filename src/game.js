@@ -1,0 +1,477 @@
+// Game state, input and main loop.
+// Speed starts forgiving and climbs ~1.6 u/s per second to a cap (about 75 s to reach it).
+const BASE_SPEED = 220, MAX_SPEED = 340, ACCEL = 1.6, STEER = 2.7;
+// on-canvas buttons (canvas pixels); the renderer draws them, the game hit-tests them
+// THE KART QUICK MENU (a see-through panel before the start: the two cameras and VR)
+const KMENU = [{ id: 'chase', label: '1 CAMERA', x: 100, y: 64, w: 120, h: 18 }, { id: 'saturn', label: '2 SATURNE', x: 100, y: 88, w: 120, h: 18 }, { id: 'vr', label: '3 VR', x: 100, y: 112, w: 120, h: 18 }];
+const BTN = {
+  title: { x: 110, y: 123, w: 100, h: 16, label: 'START', art: 'startImg' },   // art: the name of a renderer image to draw as the button face (the 3D front end sets it; without it the button is plain amber)
+  pause: { x: 110, y: 88, w: 100, h: 16, label: 'RESUME' },
+  over:  { x: 100, y: 114, w: 120, h: 16, label: 'RUN AGAIN' },
+  char:  { x: 216, y: 123, w: 96, h: 16, label: 'CHARACTER' },   // the 3D front end's character button on the title screen (strawberry / Zagla; the C key too)
+  sound: { x: 298, y: 158, w: 18, h: 16 },     // the sound on / off icon (menu, pause and game-over screens; only when the front end has a GameAudio, g.sfx)
+};
+// touch controls (canvas pixels): hold left/right to steer, tap jump/slide/pause; each finger is tracked separately
+const TOUCH = [
+  { id: 'left',  x: -15,  y: 137, w: 46, h: 42 },        // (pushed out to the screen edges, away from the centre, at the user's request; a little bigger than before, to match the 42 px ring picture they wear: 46 x 42 instead of 38 x 32)
+  { id: 'right', x: 41,  y: 137, w: 46, h: 42 },
+  { id: 'slide', x: 233, y: 137, w: 46, h: 42 },
+  { id: 'jump',  x: 289, y: 137, w: 46, h: 42 },
+  { id: 'pause', x: 145, y: 2,   w: 30, h: 18 },
+  { id: 'scooter', x: 132, y: 154, w: 56, h: 20 },       // 'hop off' (only while riding the scooter); getting on is a tap on the indicator over a parked scooter
+];
+const TOUCH_OUT = 15;      // the smooth buttons may stand this many canvas pixels outside the screen canvas, on each side (the user wanted them nearer the edges of the phone): the touch layer and the pointer listeners cover that margin
+const GRAV = 900, JUMP_V = 268, SLIDE_T = 0.55, P_HW = 0.12;   // P_HW: runner half-width (0.43 m in the 3D build)
+
+class Game {
+  // opts.world / opts.renderer let another front end (the 3D version) reuse this state machine, input and rules
+  constructor(cv, opts = {}) {
+    this.cv = cv;
+    this.world = opts.world || new World(TRACK);
+    this.r = opts.renderer || new Renderer(cv);
+    this.keys = {}; this.held = {}; this.tleft = this.tright = false;
+    this.touch = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches); // shows the on-screen controls
+    this.time = 0; this.best = 0;
+    try { this.best = +localStorage.getItem('wayfarer.best') || 0; } catch (e) {}
+    this.pk = (this.r.supportsPerks && typeof Perks !== 'undefined') ? new Perks(this) : null;               // the 3D build's power-ups, shards and missions (Perks); the classic game has none
+    this.world.extras = !!this.pk;
+    this.portal = (this.r.supportsPortals && typeof Portal !== 'undefined') ? new Portal(this) : null;      // the passages between zones as a journey through a Stargate (3D build only; it draws and sounds, nothing else)
+    this.rare = 0; try { this.rare = +localStorage.getItem('wf.rare') || 0; } catch (e) {}                           // the rare tokens of the race zone, kept between runs
+    this.race = null; this.raceN = 0; this.rl = this.rr = false;
+    this.state = 'title';
+    this.loopOwner = 'window';                                                     // who drives the frames: 'window' (requestAnimationFrame) or 'xr' (the headset, src3d/xr3d.js)
+    this.resetRun();
+    addEventListener('keydown', e => this.onKey(e, true));
+    addEventListener('keyup', e => this.onKey(e, false));
+    addEventListener('blur', () => { this.keys = {}; this.releaseTouch(); if (this.state === 'play') this.state = 'pause'; });
+    this.mouse = { x: -1, y: -1, down: false };
+    const at = e => { const r = cv.getBoundingClientRect(); this.mouse.x = (e.clientX - r.left) * VW / r.width; this.mouse.y = (e.clientY - r.top) * VH / r.height; };
+    cv.addEventListener('pointermove', at);
+    cv.addEventListener('pointerleave', () => { this.mouse.x = this.mouse.y = -1; this.mouse.down = false; });
+    cv.addEventListener('contextmenu', e => e.preventDefault());
+    const zone = () => TOUCH.find(c => (c.id !== 'scooter' || this.riding) && this.mouse.x >= c.x && this.mouse.x <= c.x + c.w && this.mouse.y >= c.y && this.mouse.y <= c.y + c.h);
+    const overHint = () => { const h = this.scooterHint, m = this.mouse; return !!h && !this.riding && Math.abs(m.x - h.x) <= 14 + Math.min(36, h.rx * 1.4) + 24 && m.y >= h.y - 80 && m.y <= h.y + h.ry * 1.6 + 36; };      // the ring under a parked scooter and the scooter above it, with a very generous touch area (it passes at running speed)
+    addEventListener('pointerdown', e => {
+      if (e.target !== cv && !((this.state === 'play' || this.state === 'race') && e.pointerType === 'touch')) return;      // (the touch buttons stand partly outside the screen canvas: in the race too, or the accelerator's outer edge did nothing)
+      at(e); this.mouse.down = true;
+      if (e.pointerType === 'touch') this.touch = true;
+      const c = (this.state === 'play' || this.state === 'race') && this.touch && zone();
+      if (!c && this.state === 'play' && overHint()) { this.mount(); return; }
+      if (this.state === 'race' && this.race && this.race.intro > 0) { this.race.intro = 0; return; }
+      if (this.state === 'race' && this.race && this.race.menu) { const b = KMENU.find(q => this.mouse.x >= q.x && this.mouse.x <= q.x + q.w && this.mouse.y >= q.y && this.mouse.y <= q.y + q.h); if (b) this.kartChoose(b.id); return; }
+      if (!c && this.state === 'race' && this.race && this.race.kart && this.mouse.y < 32) { this.kartCam = (this.kartCam || 0) ? 0 : 1; return; }      // a tap on the top of the screen (the progress bars) switches the kart camera                // a tap or click on the ring gets on the scooter (the touch buttons keep priority)
+      if (c) { try { cv.setPointerCapture(e.pointerId); } catch (err) {} this.hold(e.pointerId, c.id, true); if (this.state === 'race') this.laneQ = (this.laneQ || 0) + (c.id === 'right' ? 1 : c.id === 'left' ? -1 : 0); }
+    });
+    addEventListener('pointermove', e => { // sliding a finger between left and right keeps steering
+      if (this.held[e.pointerId] !== 'left' && this.held[e.pointerId] !== 'right') return;
+      const c = zone(); this.hold(e.pointerId, c && (c.id === 'left' || c.id === 'right') ? c.id : null, false);
+    });
+    const lift = e => { delete this.held[e.pointerId]; this.syncTouch(); };
+    addEventListener('pointercancel', lift);
+    addEventListener('pointerup', e => { // a click counts when released over the same button it started on
+      lift(e);
+      const was = this.mouse.down; this.mouse.down = false; at(e);
+      if (was) this.pressAt(this.mouse.x, this.mouse.y);
+    });
+    addEventListener('resize', () => this.fit()); addEventListener('orientationchange', () => setTimeout(() => this.fit(), 200));
+    this.fit();
+    let last = performance.now(), probe = [], cap = 0;
+    // PERFORMANCE: phones with a 120 Hz (or 144 Hz) screen, as most recent Xiaomi / Redmi are, call this loop twice as often as a 60 Hz phone, and the game drew a full frame every time: twice the work for
+    // the same game. The loop measures the screen's rate over its first 40 frames and, on a screen faster than 100 Hz, draws at most about 60 frames a second (it skips the frames that come early). The game's
+    // clock is the real time, so nothing runs faster or slower. ?fps=0 turns the cap off, ?fps=N sets it.
+    const fq = typeof location !== 'undefined' && location.search.match(/[?&]fps=(\d+)/), fixed = fq ? +fq[1] : -1;
+    this.frameCap = () => cap;
+    const loop = now => {
+      requestAnimationFrame(loop); // re-arm first so one bad frame can never freeze the game
+      if (this.loopOwner !== 'window') { last = now; return; }                         // VR (src3d/xr3d.js) owns the frames while a session runs: this loop stays armed but idle, and resumes with no time jump
+      if (fixed >= 0) cap = fixed ? 1000 / fixed - 1 : 0;
+      else if (probe.length < 40) { probe.push(now); if (probe.length === 40) { const d = probe.slice(1).map((t, i) => t - probe[i]).sort((x, y) => x - y)[19]; cap = d < 10 ? 1000 / 60 - 1.5 : 0; } }
+      if (cap && now - last < cap) return;                                            // too early on a fast screen: skip this one
+      const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now;   // never negative: the first frame's timestamp can precede the clock read at start-up, which used to send the game clock below zero (and hid the pickup sparkle, whose pool marks unused slots with t < 0)
+      this.frame(dt);
+    };
+    requestAnimationFrame(loop);
+  }
+
+  // simulate in slices of at most 1/60 s so jump height and collisions don't depend on the frame rate
+  advance(dt) {
+    const n = Math.max(1, Math.ceil(dt * 60 - 1e-6));
+    for (let i = 0; i < n; i++) this.update(dt / n);
+  }
+
+  draw() { this.r.draw(this); }
+  frame(dt) { this.advance(dt); this.draw(dt); }                                  // one frame: the window loop and the VR loop (src3d/xr3d.js) both call this
+
+  fit() {
+    // whole-number scaling keeps pixels even; on screens too small for 2x (phones in portrait) use the exact fit instead
+    const f = Math.min(innerWidth / VW, innerHeight / VH), s = f >= 2 ? Math.floor(f) : f;
+    this.cv.style.width = VW * s + 'px'; this.cv.style.height = VH * s + 'px';
+    this.fitTouch();
+  }
+  // the smooth touch layer (canvas #touch, see Renderer.touchLayer): the same place and size on the page as the screen canvas, one canvas pixel per device pixel up to 2 (a 2.75 phone at full density
+  // made a canvas of 3 million pixels redrawn and composited on every frame) (pointer events go through it to the screen canvas)
+  fitTouch() {
+    const t = typeof document !== 'undefined' && document.getElementById('touch'); if (!t) return;
+    const r = this.cv.getBoundingClientRect(), dpr = Math.min(2, Math.max(1, window.devicePixelRatio || 1)), m = r.width * TOUCH_OUT / VW, w = Math.max(1, Math.round((r.width + 2 * m) * dpr)), h = Math.max(1, Math.round(r.height * dpr));
+    t.style.left = (r.left - m) + 'px'; t.style.top = r.top + 'px'; t.style.width = (r.width + 2 * m) + 'px'; t.style.height = r.height + 'px'; if (t.width !== w) t.width = w; if (t.height !== h) t.height = h;
+  }
+
+  // The route order of a run: seed 0 is the canonical order (the first lap goes forest / market, then seeded laps), what automated browsers (navigator.webdriver) and ?seed=0 get so tests
+  // are reproducible; any other seed varies the order of the destinations from the first fork on. A real player gets a fresh random seed every run, ?seed=N pins one.
+  static runSeed() {
+    const m = (typeof location !== 'undefined' && location.search.match(/[?&]seed=(\d+)/)) || null;
+    if (m) return +m[1];
+    if (typeof navigator !== 'undefined' && navigator.webdriver) return 0;
+    return 1 + Math.floor(Math.random() * 1e6);
+  }
+
+  resetRun() {
+    this.world.seed = Game.runSeed();
+    this.world.reset();
+    this.p = { x: 0, z: 0, vx: 0, jy: 0, vy: 0, slide: 0, speed: BASE_SPEED };
+    const zm = typeof location !== 'undefined' && location.search.match(/[?&]zone=(\w+)/);                       // ?zone=vic starts the run just before that piece of the track (a segment id, or vic / utrecht / coast / neon / city as shortcuts): to test a zone without running to it
+    if (zm) { const id = { race: 'neonRun', kart: 'neonRun', vic: 'vicA', utrecht: 'utrechtA', coast: 'coastSunset', neon: 'neonRun', city: 'cityRun', tram: 'tramRun', gare: 'gareMidi', terrace: 'terraceRun' }[zm[1]] || zm[1]; this.world.extend(id === 'terraceRun' ? 260000 : 120000); const Z = this.world.pieces.find(q => q.id === id || (q.type === 'fork' && (q.fork.left.route === id || q.fork.right.route === id)));      /* (a fork branch: the run starts before its junction) */ if (Z) { this.p.z = Math.max(0, Z.z0 - 250); this.world.extend(this.p.z + 3000); } }
+    this.raceNow = !!(zm && (zm[1] === 'race' || zm[1] === 'kart')); this.kartNow = !!(zm && zm[1] === 'kart'); this.race = null;                                  // ?zone=race: the run opens straight in the race zone (to test it)
+    this.coins = 0; if (this.pk) this.pk.reset(); if (this.portal) this.portal.reset(); this.camX = 0; this.camOff = 0; this.camRel = 0; this.camErr = 0; this.prevTgt = 0; this.killer = null;
+    const ahead0 = this.world.playerBand(300, 0);                                    // the atmosphere starts as the road ahead looks (the run opens in the neon quarter), not eased in from the base look
+    this.bgT = ahead0.t; this.bgTo = ahead0.t > 0 ? ahead0.to : this.world.baseBiome; this.canopy = 0; this.flash = 0; this.overT = 0; this.overDelay = 0.5;
+    this.fx = []; this.dustT = 0; this.shake = 0; this.coinPulse = 0; this.jumpBuf = 0;
+    this.scene = null; this.fadeIn = 0;                                                 // no cutscene running, no fade
+    this.riding = false; this.vehicle = 'scooter'; this.scooterHint = null; this.surf = false;                // on foot, no indicator, not on the water
+    this.carryC = 0; this.lane2 = 0; this.lean = 0; this.kick = null; this.sway = 0; this.prompt = null; this.banner = null;
+    if (this.r.onReset) this.r.onReset(this);
+  }
+
+  nextCharacter() { this.r.nextCharacter(); if (this.sfx) this.sfx.play('click'); }                // strawberry <-> Zagla (3D front end only)
+
+  activeButton() {
+    if (this.state === 'title') return BTN.title;
+    if (this.state === 'pause') return BTN.pause;
+    if (this.state === 'over' && this.overT > this.overDelay) return BTN.over;
+    return null;
+  }
+  // a click released at (x, y) in canvas pixels (320 x 180): the sound icon, the character button, or the screen's main button. The pointer handler calls it, and so does the VR controller ray
+  // (src3d/xr_input.js); returns what it did ('sound', 'char', 'resume', 'start') or null
+  pressAt(x, y) {
+    this.mouse.x = x; this.mouse.y = y;
+    if (this.sfx && this.state !== 'play' && this.overButton(BTN.sound)) { this.sfx.toggle(); return 'sound'; }
+    if (this.state === 'title' && this.r.nextCharacter && this.overButton(BTN.char)) { this.nextCharacter(); return 'char'; }
+    const b = this.activeButton();
+    if (b && this.overButton(b)) {
+      if (this.state === 'pause') { this.state = 'play'; return 'resume'; }
+      if (this.state === 'title' && this.touch) this.goFullscreen(); this.start(); return 'start';
+    }
+    return null;
+  }
+  overButton(b) { const m = this.mouse; return m.x >= b.x && m.x <= b.x + b.w && m.y >= b.y && m.y <= b.y + b.h; }
+
+  start() { this.resetRun(); this.state = 'play'; this.emit('start'); }
+  // the optional scooter: get on (the nearest parked scooter / station that has an indicator right now; it is taken) or off again, whenever the player wants. Drawing only: the rules are the same.
+  mount() { const h = this.scooterHint; if (this.state !== 'play' || this.riding || this.surf || !h) return false; this.riding = true; this.vehicle = h.kind || 'scooter'; this.scooterHint = null; if (this.r.onScooter) this.r.onScooter(this, h); this.emit('mount'); if (this.touch && navigator.vibrate) navigator.vibrate(30); return true; }
+  dismount() { if (this.state !== 'play' || !this.riding) return false; this.riding = false; this.emit('dismount'); return true; }
+  emit(name, arg) { if (this.sfx) this.sfx.play(name, arg); if (this.onEmit) this.onEmit(name, arg); }       // a sound effect, if the front end has sound; onEmit: an optional listener (the VR controllers' haptics)
+
+  // which road the player would take if the junction line were crossed now: an explicit left/right input given inside the
+  // prompt window wins (lane steering outside the window never counts); with no input, the side the runner is on, else right
+  preview() {
+    const p = this.p;
+    if (this.lean) return this.lean < 0 ? 'left' : 'right';
+    if (p.x < -0.25) return 'left';
+    return 'right';
+  }
+  score() { return Math.floor(this.p.z / 10) + this.coins * 10 + (this.pk ? this.pk.bonus : 0); }
+
+  jump() { this.jumpBuf = 0.12; } // buffered: a press just before landing still jumps
+  // down: fast-fall in the air; on the ground start a slide (a slide already under way is not restarted, so taps can't chain)
+  slideKey() { const p = this.p; if (p.jy > 0) p.vy = -600; else if (p.slide <= 0) { p.slide = SLIDE_T; this.emit('slide'); } }
+
+  // a finger went down on / moved onto a control; jump, slide and pause fire once, steering is held
+  hold(pid, id, fresh) {
+    if (id === null) delete this.held[pid]; else this.held[pid] = id;
+    this.syncTouch();
+    if (!fresh || this.state !== 'play') return;
+    if (id === 'jump') this.jump(); else if (id === 'slide') this.slideKey(); else if (id === 'scooter') this.dismount(); else if (id === 'pause') { this.state = 'pause'; this.releaseTouch(); }
+  }
+  // THE RACE'S PEDALS: accelerate = the up key (Z / W / arrow) or the jump button held (touch, or the VR controllers through the same touch channel); brake = the down key or the slide button held
+  pedal(id) { return id === 'jump' ? !!(this.keys.up || Object.values(this.held).includes('jump')) : !!(this.keys.down || Object.values(this.held).includes('slide')); }
+  syncTouch() { const h = Object.values(this.held); this.tleft = h.includes('left'); this.tright = h.includes('right'); }
+  releaseTouch() { this.held = {}; this.syncTouch(); }
+  goFullscreen() { // hides the browser bars and asks for landscape (Android Chrome); silently ignored elsewhere
+    try {
+      const de = document.documentElement;
+      if (!document.fullscreenElement && de.requestFullscreen) de.requestFullscreen().then(() => { try { screen.orientation.lock('landscape').catch(() => {}); } catch (e) {} }).catch(() => {});
+    } catch (e) {}
+  }
+
+  onKey(e, down) {
+    const c = e.code, k = (e.key || '').toLowerCase();                                    // by position (WASD cluster: on an AZERTY keyboard that is ZQSD) and by letter (Q Z D S on any layout)
+    const L = c === 'ArrowLeft' || c === 'KeyA' || k === 'q', R = c === 'ArrowRight' || c === 'KeyD' || k === 'd', U = c === 'ArrowUp' || c === 'KeyW' || k === 'z', D = c === 'ArrowDown' || c === 'KeyS' || k === 's';
+    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].includes(c)) e.preventDefault();
+    if (L) this.keys.left = down;
+    if (R) this.keys.right = down;
+    if (U) this.keys.up = down; if (D) this.keys.down = down;                          // (held: the race's pedals read them; a run acts on the press only, below)
+    if (down && !e.repeat && this.state === 'race') { if (L) this.laneQ = (this.laneQ || 0) - 1; if (R) this.laneQ = (this.laneQ || 0) + 1; }                 // in the race a press changes lane (one lane per press)
+    if (!down || e.repeat) return;
+    if (c === 'KeyM' && this.sfx) { this.sfx.toggle(); return; }                      // M: sound on / off
+    if (c === 'KeyC' && this.state === 'title' && this.r.nextCharacter) { this.nextCharacter(); return; }
+    if (down && !e.repeat && this.state === 'race' && this.race && this.race.intro > 0) { this.race.intro = 0; return; }
+    if (down && !e.repeat && this.state === 'race' && this.race && this.race.menu) { const k = { Digit1: 'chase', Numpad1: 'chase', Enter: 'chase', Space: 'chase', Digit2: 'saturn', Numpad2: 'saturn', Digit3: 'vr', Numpad3: 'vr' }[c]; if (k) this.kartChoose(k); return; }
+    if (down && !e.repeat && c === 'KeyV' && this.state === 'race' && this.race && this.race.kart) { this.kartCam = (this.kartCam || 0) ? 0 : 1; return; }      // V (karting): the other camera, the SATURN view (optional)   // C (menu): the other character
+    const s = this.state;
+    if (s === 'title' && (c === 'Enter' || c === 'Space')) this.start();
+    else if (s === 'over' && this.overT > this.overDelay && (c === 'Enter' || c === 'Space' || c === 'KeyR')) this.start();
+    else if (s === 'play') {
+      if (c === 'Space' || U) this.jump();
+      else if (D) this.slideKey();
+      else if (c === 'KeyE' || k === 'e') { if (this.riding) this.dismount(); else this.mount(); }          // E: get on the scooter that has an indicator / get off
+      else if (c === 'KeyP' || c === 'Escape') this.state = 'pause';
+    } else if (s === 'pause' && (c === 'KeyP' || c === 'Escape')) this.state = 'play';
+  }
+
+  update(dt) {
+    const w = this.world, p = this.p, ab = this.activeButton();
+    this.cv.style.cursor = (ab && this.overButton(ab)) || (this.sfx && this.state !== 'play' && this.overButton(BTN.sound)) ? 'pointer' : 'default';
+    if (this.sfx) this.sfx.tick(this, dt);                                          // beat clock, music volume and state-change sounds (also while paused)
+    if (this.state === 'pause') return;
+    this.time += dt;
+    if (this.riding && !((this.bgTo === 'tram' || this.bgTo === 'gare' || this.bgTo === 'neon') && this.bgT > 0.25)) this.riding = false;          // the vehicles belong to Saint-Gilles and the Neon Quarter: getting out of those zones puts the runner back on foot
+    this.updateFx(dt);
+    if (this.state === 'play') this.step(dt);
+    else if (this.state === 'scene') this.sceneStep(dt);
+    else if (this.state === 'race') this.raceStep(dt);
+    else if (this.state === 'title') {
+      const z0 = p.z;
+      p.z += 110 * dt; w.extend(p.z);
+      if (Math.floor(p.z / 100) !== Math.floor(z0 / 100)) w.prune(p.z);
+      const F = w.openFork(); if (F && p.z > F.z0 - 300) this.resetRun();
+    } else { this.overT += dt; this.flash = Math.max(0, this.flash - dt); }
+
+    // camera: tracks the centre of the player's road exactly (so merges don't make the runner slide),
+    // eases out any jump in that centre (e.g. when the branch is chosen), and follows half the player's offset
+    const pb = w.playerBand(p.z, p.x);
+    const jump = this.prevTgt - pb.c;
+    this.camErr = (this.camErr + (Math.abs(jump) > 0.2 ? jump : 0)) * Math.exp(-6 * dt); this.prevTgt = pb.c;
+    this.camRel += ((p.x - pb.c) * 0.5 - this.camRel) * Math.min(1, dt * 5);
+    this.camX = pb.c + this.camErr + this.camRel;
+    this.camOff = pb.off;
+
+    // brief lean of the road toward the chosen branch; the runner's screen position is unaffected
+    if (this.kick) {
+      this.kick.t += dt;
+      this.sway = this.kick.side * 16 * Math.sin(Math.PI * Math.min(1, this.kick.t / 1.8));
+      if (this.kick.t >= 1.8) { this.kick = null; this.sway = 0; }
+    }
+    if (this.banner) this.banner.t -= dt;
+    if (this.fadeIn > 0) this.fadeIn = Math.max(0, this.fadeIn - dt / 1.1);
+
+    // sky/parallax/canopy follow the road ahead of the player (leaning side before the choice is made)
+    const ahead = w.playerBand(p.z + 300, p.x);
+    const A = id => (BIOMES[id] && BIOMES[id].atmo) || id;
+    let to = ahead.to, tt = ahead.t;
+    if (BIOMES[to] && BIOMES[to].keep) { to = this.bgTo; tt = this.bgT; }             // the aquarium tunnel (`keep`): the atmosphere stays what it was; the 3D renderer blends the look under the sea in by depth (Renderer3D.seaMix)
+    if (to !== this.bgTo && A(to) === A(this.bgTo)) this.bgTo = to;                // same sky, fog and light (Saint-Gilles -> the station): switch at once, no dip back to the base look
+    if (to !== this.bgTo && this.bgT > 0.02) tt = 0; // finish easing out the old biome first
+    this.bgT += (tt - this.bgT) * Math.min(1, dt * 1.5);
+    if (this.bgT <= 0.02 && to !== this.bgTo) this.bgTo = to;
+    const here = w.playerBand(p.z + 60, p.x);
+    this.canopy += ((here.to === 'forest' ? here.t : 0) - this.canopy) * Math.min(1, dt * 2);
+    this.surf = /^utrecht/.test(here.to) && here.to !== 'utrechtQuay' && here.t > 0.5;                           // on the canals of Utrecht the runner is on a surfboard (drawing only, the rules are the same); no scooter there
+    if (this.surf) { this.riding = false; this.scooterHint = null; }
+  }
+
+  // ---- THE CUTSCENE at the end of Saint-Gilles (the Gare du Midi). The player has no control: the runner carries on by itself to the platform door, boards the train, the train leaves, the
+  // screen fades and the run resumes further on (a new zone). Timeline of S.t (seconds): run [0, T] (an ease-out from about the running speed to a stop at the door, drifting over to the
+  // platform), board [T, T+1.2] (steps into the doorway), doors [.., +0.9] (the beeps, they close), depart [.., +2.8] (the horn, the train pulls out, the fade to black in the last second). Hazards and coins are
+  // ignored, no input is read, pause is off. The score, the coins and the distance carry on; nothing else changes. There is no music in the scene: GameAudio fades it out and plays the station's
+  // sounds, cut to this timeline by the emit() calls below (station bed, steps, doors, whistle, horn, pull).
+  beginScene(P) {
+    const p = this.p, sc = P.seg.scene; P.sceneDone = true;
+    const doorZ = P.z0 + sc.at + sc.run;
+    this.scene = { P, t: 0, phase: 'run', z0: p.z, x0: p.x, doorZ, doorX: sc.x, T: Math.max(2.4, Math.min(5, 3 * (doorZ - p.z) / Math.max(150, p.speed))), speed0: p.speed, trainS: 0, fade: 0, caption: 'GARE DU MIDI', boarded: false, open: 0, honked: false, stepAcc: 0, stepK: 0, bs: 0, openHeard: false, luggage: false, whistled: false, beeped: false, closed: false };
+    this.state = 'scene'; this.riding = false; this.scooterHint = null; this.keys = {}; this.releaseTouch(); p.vx = 0; p.slide = 0; this.jumpBuf = 0;
+    this.emit('train'); this.emit('station', this.scene.T + 5.3);                                                       // the chime and the bed of the station (no music in the scene: see GameAudio.tick)
+  }
+  sceneStep(dt) {
+    const S = this.scene, p = this.p, ease3 = u => 1 - Math.pow(1 - u, 3), sm = u => u * u * (3 - 2 * u), cl = u => Math.max(0, Math.min(1, u));
+    S.t += dt; const tb = S.T, td = tb + 1.2, tc = td + 0.9, te = tc + 2.8;
+    if (p.jy > 0) { p.vy -= GRAV * dt; p.jy += p.vy * dt; if (p.jy <= 0) { p.jy = 0; p.vy = 0; } }                      // a jump in the air when the scene starts comes down
+    if (S.t < tb) {                                                                                                     // run to the door
+      const u = S.t / tb, D = S.doorZ - S.z0; S.phase = 'run'; p.z = S.z0 + D * ease3(u); p.x = S.x0 + (S.doorX - S.x0) * sm(cl((u - 0.2) / 0.8)); p.speed = 3 * D * (1 - u) * (1 - u) / tb; S.open = cl((u - 0.55) / 0.35); S.caption = u < 0.6 ? 'GARE DU MIDI' : '';
+      S.stepAcc += dt * (0.9 + p.speed / 80); if (p.speed > 8 && S.stepAcc >= 1) { S.stepAcc = 0; this.emit('step', S.stepK ^= 1); }                    // footsteps to the stride, slowing with the runner
+      if (S.open > 0.02 && !S.openHeard) { S.openHeard = true; this.emit('doorOpen'); } if (S.t > 0.9 && !S.luggage) { S.luggage = true; this.emit('luggage'); }
+    } else if (S.t < td) {                                                                                              // board
+      const v = (S.t - tb) / 1.2; S.phase = 'board'; p.z = S.doorZ; p.x = S.doorX + 0.5 * sm(v); p.speed = 40 * (1 - v); S.open = 1; S.caption = 'ALL ABOARD'; if (v > 0.72) S.boarded = true;
+      if (v > 0.1 && S.bs < 1) { S.bs = 1; this.emit('step', S.stepK ^= 1); } if (v > 0.5 && S.bs < 2) { S.bs = 2; this.emit('step', S.stepK ^= 1); } if (v > 0.8 && !S.whistled) { S.whistled = true; this.emit('whistle'); }
+    } else if (S.t < tc) {                                                                                              // doors close
+      S.phase = 'doors'; p.speed = 0; S.boarded = true; S.open = 1 - cl((S.t - td) / 0.6); S.caption = 'ALL ABOARD';
+      if (!S.beeped) { S.beeped = true; this.emit('doorBeep'); } if (S.t > td + 0.55 && !S.closed) { S.closed = true; this.emit('doorClose'); }
+    } else if (S.t < te) {                                                                                              // the train leaves
+      const q = S.t - tc; S.phase = 'depart'; S.open = 0; S.boarded = true; if (!S.honked) { S.honked = true; this.emit('horn'); this.emit('pull'); } S.trainS = 0.5 * 75 * q * q; S.caption = q > 1.2 ? 'NEXT ZONE' : ''; S.fade = cl((q - 1.8) / 1.0);
+    } else this.endScene();
+  }
+  endScene() {
+    const S = this.scene, p = this.p, w = this.world;
+    p.x = 0; p.z = S.doorZ + 100; p.vx = 0; p.jy = 0; p.vy = 0; p.slide = 0; p.speed = Math.max(BASE_SPEED, S.speed0 * 0.85); this.jumpBuf = 0; this.keys = {};
+    this.scene = null; this.state = 'play'; this.fadeIn = 1; w.extend(p.z); this.camRel = 0; this.camErr = 0;
+    const ah = w.playerBand(p.z + 300, p.x); this.bgTo = ah.to; this.bgT = ah.t;      // the new zone's sky and light are in at once (the screen is black: no dip through the old look)
+  }
+
+  updateFx(dt) {
+    this.shake = Math.max(0, this.shake - dt); this.coinPulse = Math.max(0, this.coinPulse - dt);
+    for (const f of this.fx) { f.x += f.vx * dt; f.y += f.vy * dt; f.vy += (f.gy === undefined ? 260 : f.gy) * dt; f.t -= dt; }
+    this.fx = this.fx.filter(f => f.t > 0);
+  }
+  burst(x, y, cols, n, speed, life) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.PI * 2 * i / n + 0.4;
+      this.fx.push({ x, y, vx: Math.cos(a) * speed * (0.6 + 0.4 * ((i * 7) % 3) / 2), vy: Math.sin(a) * speed - speed * 0.5, t: life, col: cols[i % cols.length] });
+    }
+  }
+
+  step(dt) {
+    const w = this.world, p = this.p, prevZ = p.z, pk = this.pk;
+    p.speed = Math.min(MAX_SPEED, p.speed + ACCEL * dt);
+    if (pk) pk.update(dt);                                                         // power-up timers, mission distance, toasts: only ever advance here, so a pause or a cutscene freezes them
+    p.z += p.speed * (pk ? pk.speedMul : 1) * dt;                                  // the dash: a forward boost on top of the run's own speed ramp
+    this.steer(dt);
+    if (this.jumpBuf > 0) { // jump starts on the ground, cancels a slide; a press just before landing is kept briefly
+      this.jumpBuf -= dt;
+      if (p.jy === 0) { p.slide = 0; p.vy = JUMP_V; p.jy = 0.01; this.jumpBuf = 0; this.emit('jump'); }
+    }
+    if (p.jy > 0) { p.vy -= GRAV * dt; p.jy += p.vy * dt; if (p.jy <= 0) { p.jy = 0; p.vy = 0; this.emit('land'); } }
+    if (p.slide > 0) p.slide = Math.max(0, p.slide - dt);
+    this.dust(dt);
+    w.extend(p.z);
+    if (Math.floor(p.z / 100) !== Math.floor(prevZ / 100)) w.prune(p.z);
+    if (this.portal) this.portal.update(this, prevZ);                                                 // the doors crossed this step, and the light of the journey
+    if (this.r.supportsScene) { const P = w.pieceAt(p.z); if (P && P.type === 'seg' && P.seg.scene && !P.sceneDone && p.z >= P.z0 + P.seg.scene.at) { this.beginScene(P); return; } }   // the station: the cutscene (only in a front end that can show it)
+
+    if (this.raceNow) { this.raceNow = false; this.beginRace(null); return; }
+    const top = p.slide > 0 ? 8 : 24;
+    if (pk && pk.t.magnet > 0) pk.pull(w.items, dt);
+    for (const it of w.items) {
+      if (it.taken || it.z < prevZ - 10 || it.z > p.z + 10) continue;
+      const dx = Math.abs(it.x - p.x);
+      if (it.kind === 'raceGate') { if (dx < 0.5 && it.z > prevZ - 12 && it.z < p.z + 12 && this.r.supportsRace && (this.raceTest || typeof navigator === 'undefined' || !navigator.webdriver)) { this.beginRace(it); return; } continue; }                // the sphere: the way into the race zone (automated browsers run through it unless a test sets g.raceTest: the bots of the other tests must not be taken off the road)
+      if (it.kind === 'coin') {
+        if (dx < 0.2 && it.z > prevZ - 9 && it.z < p.z + 9 && p.jy < it.h + 6 && p.jy + top > it.h - 6) {
+          it.taken = true; this.coins++; this.coinPulse = 0.2;
+          this.onCoin(it); if (pk) pk.coin();
+        }
+      } else if (pk && PICKUPS[it.kind]) {                                          // shards, waymarks and the three power-ups: the same box as a coin, taken once
+        if (dx < 0.2 && it.z > prevZ - 9 && it.z < p.z + 9 && p.jy < it.h + 6 && p.jy + top > it.h - 6) { it.taken = true; pk.pickup(it); }
+      } else if (it.kind !== 'prop') {
+        const o = OBST[it.kind];
+        if (dx < o.hw + P_HW && it.z > prevZ - 8 && it.z < p.z + 8 && p.jy < o.y1 && p.jy + top > o.y0) { if (pk && pk.absorb(it)) continue; this.die(it); return; }   // the aura takes one hit and destroys that hazard
+        if (pk && it.z <= p.z) pk.passed(it, o, dx, top);                           // past the runner without a hit: near miss, sequence bonus, dash count (once per hazard)
+      }
+    }
+  }
+
+  // THE RACE ZONE (3D build): the sphere in a zone opens a race against the robot's magnetic car (rules: src/race.js, scene: src3d/race3d.js). One sphere in each zone, used up when entered; a lost race throws the player
+  // straight back onto the road (the robot crossed first), a won one pays a bonus; the rare tokens picked up on the way are kept at once (this.rare, saved on the device).
+  beginRace(gate) {
+    if (!this.r.supportsRace || typeof Race === 'undefined' || this.state !== 'play') return;
+    if (gate) gate.taken = true;
+    const R = this.race = new Race(((Game.runSeed() || 0) + (++this.raceN) * 977) % 100000 + 1, (gate && gate.kart) || this.kartNow ? { kart: true, len: KART.LEN } : null); this.kartNow = false; if (R.kart) R.menu = true;
+    { const st = R.kart && typeof location !== 'undefined' && (location.search.match(/[?&]start=(tunnel|tour5)\b/) || [])[1];      // ?zone=kart&start=tunnel: open just before the gate at the end of lap 3 (to test the tunnel without racing three laps); start=tour5: at the start of the last, all-glass lap
+      if (st) { R.p.s = st === 'tunnel' ? KART.GATE_S - 300 : (KART.LAPS - 1) * KART.LAP + 5; R.p.lane = -1; R.p.x = -RACE.LANE_M; R.t = 60; R.bots.forEach((b, i) => { b.s = R.p.s - 40 - i * 25; }); R.items = R.items.filter(it => it.s > R.p.s + 30 || it.s < R.p.s - 400); } } R.cd = 3.2; this.state = 'race'; this.riding = false; this.scooterHint = null; this.keys = {}; this.releaseTouch(); this.rl = this.rr = false;
+    this.emit('start');
+  }
+  raceStep(dt) {
+    const R = this.race; if (!R) { this.state = 'play'; return; }
+    if (R.menu) return; if (R.intro > 0) { R.intro -= dt; return; }                                                                 // (the kart's quick menu is open: nothing moves until a choice)
+    if (R.cd > 0) { R.cd -= dt; return; }
+    const lane = R.p.lane + Math.max(-1, Math.min(1, this.laneQ || 0)); this.laneQ = 0;
+    R.step(Math.min(dt, 0.05), { lane, accel: this.pedal('jump'), brake: this.pedal('slide') });
+    for (const ev of R.events.splice(0)) {
+      if (ev.e === 'rare') { this.rare++; try { localStorage.setItem('wf.rare', String(this.rare)); } catch (e) {} this.emit('coin'); }
+      else if (ev.e === 'spiral') this.emit('coin'); else if (ev.e === 'jump') this.emit('jump'); else if (ev.e === 'hit' || ev.e === 'ring') this.emit('land');
+    }
+    if (R.done && R.fin > 2.8) this.endRace();
+  }
+  kartChoose(id) {                                                                         // the kart quick menu: the camera behind, the Saturn view, or VR (the headset, then the camera behind)
+    const R = this.race; if (!R || !R.menu) return;
+    if (id === 'vr') { const X = this.r.xr; if (!(X && X.button)) return; try { X.enter(); } catch (e) {} this.kartCam = 0; }
+    else this.kartCam = id === 'saturn' ? 1 : 0;
+    R.menu = false; R.intro = R.kart ? 7 : 0; this.emit('start');      // (the kart: a 7 s flyover first - the sphere, the roundabout, the gate - any key or tap skips it)
+  }
+  endRace() {
+    const R = this.race; if (R && R.result === 'win') this.coins += 30;
+    this.race = null; this.state = 'play'; this.fadeIn = 0.6; this.p.speed = BASE_SPEED; this.p.x = this.world.playerBand(this.p.z, this.p.x).c || this.p.x; this.keys = {};
+  }
+
+  // free steering across the road, the junction choice, and keeping the runner on its road
+  steer(dt) {
+    const w = this.world, p = this.p;
+    const dir = (this.keys.right || this.tright ? 1 : 0) - (this.keys.left || this.tleft ? 1 : 0);
+    const vp = w.pieceAt(p.z); let lanes = 0, lc = 0;
+    if (vp && vp.type === 'seg') lanes = vp.seg.lanes || 0; else if (vp && vp.type === 'fork' && vp.choice) { lanes = w.track.segments[vp.fork[vp.choice].route].lanes || 0; lc = w.playerBand(p.z, p.x).c; }       // (on a chosen road of a junction the places are those of that road)
+    if (lanes) {                                   // VIC, the narrow streets: only TWO places, the left half and the right half of the street (lane +-0.28), or ONE in the alley: a key sends the runner to that half, it stays there until the other key
+      if (dir) this.lane2 = dir; else if (!this.lane2) this.lane2 = p.x < lc ? -1 : 1;
+      const tx = lc + (lanes === 1 ? 0 : this.lane2 * 0.28), nx = p.x + (tx - p.x) * Math.min(1, dt * 15); p.vx = dt > 0 ? (nx - p.x) / dt : 0; p.x = nx;
+    } else {
+      this.lane2 = 0; p.vx += (dir * STEER - p.vx) * Math.min(1, dt * 14);
+      p.x += p.vx * dt;
+    }
+    // junction: the choice is only read inside the prompt window, and locks when the junction line is crossed
+    const F = w.openFork();
+    this.prompt = null;
+    if (F && p.z > F.z0 - PROMPT_DIST) {
+      if (dir && p.z < F.z0) this.lean = dir;
+      if (p.z >= F.z0) {
+        const side = this.preview();
+        w.commit(F, side); this.emit('choose');
+        this.kick = { t: 0, side: side === 'left' ? -1 : 1 };
+        this.banner = { t: 2.2, text: w.track.segments[F.fork[side].route].name };
+        this.lean = 0;
+      } else { this.prompt = { fork: F.fork, sel: this.preview() }; if (!this._hadPrompt) this.emit('prompt'); }
+    }
+    this._hadPrompt = !!this.prompt;
+    // once a road has been picked, ease the runner onto that road's side for the last stretch before the junction line,
+    // so it never has to cut across the widening gap at the fork's tip (only while no steering key is held)
+    if (F && this.lean && !dir && p.z < F.z0 && p.z > F.z0 - GUIDE_DIST) p.x += ((this.lean < 0 ? -0.45 : 0.45) - p.x) * Math.min(1, dt * 4);
+    // carry the runner along with the road's centre line (diverge / merge) so they stay put on screen;
+    // a sudden jump in that centre (the moment the choice locks) is eased by the clamp below instead
+    const c0 = w.playerBand(p.z, p.x).c;
+    if (Math.abs(c0 - this.carryC) < 0.2) p.x += c0 - this.carryC;
+    this.carryC = c0;
+    const cx = w.clampX(p.x, p.z), pc = w.pieceAt(p.z);
+    // ease onto the chosen road at the start of the junction, hard clamp everywhere else
+    if (pc.type === 'fork' && p.z < pc.z0 + 120) p.x += (cx - p.x) * Math.min(1, dt * 14); else p.x = cx;
+  }
+
+  // running dust on the road, drifting leaves in the forest (1px specks, a handful per second)
+  dust(dt) {
+    const p = this.p;
+    this.dustT -= dt;
+    if (this.dustT <= 0 && p.jy === 0) {
+      this.dustT = p.slide > 0 ? 0.04 : 0.12;
+      const leaf = this.canopy > 0.3, sxp = 160 + (p.x - this.camX) * LPX * S20;
+      this.fx.push({ x: sxp - 3 + (Math.random() * 6 | 0), y: 157, vx: -10 + (Math.random() * 20 | 0), vy: leaf ? -16 : -10, gy: leaf ? 30 : 4, t: leaf ? 0.5 : 0.3,
+                     col: leaf ? (Math.random() < 0.5 ? C.moss : C.amberD) : C.sandD, s: 1 });
+    }
+  }
+  onCoin(it) {
+    this.emit('coin');
+    if (this.r.onCoin) this.r.onCoin(this, it);                  // 3D front end shows its own pickup effect
+    const cxp = 160 + (it.x - this.camX) * LPX * S20;
+    this.burst(cxp, 159 - it.h, [C.amberL, C.amber, C.bone], 6, 55, 0.35);
+    this.fx.push({ x: cxp - 4, y: 150 - it.h, vx: 0, vy: -34, gy: 0, t: 0.55, col: C.amberL, txt: '+1' });
+  }
+  onDie() { if (this.r.onDie) this.r.onDie(this); this.burst(160 + (this.p.x - this.camX) * LPX * S20, 140, [C.earth, C.earthD, C.amberL, C.burgL, C.bone], 12, 90, 0.6); }
+
+  // die(hit): `hit` = the hazard that ended the run (kept in `killer`; the 3D build shows a crate (the VORTEX) absorbing the runner instead of a crash: Renderer3D.supportsAbsorb)
+  die(hit) {
+    const bn = hit ? this.world.bandNear(hit.z, hit.x) : null;                       // (a cheese cart on the upper circuit of Utrecht is a plain crash: the vortex only takes you on the ground and on the water)
+    this.killer = hit ? { kind: hit.kind, x: hit.x, z: hit.z, it: hit, street: !!(bn && bn.quay) } : null; const absorb = !!(this.killer && this.killer.kind === 'crate' && !this.killer.street && this.r.supportsAbsorb);
+    this.releaseTouch();
+    if (this.touch && navigator.vibrate) navigator.vibrate(60);
+    if (this.pk) this.pk.onDie();
+    this.state = 'over'; this.flash = 0.25; this.shake = absorb ? 0.12 : 0.35; this.overT = 0; this.overDelay = absorb ? 0.85 : 0.5; this.jumpBuf = 0;      // (the panel and the restart wait for the vortex to finish absorbing the runner)
+    this.emit('crash', absorb ? 'vortex' : undefined); this.onDie();
+    const s = this.score();
+    if (s > this.best) { this.best = s; try { localStorage.setItem('wayfarer.best', s); } catch (e) {} }
+  }
+}
+

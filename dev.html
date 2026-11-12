@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="fr"><meta charset="utf-8">
+<title>Wayfarer Preview</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+
+<meta name="robots" content="noindex">
+<style>
+:root{--bg:#14121a;--fg:#ece6f2;--mut:#9a92a8;--card:#1e1b27;--line:#332e42;--acc:#efb27c;color-scheme:dark}
+@media (prefers-color-scheme:light){:root:not([data-theme=dark]){--bg:#f6f1ea;--fg:#241f2c;--mut:#6c6478;--card:#fff;--line:#ddd3c6;--acc:#b5651d;color-scheme:light}}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,sans-serif;padding-block:24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+main{max-width:980px;margin:auto;display:grid;gap:22px}
+h1{margin:0;font-size:22px;letter-spacing:.02em}h1 small{color:var(--mut);font-weight:400;font-size:14px;margin-left:8px}
+p{margin:0;color:var(--mut)}
+h2{margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.1em;color:var(--acc)}
+.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+a{display:block;padding:10px 12px;background:var(--card);border:1px solid var(--line);border-radius:6px;color:var(--fg);text-decoration:none;min-width:0}
+a:hover,a:focus-visible{border-color:var(--acc)}a span{display:block;color:var(--mut);font:11px/1.4 ui-monospace,monospace;overflow-wrap:anywhere;margin-top:2px}
+form{display:flex;gap:8px;flex-wrap:wrap}input{flex:1;min-width:180px;padding:9px 10px;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit}
+button{padding:9px 14px;background:var(--acc);color:#1a1420;border:0;border-radius:6px;font:inherit;font-weight:600;cursor:pointer}
+code{font:12px ui-monospace,monospace;color:var(--acc)}
+</style>
+<main>
+<div><h1>Wayfarer Preview<small>outil de développement</small></h1>
+<p>Le jeu de base Wayfarer avec un accès direct à chaque zone. Ce site a son propre dépôt GitHub et son propre lien Vercel : il ne touche pas au site principal.</p></div>
+<section><h2>Zone ou segment au choix</h2><form id="f"><input id="z" placeholder="nom d'un segment, ex. vicB, coastBlueHour, ruinsRunB…" list="ids" autocomplete="off"><datalist id="ids"></datalist><button>Lancer</button></form><p style="margin-top:6px">Se règle avec <code>?zone=</code> (un identifiant de segment ou un raccourci), plus <code>&amp;seed=</code>, <code>&amp;start=</code>, <code>&amp;avatar=</code>, <code>&amp;scooter=</code>, <code>&amp;fps=</code>.</p></section>
+<section><h2>Parcours de base</h2><div class="g"><a href="index.html">Départ (ville, par défaut)<span>index.html</span></a><a href="index.html?zone=city">Ville<span>index.html?zone=city</span></a><a href="index.html?zone=forest">Forêt<span>index.html?zone=forest</span></a><a href="index.html?zone=plaza">Place<span>index.html?zone=plaza</span></a><a href="index.html?zone=detour">Détour<span>index.html?zone=detour</span></a></div></section>
+<section><h2>Zones</h2><div class="g"><a href="index.html?zone=neon">Quartier Néon<span>index.html?zone=neon</span></a><a href="index.html?zone=tram">Tram<span>index.html?zone=tram</span></a><a href="index.html?zone=gare">Gare du Midi<span>index.html?zone=gare</span></a><a href="index.html?zone=utrecht">Utrecht<span>index.html?zone=utrecht</span></a><a href="index.html?zone=utrechtQuay">Quai d'Utrecht<span>index.html?zone=utrechtQuay</span></a><a href="index.html?zone=vic">Saint-Gilles (Vic)<span>index.html?zone=vic</span></a><a href="index.html?zone=vicAlley">Allée rose<span>index.html?zone=vicAlley</span></a><a href="index.html?zone=coast">Côte (coucher de soleil)<span>index.html?zone=coast</span></a><a href="index.html?zone=coastWalkSunset">Promenade côtière<span>index.html?zone=coastWalkSunset</span></a><a href="index.html?zone=islandSunset">Île<span>index.html?zone=islandSunset</span></a><a href="index.html?zone=ruinsRun">Ruines<span>index.html?zone=ruinsRun</span></a><a href="index.html?zone=terrace">Terrasse<span>index.html?zone=terrace</span></a></div></section>
+<section><h2>Course & kart</h2><div class="g"><a href="index.html?zone=race">Zone course (robots)<span>index.html?zone=race</span></a><a href="index.html?zone=kart">Circuit kart — départ<span>index.html?zone=kart</span></a><a href="index.html?zone=kart&start=tunnel">Kart — juste avant le tunnel (tour 3)<span>index.html?zone=kart&start=tunnel</span></a><a href="index.html?zone=kart&start=tour5">Kart — début du tour 5 (tout verre)<span>index.html?zone=kart&start=tour5</span></a></div></section>
+<section><h2>Portes (fins de segment)</h2><div class="g"><a href="index.html?zone=gate">gate<span>index.html?zone=gate</span></a><a href="index.html?zone=gate2">gate2<span>index.html?zone=gate2</span></a><a href="index.html?zone=gate3">gate3<span>index.html?zone=gate3</span></a><a href="index.html?zone=gate4">gate4<span>index.html?zone=gate4</span></a><a href="index.html?zone=gate5">gate5<span>index.html?zone=gate5</span></a><a href="index.html?zone=gate6">gate6<span>index.html?zone=gate6</span></a><a href="index.html?zone=gate7">gate7<span>index.html?zone=gate7</span></a><a href="index.html?zone=gateVic">gateVic<span>index.html?zone=gateVic</span></a><a href="index.html?zone=gateUtrecht">gateUtrecht<span>index.html?zone=gateUtrecht</span></a></div></section>
+<section><h2>Autres pages</h2><div class="g"><a href="2d.html">Version 2D<span>2d.html</span></a><a href="index.html?avatar=strawberry">Avatar fraise (défaut)<span>index.html?avatar=strawberry</span></a><a href="index.html?avatar=zagla">Avatar Zagla<span>index.html?avatar=zagla</span></a><a href="index.html?avatar=3d">Avatar 3D<span>index.html?avatar=3d</span></a><a href="index.html?scooter=1">Trottinette forcée<span>index.html?scooter=1</span></a><a href="index.html?scooter=0">Sans trottinette<span>index.html?scooter=0</span></a><a href="index.html?fps=60">Compteur d'images (fps) 60<span>index.html?fps=60</span></a></div></section>
+<p>La VR (Quest) s'ouvre depuis le jeu avec le bouton « ENTER VR ».</p>
+</main>
+<script>
+const ids=['cityStart', 'cityRun', 'forest', 'detour', 'plaza', 'neonStart', 'neonRun', 'neonBranch', 'neonBranchB', 'tramRun', 'gareMidi', 'utrechtA', 'utrechtB', 'utrechtC', 'utrechtD', 'utrechtQuay', 'vicA', 'vicB', 'vicC', 'vicD', 'vicE', 'vicF', 'vicS1', 'vicS2', 'vicS3', 'vicS4', 'vicS5', 'vicP1', 'vicP2', 'vicP3', 'vicR1', 'vicR2', 'vicR3', 'vicR4', 'vicM', 'vicAlley', 'coastMorning', 'coastMidday', 'coastSunset', 'coastBlueHour', 'coastWalkSunset', 'coastWalkMidday', 'coastWalkBlue', 'coastWalkMorning', 'islandSunset', 'islandMidday', 'islandBlue', 'islandMorning', 'cityRunB', 'plazaB', 'forestB', 'detourB', 'terraceRun', 'coastRun', 'coastRunB', 'ruinsRun', 'ruinsRunB'];
+document.getElementById('ids').innerHTML=ids.map(i=>'<option value="'+i+'">').join('');
+document.getElementById('f').onsubmit=e=>{e.preventDefault();const v=document.getElementById('z').value.trim().replace(/[^\w]/g,'');location.href='index.html'+(v?'?zone='+v:'');};
+</script>
