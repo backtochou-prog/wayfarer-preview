@@ -204,14 +204,14 @@
   function buildPhoto(THREE) {
     const group = new THREE.Group(), live = []; group.name = 'hover-vehicle-photos';
     const tex = {};
-    for (const k of ['front', 'back', 'side', 'top']) { const t = new THREE.Texture(), im = new Image(); im.onload = () => { t.image = im; t.needsUpdate = true; }; im.src = VEH_PHOTOS[k].src; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; tex[k] = t; }
+    for (const k of ['front', 'back', 'side', 'top', 'bottom']) { const t = new THREE.Texture(), im = new Image(); im.onload = () => { t.image = im; t.needsUpdate = true; }; im.src = VEH_PHOTOS[k].src; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; tex[k] = t; }
     const FRONT_AT_LEFT_OF_SIDE = true;      // in the flank photo the nose (-Z) is at the left
     const mat = new THREE.ShaderMaterial({
-      uniforms: { tF: { value: tex.front }, tB: { value: tex.back }, tS: { value: tex.side }, tT: { value: tex.top }, box: { value: new THREE.Vector4(PH.X, PH.Z, PH.Y0, PH.Y1) }, sideFlip: { value: FRONT_AT_LEFT_OF_SIDE ? 0 : 1 } },
+      uniforms: { tF: { value: tex.front }, tB: { value: tex.back }, tS: { value: tex.side }, tT: { value: tex.top }, tU: { value: tex.bottom }, box: { value: new THREE.Vector4(PH.X, PH.Z, PH.Y0, PH.Y1) }, sideFlip: { value: FRONT_AT_LEFT_OF_SIDE ? 0 : 1 } },
       side: THREE.DoubleSide,
       vertexShader: 'varying vec3 vP; varying vec3 vN; varying vec3 vC; attribute vec3 color; void main(){ vP = position; vN = normalize(normal); vC = color; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
       fragmentShader: `
-        uniform sampler2D tF; uniform sampler2D tB; uniform sampler2D tS; uniform sampler2D tT; uniform vec4 box; uniform float sideFlip;
+        uniform sampler2D tF; uniform sampler2D tB; uniform sampler2D tS; uniform sampler2D tT; uniform sampler2D tU; uniform vec4 box; uniform float sideFlip;
         varying vec3 vP; varying vec3 vN; varying vec3 vC;
         vec4 smp(sampler2D t, vec2 uv){ uv = clamp(uv, vec2(0.002), vec2(0.998)); return texture2D(t, uv); }
         void main(){
@@ -220,12 +220,13 @@
           float uf = 1.0 - (vP.x + box.x) / (2.0 * box.x), ub = (vP.x + box.x) / (2.0 * box.x);
           float us = (vP.z + box.y) / (2.0 * box.y); if (sideFlip > 0.5) us = 1.0 - us;
           vec4 cF = smp(tF, vec2(uf, v)), cB = smp(tB, vec2(ub, v)), cS = smp(tS, vec2(us, v)), cT = smp(tT, vec2((vP.x + box.x) / (2.0 * box.x), (box.y - vP.z) / (2.0 * box.y)));
+          vec2 uu = vec2(vP.x, vP.z) / 2.3 + 0.5; vec4 cU = texture2D(tU, clamp(uu, 0.0, 1.0)); cU.a *= step(abs(uu.x - 0.5), 0.5) * step(abs(uu.y - 0.5), 0.5);
           float wF = pow(max(0.0, -n.z), 3.0) * cF.a, wB = pow(max(0.0, n.z), 3.0) * cB.a, wS = pow(abs(n.x), 3.0) * cS.a;
           float wT = 3.0 * pow(max(0.0, n.y), 2.0) * cT.a;
+          float wU = 4.0 * pow(max(0.0, -n.y), 2.0) * cU.a;
           float wb = 0.1 + 0.5 * pow(max(0.0, -n.y), 2.0);
           vec3 base = vC * (0.8 + 0.2 * n.y);
-          vec3 col = (cF.rgb * wF + cB.rgb * wB + cS.rgb * wS + cT.rgb * wT + base * wb) / (wF + wB + wS + wT + wb);
-          col *= (n.y < -0.3) ? 0.6 : 1.0;
+          vec3 col = (cF.rgb * wF + cB.rgb * wB + cS.rgb * wS + cT.rgb * wT + cU.rgb * wU + base * wb) / (wF + wB + wS + wT + wU + wb);
           gl_FragColor = vec4(col, 1.0);
         }`,
     });
@@ -278,19 +279,13 @@
     const ng = noz.map(p => glow(p, 0.5, '#ff5ad8'));
     live.push(t => { ng.forEach((s, i) => { s.material.opacity = 0.65 + 0.3 * Math.sin(t * 6 + i); }); });
 
-    // ---- no wheels: four magnetic pads under the hull, light cones and spreading field rings ------------------------------------------------------------------------
-    const GY = -1.1, padPos = [[-0.75, -0.75], [0.75, -0.75], [-0.75, 0.75], [0.75, 0.75]], fields = [], ringGeo = new THREE.RingGeometry(0.92, 1.0, 64);
-    padPos.forEach(([px, pz], i) => {
-      const pad = new THREE.Group(); pad.position.set(px, -0.5, pz); group.add(pad);
-      pad.add(new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 0.07, 32), new THREE.MeshBasicMaterial({ color: '#10142a' })));
-      const lr = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.02, 8, 48), new THREE.MeshBasicMaterial({ color: '#35f0ff' })); lr.rotation.x = Math.PI / 2; lr.position.y = -0.045; pad.add(lr);
-      const core = new THREE.Mesh(new THREE.CircleGeometry(0.16, 24), new THREE.MeshBasicMaterial({ color: '#8c5cff' })); core.rotation.x = Math.PI / 2; core.position.y = -0.042; pad.add(core);
-      const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.6, -GY - 0.55, 24, 1, true), new THREE.MeshBasicMaterial({ color: '#35c8ff', transparent: true, opacity: 0.09, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); cone.position.set(px, (GY - 0.55) / 2 - 0.02, pz); group.add(cone);
-      for (let k = 0; k < 2; k++) { const r = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: k ? '#b06cff' : '#35f0ff', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); r.rotation.x = -Math.PI / 2; r.position.set(px, GY, pz); group.add(r); fields.push({ r, ph: (i * 0.23 + k * 0.5) % 1 }); }
-      live.push(t => { lr.material.color.setHSL(0.5 + 0.05 * Math.sin(t * 3 + i), 1, 0.6); cone.material.opacity = 0.07 + 0.04 * Math.sin(t * 2.4 + i); });
-    });
+    // ---- no wheels, magnetic: the underside is ONE round magnetic plate (the user's bottom picture, projected on the hull's underside); it throws a cone of light to the ground and
+    // sends slow rings of field spreading over it, a larger ring under the whole hull breathes ---------------------------------------------------------------------------------
+    const GY = -1.1, fields = [], ringGeo = new THREE.RingGeometry(0.92, 1.0, 64);
+    const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 1.35, -GY - 0.5, 40, 1, true), new THREE.MeshBasicMaterial({ color: '#7a5cff', transparent: true, opacity: 0.08, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); cone.position.set(0, (GY - 0.5) / 2, 0); group.add(cone);
+    for (let k = 0; k < 3; k++) { const r = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: k === 1 ? '#35f0ff' : '#b06cff', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); r.rotation.x = -Math.PI / 2; r.position.set(0, GY, 0); group.add(r); fields.push({ r, ph: k / 3 }); }
     const big = new THREE.Mesh(new THREE.RingGeometry(0.96, 1.0, 96), new THREE.MeshBasicMaterial({ color: '#8c5cff', transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); big.rotation.x = -Math.PI / 2; big.position.y = GY; group.add(big);
-    live.push(t => { for (const f of fields) { const u = (t * 0.45 + f.ph) % 1; f.r.scale.setScalar(0.25 + 1.0 * u); f.r.material.opacity = 0.5 * (1 - u) * (1 - u); } big.scale.set(1.6 + 0.05 * Math.sin(t * 1.7), 1.9 + 0.06 * Math.sin(t * 1.7), 1); big.material.opacity = 0.28 + 0.1 * Math.sin(t * 1.7); });
+    live.push(t => { for (const f of fields) { const u = (t * 0.4 + f.ph) % 1; f.r.scale.setScalar(0.5 + 1.2 * u); f.r.material.opacity = 0.5 * (1 - u) * (1 - u); } big.scale.setScalar(1.7 + 0.05 * Math.sin(t * 1.7)); big.material.opacity = 0.28 + 0.1 * Math.sin(t * 1.7); cone.material.opacity = 0.07 + 0.03 * Math.sin(t * 2.2); });
     group.scale.setScalar(buildPhoto.SIZE);      // the real size is a choice, not a constraint (the user: 3 m is too much): the model is drawn 2.6 m wide, this scales it (0.65 = 1.7 m wide, about a kart)
     return { group, update(t) { for (const f of live) f(t); }, size: buildPhoto.SIZE };
   }
