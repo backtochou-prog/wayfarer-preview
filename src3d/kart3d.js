@@ -188,8 +188,8 @@ class Kart3D {
           /* (the user: 'étirer le métal du siège en courbure vers le personnage'): the seat is BENT round the player, its sides curving forward, and more at the bottom where the glass frame and the armrests are: z = -(0.14 + 0.18 (1 - t)) u^2, u = -1..1 across, t = 0 at the foot .. 1 at the top */
           for (let q = 0; q < pp.count; q++) { const u = pp.getX(q) / (w / 2), t = (pp.getY(q) + h5 / 2) / h5; pp.setZ(q, -(sgn || 1) * (0.14 + 0.18 * (1 - t)) * u * u); }
           pg.computeVertexNormals(); const m = new THREE.Mesh(pg, new THREE.MeshBasicMaterial({ map: ct, transparent: true, alphaTest: 0.06, side: THREE.DoubleSide, color: tint })); m.position.set(x, y, zz); m.rotation.y = ry || 0; seat.add(m); return m; };
-        card(0.62, 0, 0.36, 0.3, 0xffffff);
-        card(0.36, 0, 0.2, -0.66, 0x777777, 0, -1);
+        card(0.5, 0, 0.36, 0.3, 0xffffff);      // (the picture's chair was turned to the right: its left half is mirrored to make it face straight on, the user)
+        card(0.3, 0, 0.2, -0.66, 0x777777, 0, -1);
         /* THE STEERING WHEEL (the user's picture, AS IT IS, 'sans contact direct avec le tableau de contrôle'): the open ring of black, red and blue chrome, floating in front of the player's chest with NO column and no hub touching the dashboard; it turns in its own plane when the vehicle changes lane, and a faint glow under it shows it is held by the field */
         const yoke = new THREE.Group(); yoke.position.set(0, 0.5, -0.4); yoke.rotation.x = -0.5; seat.add(yoke);
         const wt = new THREE.Texture(), wi = new Image(); wi.onload = () => { wt.image = wi; wt.needsUpdate = true; }; wi.src = VEH_PHOTOS.wheel.src; wt.colorSpace = THREE.SRGBColorSpace; wt.anisotropy = 4;
