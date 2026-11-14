@@ -184,8 +184,26 @@ class Kart3D {
         const seat = new THREE.Group(); seat.position.set(0, y0, zs); this.car.add(seat);
         const box = (w, h, dd, x, y, zz, c, rx, glow) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, dd), M(c)); m.position.set(x, y, zz); if (rx) m.rotation.x = rx; seat.add(m); return m; };
         box(0.5, 0.1, 0.5, 0, 0.05, 0.0, '#241a44'); box(0.5, 0.05, 0.1, 0, 0.1, -0.22, '#3a2a78', 0.15);                                   // the cushion and its raised front lip
-        box(0.5, 0.34, 0.08, 0, 0.24, 0.26, '#2a1f55', -0.25); box(0.3, 0.07, 0.09, 0, 0.44, 0.3, '#3a2a78', -0.25);                       // the back and the headrest
-        for (const sg of [-1, 1]) { box(0.07, 0.3, 0.2, sg * 0.28, 0.2, 0.18, '#1c1438', -0.2); box(0.1, 0.07, 0.36, sg * 0.3, 0.26, -0.02, '#31245f'); box(0.05, 0.02, 0.05, sg * 0.3, 0.3, -0.1, sg < 0 ? '#27e8a8' : '#ff3fd0'); box(0.05, 0.02, 0.05, sg * 0.3, 0.3, 0.04, '#27c8ff'); }
+        /* THE SEAT SHELL (the user's example picture: bucket seats with a neon teal outline, a dark hollow, a magenta oval head pad and a yellow-green striped panel at the foot): an oval shell for the BACK of the armchair, and the same shell, lower and a little darker, in front (the user: 'le dos du fauteuil peut être utilisé en avant aussi, en assombrissant un peu') */
+        const shell = (zz, yy, rx, h, dark) => {
+          const sg = new THREE.Group(); sg.position.set(0, yy, zz); sg.rotation.x = rx; seat.add(sg); const dm = dark ? 0.62 : 1, C = c => new THREE.Color(c).multiplyScalar(dm), MM = c => new THREE.MeshBasicMaterial({ color: C(c), side: THREE.DoubleSide });
+          const sy = h / 0.5, panel = new THREE.Mesh(new THREE.CircleGeometry(0.25, 40), MM('#0b0a18')); panel.scale.set(1, sy, 1); sg.add(panel);
+          const rim = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.03, 8, 48), MM('#26d8c4')); rim.scale.set(1, sy, 1); sg.add(rim);
+          const rim2 = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.014, 6, 48), MM('#8aff3a')); rim2.scale.set(1, sy, 1); rim2.position.z = 0.004; sg.add(rim2);
+          const head = new THREE.Mesh(new THREE.CircleGeometry(0.09, 24), MM('#d02ac8')); head.scale.set(0.8, 1.5, 1); head.position.set(0, h * 0.22, 0.006); sg.add(head);
+          const hc = new THREE.Mesh(new THREE.CircleGeometry(0.035, 16), MM('#2a0a3a')); hc.position.set(0, h * 0.24, 0.008); sg.add(hc);
+          const bar = new THREE.Mesh(new THREE.PlaneGeometry(0.13, 0.2 * (h / 0.62)), MM('#0e0e0a')); bar.position.set(0, -h * 0.3, 0.006); sg.add(bar);
+          for (let q = 0; q < 4; q++) { const st = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 0.016), MM('#d6e020')); st.position.set(0, -h * 0.3 - 0.07 * (h / 0.62) + q * 0.04 * (h / 0.62), 0.008); sg.add(st); }
+          return sg; };
+        /* THE BUCKET (the user's second picture: a swept bucket seat, the back sweeping up into a headrest, a hollow dark pad with a blue outline, green accents low): an extruded side profile 0.5 m wide, dark glossy, with a neon blue edge and green accent; the decorated shell below is on its OUTER back, the face the chase camera sees */
+        { const sh = new THREE.Shape(); sh.moveTo(-0.24, 0.0); sh.lineTo(0.3, 0.0); sh.quadraticCurveTo(0.42, 0.34, 0.38, 0.62); sh.quadraticCurveTo(0.36, 0.82, 0.24, 0.9); sh.quadraticCurveTo(0.2, 0.7, 0.24, 0.52); sh.quadraticCurveTo(0.2, 0.2, -0.1, 0.1); sh.lineTo(-0.28, 0.14); sh.quadraticCurveTo(-0.3, 0.04, -0.24, 0.0);
+          const bg = new THREE.ExtrudeGeometry(sh, { depth: 0.48, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 2, curveSegments: 14 }); bg.translate(0, 0, -0.24); bg.rotateY(-Math.PI / 2); bg.translate(0, 0, 0);
+          const bm = new THREE.Mesh(bg, new THREE.MeshBasicMaterial({ color: '#0a0a1c' })); bm.position.set(0, 0.0, 0.0); seat.add(bm);
+          const ed = new THREE.LineSegments(new THREE.EdgesGeometry(bg, 28), new THREE.LineBasicMaterial({ color: '#2a9aff' })); seat.add(ed);
+          const gr = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.05, 0.1), new THREE.MeshBasicMaterial({ color: '#2aff8a' })); gr.position.set(0, 0.08, 0.3); gr.rotation.x = -0.35; seat.add(gr); }
+        shell(0.43, 0.46, -0.1, 0.56, false);      // the decorated oval on the bucket's outer back
+        shell(-0.66, 0.2, 0.2, 0.4, true);         // the front copy: lower, darker, turned back to the player (it sits in front of the yoke)
+        for (const sg of [-1, 1]) { box(0.07, 0.42, 0.22, sg * 0.29, 0.26, 0.2, '#1c1438', -0.22); box(0.1, 0.07, 0.36, sg * 0.3, 0.26, -0.02, '#31245f'); box(0.05, 0.02, 0.05, sg * 0.3, 0.3, -0.1, sg < 0 ? '#27e8a8' : '#ff3fd0'); box(0.05, 0.02, 0.05, sg * 0.3, 0.3, 0.04, '#27c8ff'); }
         box(0.54, 0.02, 0.02, 0, 0.42, 0.22, '#ff3fd0', -0.25);      // the harness, lit
         const yoke = new THREE.Group(); yoke.position.set(0, 0.52, -0.46); yoke.rotation.x = -0.55; seat.add(yoke);                       // the steering yoke, tilted towards the player's hands
         const rim = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.02, 8, 28), M('#cfd8ff')); yoke.add(rim); const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.03, 16), M('#35f0ff')); hub.rotation.x = Math.PI / 2; yoke.add(hub);
