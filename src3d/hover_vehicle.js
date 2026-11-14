@@ -259,8 +259,8 @@
       const tg = new THREE.TubeGeometry(c, 70, 0.058, 12, false);      /* (thinner horns, the user: 'diminue l'épaisseur des cornes'; the rear foot now leaves the hull's shoulder on a slant, as the red line showed) */ withColour(tg, y => (y - PH.Y0) / (PH.Y1 - PH.Y0));
       group.add(new THREE.Mesh(tg, mat));
       /* THE SIDE WINDOW (the user: the holes are the side windows): a curved pane of tinted glass filling the opening between the horn and the hull's rim, reflections slanting across it */
-      const K = 24, gp = [], gu = [], gi = [];
-      for (let q = 0; q <= K; q++) { const u = 0.02 + 0.3 * q / K, hp = c.getPoint(u), zc2 = Math.max(-0.999, Math.min(0.999, hp.z / PH.Z)), f = (1 - 0.56 * Math.pow(Math.abs(zc2), 1.5)) * Math.sqrt(Math.max(0, 1 - Math.pow(Math.max(0, Math.abs(zc2) - 0.9) / 0.1, 2)));
+      const K = 56, gp = [], gu = [], gi = [];      // (the user: 'poser des vitres entre les cornes et les flancs': now the whole length of the horn, from one end to the other)
+      for (let q = 0; q <= K; q++) { const u = 0.003 + 0.994 * q / K, hp = c.getPoint(u), zc2 = Math.max(-0.999, Math.min(0.999, hp.z / PH.Z)), f = (1 - 0.56 * Math.pow(Math.abs(zc2), 1.5)) * Math.sqrt(Math.max(0, 1 - Math.pow(Math.max(0, Math.abs(zc2) - 0.9) / 0.1, 2)));
         gp.push(hp.x, hp.y, hp.z, sg * PH.X * f * 0.97, 0.12, hp.z); gu.push(q / K, 1, q / K, 0); if (q < K) { const a = q * 2; gi.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } }
       const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(gp, 3)); gg.setAttribute('uv', new THREE.Float32BufferAttribute(gu, 2)); gg.setIndex(gi);
       const pane = new THREE.Mesh(gg, new THREE.MeshBasicMaterial({ map: glassTex, transparent: true, side: THREE.DoubleSide, depthWrite: false })); pane.renderOrder = 4; group.add(pane);
