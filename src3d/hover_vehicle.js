@@ -152,6 +152,15 @@
       const g2 = new THREE.TubeGeometry(c, 80, 0.07, 10, true), p2 = g2.attributes.position, c2 = new Float32Array(p2.count * 3);
       for (let i = 0; i < p2.count; i++) { const u = Math.floor(i / 11) / 80, hcol = new THREE.Color(hc[Math.min(hc.length - 1, Math.floor(u * hc.length))]); c2[3 * i] = hcol.r; c2[3 * i + 1] = hcol.g; c2[3 * i + 2] = hcol.b; }
       g2.setAttribute('color', new THREE.BufferAttribute(c2, 3)); group.add(new THREE.Mesh(g2, new THREE.MeshBasicMaterial({ vertexColors: true })));
+      /* THE SIDE WINDOWS (the user: 'les 2 trous qu'on voit seront les vitres de flanc'): each loop's opening is a pane of tinted glass with two slanting reflections */
+      { const lp = c.getPoints(72).map(v => new THREE.Vector2(v.z, v.y)), tri = THREE.ShapeUtils.triangulateShape(lp, []), vp = [], uvs = [];
+        let zmin = 1e9, zmax = -1e9, ymin = 1e9, ymax = -1e9; for (const p of lp) { zmin = Math.min(zmin, p.x); zmax = Math.max(zmax, p.x); ymin = Math.min(ymin, p.y); ymax = Math.max(ymax, p.y); }
+        for (const p of lp) { vp.push(sgn * 0.9, p.y, p.x); uvs.push((p.x - zmin) / (zmax - zmin), (p.y - ymin) / (ymax - ymin)); }
+        const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(vp, 3)); gg.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2)); gg.setIndex(tri.flat());
+        if (!buildFused.glassTex) { const cv = document.createElement('canvas'); cv.width = cv.height = 128; const q = cv.getContext('2d'), gr = q.createLinearGradient(0, 128, 128, 0); gr.addColorStop(0, 'rgba(40,20,110,0.55)'); gr.addColorStop(1, 'rgba(110,150,255,0.35)'); q.fillStyle = gr; q.fillRect(0, 0, 128, 128);
+          q.fillStyle = 'rgba(255,255,255,0.45)'; q.beginPath(); q.moveTo(20, 128); q.lineTo(44, 128); q.lineTo(108, 0); q.lineTo(84, 0); q.fill(); q.fillStyle = 'rgba(255,170,240,0.35)'; q.beginPath(); q.moveTo(58, 128); q.lineTo(70, 128); q.lineTo(128, 12); q.lineTo(116, 12); q.fill();
+          buildFused.glassTex = new THREE.CanvasTexture(cv); buildFused.glassTex.colorSpace = THREE.SRGBColorSpace; }
+        const pane = new THREE.Mesh(gg, new THREE.MeshBasicMaterial({ map: buildFused.glassTex, transparent: true, side: THREE.DoubleSide, depthWrite: false })); pane.renderOrder = 4; group.add(pane); }
     }
 
     // the tail: two blades in a V, magenta with light tips
