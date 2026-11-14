@@ -289,7 +289,7 @@
     group.scale.setScalar(buildPhoto.SIZE);      // the real size is a choice, not a constraint (the user: 3 m is too much): the model is drawn 2.6 m wide, this scales it (0.65 = 1.7 m wide, about a kart)
     return { group, update(t) { for (const f of live) f(t); }, size: buildPhoto.SIZE };
   }
-  buildPhoto.SIZE = 0.65;
+  buildPhoto.SIZE = 0.85;      // 2.2 m across (the user: the vehicle and the player are too far and small to be seen); the lane spacing is 2.4 m
 
   g.HoverVehicle = { build, buildFused, buildPhoto, PAL, PROFILE };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -181,7 +181,7 @@ class Kart3D {
       const z = new RunnerZagla(), d = z.group, k = 0.62;
       if (HOVER) {       /* SEATED IN THE COCKPIT, hands on the yoke (the user: 'un fauteuil pour que le joueur soit bien assis et contrôle bien l'engin: debout il est trop loin pour contrôler, on ne sent pas que c'est toi qui conduis'): an armchair sunk in the cockpit dish, the player seated in it, legs forward, a steering yoke right in front of the chest, armrests with their lit buttons */
         const S = HoverVehicle.buildPhoto.SIZE, y0 = 0.25 + 0.5 * S + 0.15 * S, zs = 0.12, M = (c, o) => new THREE.MeshBasicMaterial(Object.assign({ color: c }, o || {}));
-        const seat = new THREE.Group(); seat.position.set(0, y0, zs); this.car.add(seat);
+        const fS = S / 0.65, seat = new THREE.Group(); seat.position.set(0, y0, zs * fS); seat.scale.setScalar(fS); this.car.add(seat);      // (the seat, wheel and player scale with the vehicle: 0.65 was the size they were drawn for)
         /* THE SEAT, AS IT IS (the user: 'ceci est le siège, posez-le tel quel, juste adapter'): their picture of the chair, the back with its rings and the glass frame with its armrests, cut out and stood behind the player (facing the chase camera) at a size that suits the vehicle; a smaller, darker copy in front (the back used at the front too) */
         const ct = new THREE.Texture(), ci = new Image(); ci.onload = () => { ct.image = ci; ct.needsUpdate = true; }; ci.src = VEH_PHOTOS.seatCard.src; ct.colorSpace = THREE.SRGBColorSpace; ct.anisotropy = 4;
         const card = (w, x, y, zz, tint, ry, sgn) => { const h5 = w * VEH_PHOTOS.seatCard.h / VEH_PHOTOS.seatCard.w, pg = new THREE.PlaneGeometry(w, h5, 28, 28), pp = pg.attributes.position;
@@ -197,7 +197,7 @@ class Kart3D {
         const wg = (() => { const cv2 = document.createElement('canvas'); cv2.width = cv2.height = 64; const q = cv2.getContext('2d'), gr = q.createRadialGradient(32, 32, 14, 32, 32, 32); gr.addColorStop(0, 'rgba(255,60,60,0)'); gr.addColorStop(0.6, 'rgba(255,60,60,0.35)'); gr.addColorStop(1, 'rgba(255,60,60,0)'); q.fillStyle = gr; q.fillRect(0, 0, 64, 64); const t = new THREE.CanvasTexture(cv2); t.colorSpace = THREE.SRGBColorSpace; return t; })();
         const halo = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.6), new THREE.MeshBasicMaterial({ map: wg, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); halo.position.z = -0.01; yoke.add(halo);
         this.yoke = yoke;
-        d.scale.setScalar(k); d.position.set(0, y0 + 0.07, zs + 0.06); z.pivot.position.y = -0.5; z.legs.forEach(l => { l.rotation.x = -1.45; }); z.shadow.visible = false; }      // SEATED, legs forward
+        d.scale.setScalar(k * fS); d.position.set(0, y0 + 0.07 * fS, (zs + 0.06) * fS); z.pivot.position.y = -0.5; z.legs.forEach(l => { l.rotation.x = -1.45; }); z.shadow.visible = false; }      // SEATED, legs forward
 
       else { d.scale.setScalar(k); d.position.set(0, 0.28 - 0.95 * k * 0, 0.42); z.pivot.position.y = -0.5; z.legs.forEach(l => { l.rotation.x = -1.45; }); }
       this.driver = z; this.car.add(d); }
@@ -759,7 +759,7 @@ class Kart3D {
       this.car.scale.set(sx, sy, Math.max(0.2, sx)); if (this.tvFlash) { this.tvFlash.visible = fl > 0; if (fl) { this.tvFlash.position.copy(this.car.position); this.tvFlash.position.y += 0.7 * Math.max(0.05, sy); this.tvFlash.scale.set(4 + 3 * sx, 0.2 + 0.9 * sy, 1); } } }
     const f = 64 + Math.min(14, p.speed - RACE.BASE) * 0.9; if (Math.abs(this.camera.fov - f) > 0.05) { this.camera.fov += (f - this.camera.fov) * 0.1; this.camera.updateProjectionMatrix(); }
     if (FREE) {                                                                                          // THE HONOUR LAP / THE RING TOUR: the chase camera behind the kart, on the hall's floor
-      const fx = -Math.sin(hyaw), fz = -Math.cos(hyaw); this.camPos.set(hw.x - fx * 7.5, TF && TF.ph === 'fl' ? Math.min(hw.y + 3.6, -3.5) : hw.y + 3.6, hw.z - fz * 7.5);      /* (below Saturn's underside: the camera never goes through the floor of the garden) */ if (this.camera.position.distanceTo(this.camPos) > 8) this.camera.position.copy(this.camPos); else this.camera.position.lerp(this.camPos, 0.35); this.camera.lookAt(hw.x + fx * 6, hw.y + 1.1, hw.z + fz * 6);
+      const fx = -Math.sin(hyaw), fz = -Math.cos(hyaw); this.camPos.set(hw.x - fx * (this.hover ? 3.9 : 7.5), TF && TF.ph === 'fl' ? Math.min(hw.y + (this.hover ? 2.0 : 3.6), -3.5) : hw.y + (this.hover ? 2.0 : 3.6), hw.z - fz * (this.hover ? 3.9 : 7.5));      /* (below Saturn's underside: the camera never goes through the floor of the garden) */ if (this.camera.position.distanceTo(this.camPos) > 8) this.camera.position.copy(this.camPos); else this.camera.position.lerp(this.camPos, 0.35); this.camera.lookAt(hw.x + fx * 6, hw.y + 1.1, hw.z + fz * 6);
       if (TF && TF.ph === 'fl') { const q = Math.max(0, Math.min(1, (TF.f - 0.1) / 0.35)), w = q * q * (3 - 2 * q); this.camera.lookAt(hw.x + fx * 6 * (1 - w) + (-KART.R - hw.x) * w, hw.y + 1.1 + (0 - hw.y - 1.1) * w, hw.z + fz * 6 * (1 - w) + (0 - hw.z) * w); }      // (the view turns to Saturn's portal, in the middle of the garden's underside, as the pod rises)
     } else if (R.intro > 0) {                                                                                 // THE FLYOVER before the start (the user): high over the shops looking at the sphere in its rings, round the
       const u = 1 - R.intro / 7, e = v => { v = Math.max(0, Math.min(1, v)); return v * v * (3 - 2 * v); }, a = e(u / 0.8);     // roundabout to the gate beside the line, then down behind the kart
@@ -772,7 +772,7 @@ class Kart3D {
       if (this.camera.position.distanceTo(this.camPos) > 6) this.camera.position.copy(this.camPos); else this.camera.position.lerp(this.camPos, 0.5);
       this.camera.lookAt(this.ringPos(p.s + 9, (p.x * 0.5 + OFF) - 7, 1.6, this.v).setY(this.v.y + this.bankY(PX) + (R.dep(p.s + 10) + DP)));
     } else {
-    this.ringPos(p.s - (this.hover ? 4.0 : 4.6), (p.x * 0.6 + OFF), (this.hover ? 2.4 : 2.1) + air, this.camPos); this.camPos.y += this.bankY(PX) + (R.dep(p.s) + DP);      /* (a little higher and farther: the vehicle is bigger than the old kart) */ if (this.camera.position.distanceTo(this.camPos) > 6) this.camera.position.copy(this.camPos); else this.camera.position.lerp(this.camPos, 0.5);
+    this.ringPos(p.s - (this.hover ? 3.7 : 4.6), (p.x * 0.6 + OFF), (this.hover ? 2.2 : 2.1) + air, this.camPos); this.camPos.y += this.bankY(PX) + (R.dep(p.s) + DP);      /* (a little higher and farther: the vehicle is bigger than the old kart) */ if (this.camera.position.distanceTo(this.camPos) > 6) this.camera.position.copy(this.camPos); else this.camera.position.lerp(this.camPos, 0.5);
     this.camera.lookAt(this.ringPos(p.s + 12, (p.x * 0.4 + OFF), 0.9 + air * 0.6, this.v).setY(this.v.y + this.bankY(PX) + (R.dep(p.s + 10) + DP)));
     }
     { const Lk = g.look, nowL = performance.now();      /* FREE LOOK: the player's drag turns the view round the chase pose (up / down / left / right, all the way round sideways); it eases back to the road 2.5 s after the last drag */
