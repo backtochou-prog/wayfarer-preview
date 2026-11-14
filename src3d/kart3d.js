@@ -787,7 +787,7 @@ class Kart3D {
       if (this.camera.position.distanceTo(this.camPos) > 6) this.camera.position.copy(this.camPos); else this.camera.position.lerp(this.camPos, 0.5);
       this.camera.lookAt(this.ringPos(p.s + 9, (p.x * 0.5 + OFF) - 7, 1.6, this.v).setY(this.v.y + this.bankY(PX) + (R.dep(p.s + 10) + DP)));
     } else {
-    this.ringPos(p.s - (this.hover ? 5.2 : 4.6), (p.x * 0.6 + OFF), (this.hover ? 2.8 : 2.1) + air, this.camPos); this.camPos.y += this.bankY(PX) + (R.dep(p.s) + DP);      /* (a little higher and farther: the vehicle is bigger than the old kart) */ if (this.camera.position.distanceTo(this.camPos) > 6) this.camera.position.copy(this.camPos); else this.camera.position.lerp(this.camPos, 0.5);
+    this.ringPos(p.s - (this.hover ? 4.0 : 4.6), (p.x * 0.6 + OFF), (this.hover ? 2.4 : 2.1) + air, this.camPos); this.camPos.y += this.bankY(PX) + (R.dep(p.s) + DP);      /* (a little higher and farther: the vehicle is bigger than the old kart) */ if (this.camera.position.distanceTo(this.camPos) > 6) this.camera.position.copy(this.camPos); else this.camera.position.lerp(this.camPos, 0.5);
     this.camera.lookAt(this.ringPos(p.s + 12, (p.x * 0.4 + OFF), 0.9 + air * 0.6, this.v).setY(this.v.y + this.bankY(PX) + (R.dep(p.s + 10) + DP)));
     }
     { const Lk = g.look, nowL = performance.now();      /* FREE LOOK: the player's drag turns the view round the chase pose (up / down / left / right, all the way round sideways); it eases back to the road 2.5 s after the last drag */
