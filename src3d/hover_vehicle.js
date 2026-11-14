@@ -174,6 +174,23 @@
     const glow = (px, py, pz, size, c) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: c, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); s.position.set(px, py, pz); s.scale.set(size, size, 1); group.add(s); return s; };
     const tail = glow(0, 0.1, 2.3, 0.8, '#ff5ad8'), under = glow(0, -0.75, 0, 2.8, '#a040ff');
     live.push(t => { tail.material.opacity = 0.7 + 0.3 * Math.sin(t * 6); under.material.opacity = 0.35 + 0.15 * Math.sin(t * 2.1); });
+
+    /* NO WHEELS, MAGNETIC (the user: 'c'est un véhicule sans roues, magnétique'): it hovers on four magnetic pads under the hull; each pad is a dark disc with a lit ring, throws a faint cone of light down to the ground
+       and sends slow rings of field spreading over it; a larger field ring under the whole hull breathes. */
+    const GY = -1.25;      // the ground it hovers over, relative to the hull (the viewer's floor ring is at -1.3)
+    const padPos = [[-0.68, -1.25], [0.68, -1.25], [-0.55, 0.95], [0.55, 0.95]], fields = [];
+    const ringGeo = new THREE.RingGeometry(0.92, 1.0, 64);
+    padPos.forEach(([px, pz], i) => {
+      const pad = new THREE.Group(); pad.position.set(px, -0.55, pz); group.add(pad);
+      const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.34, 0.07, 32), new THREE.MeshBasicMaterial({ color: '#10142a' })); pad.add(disc);
+      const lr = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.02, 8, 48), new THREE.MeshBasicMaterial({ color: '#35f0ff' })); lr.rotation.x = Math.PI / 2; lr.position.y = -0.045; pad.add(lr);
+      const core = new THREE.Mesh(new THREE.CircleGeometry(0.17, 24), new THREE.MeshBasicMaterial({ color: '#8c5cff' })); core.rotation.x = Math.PI / 2; core.position.y = -0.042; pad.add(core);
+      const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.62, -GY - 0.6, 24, 1, true), new THREE.MeshBasicMaterial({ color: '#35c8ff', transparent: true, opacity: 0.09, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); cone.position.set(px, (GY - 0.6) / 2 - 0.02, pz); group.add(cone);
+      for (let k = 0; k < 2; k++) { const r = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: k ? '#b06cff' : '#35f0ff', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); r.rotation.x = -Math.PI / 2; r.position.set(px, GY, pz); group.add(r); fields.push({ r, ph: (i * 0.23 + k * 0.5) % 1 }); }
+      live.push(t => { lr.material.color.setHSL(0.5 + 0.05 * Math.sin(t * 3 + i), 1, 0.6); cone.material.opacity = 0.07 + 0.04 * Math.sin(t * 2.4 + i); });
+    });
+    const big = new THREE.Mesh(new THREE.RingGeometry(0.96, 1.0, 96), new THREE.MeshBasicMaterial({ color: '#8c5cff', transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); big.rotation.x = -Math.PI / 2; big.position.y = GY; group.add(big);
+    live.push(t => { for (const f of fields) { const u = (t * 0.45 + f.ph) % 1; f.r.scale.setScalar(0.25 + 1.0 * u); f.r.material.opacity = 0.5 * (1 - u) * (1 - u); } big.scale.set(1.35 + 0.05 * Math.sin(t * 1.7), 2.5 + 0.08 * Math.sin(t * 1.7), 1); big.material.opacity = 0.3 + 0.12 * Math.sin(t * 1.7); });
     return { group, update(t) { for (const f of live) f(t); } };
   }
 
