@@ -182,29 +182,11 @@ class Kart3D {
       if (HOVER) {       /* SEATED IN THE COCKPIT, hands on the yoke (the user: 'un fauteuil pour que le joueur soit bien assis et contrôle bien l'engin: debout il est trop loin pour contrôler, on ne sent pas que c'est toi qui conduis'): an armchair sunk in the cockpit dish, the player seated in it, legs forward, a steering yoke right in front of the chest, armrests with their lit buttons */
         const S = HoverVehicle.buildPhoto.SIZE, y0 = 0.25 + 0.5 * S + 0.15 * S, zs = 0.12, M = (c, o) => new THREE.MeshBasicMaterial(Object.assign({ color: c }, o || {}));
         const seat = new THREE.Group(); seat.position.set(0, y0, zs); this.car.add(seat);
-        const box = (w, h, dd, x, y, zz, c, rx, glow) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, dd), M(c)); m.position.set(x, y, zz); if (rx) m.rotation.x = rx; seat.add(m); return m; };
-        box(0.5, 0.1, 0.5, 0, 0.05, 0.0, '#241a44'); box(0.5, 0.05, 0.1, 0, 0.1, -0.22, '#3a2a78', 0.15);                                   // the cushion and its raised front lip
-        /* THE SEAT SHELL (the user's example picture: bucket seats with a neon teal outline, a dark hollow, a magenta oval head pad and a yellow-green striped panel at the foot): an oval shell for the BACK of the armchair, and the same shell, lower and a little darker, in front (the user: 'le dos du fauteuil peut être utilisé en avant aussi, en assombrissant un peu') */
-        const shell = (zz, yy, rx, h, dark) => {
-          const sg = new THREE.Group(); sg.position.set(0, yy, zz); sg.rotation.x = rx; seat.add(sg); const dm = dark ? 0.62 : 1, C = c => new THREE.Color(c).multiplyScalar(dm), MM = c => new THREE.MeshBasicMaterial({ color: C(c), side: THREE.DoubleSide });
-          const sy = h / 0.5, panel = new THREE.Mesh(new THREE.CircleGeometry(0.25, 40), MM('#0b0a18')); panel.scale.set(1, sy, 1); sg.add(panel);
-          const rim = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.03, 8, 48), MM('#26d8c4')); rim.scale.set(1, sy, 1); sg.add(rim);
-          const rim2 = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.014, 6, 48), MM('#8aff3a')); rim2.scale.set(1, sy, 1); rim2.position.z = 0.004; sg.add(rim2);
-          const head = new THREE.Mesh(new THREE.CircleGeometry(0.09, 24), MM('#d02ac8')); head.scale.set(0.8, 1.5, 1); head.position.set(0, h * 0.22, 0.006); sg.add(head);
-          const hc = new THREE.Mesh(new THREE.CircleGeometry(0.035, 16), MM('#2a0a3a')); hc.position.set(0, h * 0.24, 0.008); sg.add(hc);
-          const bar = new THREE.Mesh(new THREE.PlaneGeometry(0.13, 0.2 * (h / 0.62)), MM('#0e0e0a')); bar.position.set(0, -h * 0.3, 0.006); sg.add(bar);
-          for (let q = 0; q < 4; q++) { const st = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 0.016), MM('#d6e020')); st.position.set(0, -h * 0.3 - 0.07 * (h / 0.62) + q * 0.04 * (h / 0.62), 0.008); sg.add(st); }
-          return sg; };
-        /* THE BUCKET (the user's second picture: a swept bucket seat, the back sweeping up into a headrest, a hollow dark pad with a blue outline, green accents low): an extruded side profile 0.5 m wide, dark glossy, with a neon blue edge and green accent; the decorated shell below is on its OUTER back, the face the chase camera sees */
-        { const sh = new THREE.Shape(); sh.moveTo(-0.24, 0.0); sh.lineTo(0.3, 0.0); sh.quadraticCurveTo(0.42, 0.34, 0.38, 0.62); sh.quadraticCurveTo(0.36, 0.82, 0.24, 0.9); sh.quadraticCurveTo(0.2, 0.7, 0.24, 0.52); sh.quadraticCurveTo(0.2, 0.2, -0.1, 0.1); sh.lineTo(-0.28, 0.14); sh.quadraticCurveTo(-0.3, 0.04, -0.24, 0.0);
-          const bg = new THREE.ExtrudeGeometry(sh, { depth: 0.48, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 2, curveSegments: 14 }); bg.translate(0, 0, -0.24); bg.rotateY(-Math.PI / 2); bg.translate(0, 0, 0);
-          const bm = new THREE.Mesh(bg, new THREE.MeshBasicMaterial({ color: '#0a0a1c' })); bm.position.set(0, 0.0, 0.0); seat.add(bm);
-          const ed = new THREE.LineSegments(new THREE.EdgesGeometry(bg, 28), new THREE.LineBasicMaterial({ color: '#2a9aff' })); seat.add(ed);
-          const gr = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.05, 0.1), new THREE.MeshBasicMaterial({ color: '#2aff8a' })); gr.position.set(0, 0.08, 0.3); gr.rotation.x = -0.35; seat.add(gr); }
-        shell(0.43, 0.46, -0.1, 0.56, false);      // the decorated oval on the bucket's outer back
-        shell(-0.66, 0.2, 0.2, 0.4, true);         // the front copy: lower, darker, turned back to the player (it sits in front of the yoke)
-        for (const sg of [-1, 1]) { box(0.07, 0.42, 0.22, sg * 0.29, 0.26, 0.2, '#1c1438', -0.22); box(0.1, 0.07, 0.36, sg * 0.3, 0.26, -0.02, '#31245f'); box(0.05, 0.02, 0.05, sg * 0.3, 0.3, -0.1, sg < 0 ? '#27e8a8' : '#ff3fd0'); box(0.05, 0.02, 0.05, sg * 0.3, 0.3, 0.04, '#27c8ff'); }
-        box(0.54, 0.02, 0.02, 0, 0.42, 0.22, '#ff3fd0', -0.25);      // the harness, lit
+        /* THE SEAT, AS IT IS (the user: 'ceci est le siège, posez-le tel quel, juste adapter'): their picture of the chair, the back with its rings and the glass frame with its armrests, cut out and stood behind the player (facing the chase camera) at a size that suits the vehicle; a smaller, darker copy in front (the back used at the front too) */
+        const ct = new THREE.Texture(), ci = new Image(); ci.onload = () => { ct.image = ci; ct.needsUpdate = true; }; ci.src = VEH_PHOTOS.seatCard.src; ct.colorSpace = THREE.SRGBColorSpace; ct.anisotropy = 4;
+        const card = (w, x, y, zz, tint, ry) => { const h5 = w * VEH_PHOTOS.seatCard.h / VEH_PHOTOS.seatCard.w, m = new THREE.Mesh(new THREE.PlaneGeometry(w, h5), new THREE.MeshBasicMaterial({ map: ct, transparent: true, alphaTest: 0.06, side: THREE.DoubleSide, color: tint })); m.position.set(x, y, zz); m.rotation.y = ry || 0; seat.add(m); return m; };
+        card(0.62, 0, 0.36, 0.3, 0xffffff);
+        card(0.36, 0, 0.2, -0.66, 0x777777);
         /* THE STEERING WHEEL (the user's picture, AS IT IS, 'sans contact direct avec le tableau de contrôle'): the open ring of black, red and blue chrome, floating in front of the player's chest with NO column and no hub touching the dashboard; it turns in its own plane when the vehicle changes lane, and a faint glow under it shows it is held by the field */
         const yoke = new THREE.Group(); yoke.position.set(0, 0.5, -0.4); yoke.rotation.x = -0.5; seat.add(yoke);
         const wt = new THREE.Texture(), wi = new Image(); wi.onload = () => { wt.image = wi; wt.needsUpdate = true; }; wi.src = VEH_PHOTOS.wheel.src; wt.colorSpace = THREE.SRGBColorSpace; wt.anisotropy = 4;
