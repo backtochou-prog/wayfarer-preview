@@ -7,6 +7,7 @@ class Kart3D {
   static get HALL() { return true; }      // the 3D ship hall instead of the painted arch and floor
   static get LIFTS() { return false; }      // the two glass lifts in the ship hall: cancelled by the user, kept to reuse
   static get CONTROL_ROOM() { return false; }      // the control-room picture on the 3rd basement: removed for now, kept to reuse
+  static get HOVER_VEHICLE() { return true; }   // the player's vehicle is the user's hover vehicle (src3d/hover_vehicle.js) with the player standing on it (false: the old sheet-card kart with the seated driver)
   static get IDENT() { return true; }           // the identification screen at the flower (look at it to unlock the anti-gravity field; see KART.IDENT in race.js)
   static get CENTRE_SPHERE() { return true; }   // Saturn's sphere (the garden's centre) as a real turning sphere, its rings untouched (false: the flat camera-facing picture)
   static get ANTIGRAV() { return true; }        // the flower is an anti-gravity zone: a column of light + rising specks up to the upper ring
@@ -164,7 +165,10 @@ class Kart3D {
       Kit.box(1.2, 0.06, 0.06, 0, 0.2, 1.32, ORANGE, { glow: true }), Kit.box(0.6, 0.05, 0.05, 0, 0.12, 1.33, GREEN, { glow: true }),      // the rear bumper, lit (and brake light below)
     ];
     this.car = new THREE.Group();
-    if (typeof KART_ART !== 'undefined') {                                                            // the user's sheet AS IT IS (2026-11-09: 'telle qu'elle, ne change rien dans les images'): its four views as cut-out cards round the kart
+    const HOVER = Kart3D.HOVER_VEHICLE && typeof HoverVehicle !== 'undefined' && typeof VEH_PHOTOS !== 'undefined';
+    if (HOVER) {       /* THE PLAYER'S VEHICLE (the user, 2026-11-14: their hover vehicle, no wheels, magnetic, and the player STANDING on it): the photo vehicle, 1.7 m across, hovering 0.25 m above the road with its magnetic plate; the player stands on its cockpit, the horns beside them */
+      const S = HoverVehicle.buildPhoto.SIZE, hv = HoverVehicle.buildPhoto(THREE, { ground: -(0.25 + 0.5 * S) / S }); hv.group.position.y = 0.25 + 0.5 * S; this.car.add(hv.group); this.hover = hv;
+    } else if (typeof KART_ART !== 'undefined') {                                                            // the user's sheet AS IT IS (2026-11-09: 'telle qu'elle, ne change rien dans les images'): its four views as cut-out cards round the kart
       const A = KART_ART, L = 2.6, W = 1.37, tex = u => { const img = new Image(), t = new THREE.Texture(img); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; img.onload = () => { t.needsUpdate = true; }; img.src = u; return t; };
       const mat = u => new THREE.MeshBasicMaterial({ map: tex(u), alphaTest: 0.4, side: THREE.DoubleSide });
       const card = (u, w, h, x, y, z, ry, rx) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat(u)); m.position.set(x, y, z); m.rotation.set(rx || 0, ry || 0, 0, 'YXZ'); this.car.add(m); return m; };
@@ -174,7 +178,10 @@ class Kart3D {
       card(A.top, L * A.ar_top * 0 + W * 1.0, L, 0, 0.32, 0, 0, -Math.PI / 2);
     } else this.car.add(Kit.mesh(Kit.merge(pk)));
     if (typeof RunnerZagla !== 'undefined' && typeof ZAGLA_ASSETS !== 'undefined') {                    // Zagla at the wheel: her body on the seat, her legs forward to the pedals
-      const z = new RunnerZagla(), d = z.group, k = 0.62; d.scale.setScalar(k); d.position.set(0, 0.28 - 0.95 * k * 0, 0.42); z.pivot.position.y = -0.5; z.legs.forEach(l => { l.rotation.x = -1.45; }); this.driver = z; this.car.add(d); }
+      const z = new RunnerZagla(), d = z.group, k = 0.62;
+      if (HOVER) { d.scale.setScalar(k); d.position.set(0, 0.25 + 0.5 * HoverVehicle.buildPhoto.SIZE + 0.24 * HoverVehicle.buildPhoto.SIZE, 0.03); z.legs.forEach(l => { l.rotation.x = 0.06; }); z.shadow.visible = false; }      // STANDING on the cockpit
+      else { d.scale.setScalar(k); d.position.set(0, 0.28 - 0.95 * k * 0, 0.42); z.pivot.position.y = -0.5; z.legs.forEach(l => { l.rotation.x = -1.45; }); }
+      this.driver = z; this.car.add(d); }
     this.bot = kart('#c8243a', '#ffffff'); sc.add(this.car, this.bot); this.bot.visible = false;
     this.bots = ['#c8243a', '#ff8a2a', '#e8d020', '#2ad0ff', '#b040ff', '#ff3fa0', '#20e0a0', '#f0f0f0', '#3a50ff', '#9aff30', '#ff5050', '#40ffd8', '#c080ff', '#ffb0d0'].map((c, i) => { const k = kart(c, i % 2 ? '#101018' : '#ffffff'); sc.add(k); return k; });      // THE EIGHT ROBOT KARTS
     // THE ARROW BANDS (the user: 'bandes de flèches bleues, contour turquoise néon, animées vers l'avant, à droite du circuit, à chaque 40 m'): three chevrons flat on the floor near the right edge,
@@ -717,6 +724,7 @@ class Kart3D {
       const sr = TF.sA + (2 * Math.PI + 2 * Math.PI * e((f - 0.15) / 0.5)) * KART.R; this.ringPos(sr, rF - KART.R, rk.y + 0.02 + hF, hw); hyaw = sr / KART.R; this.floatH = hF; this.floatF = f;
     } else if (TF) { const rk = KART.PORT_RINGS[TF.k], sr = TF.sA + TF.th * KART.R; this.ringPos(sr, rk.x + Math.max(-8, Math.min(8, p.x * 3)), rk.y + 0.02, hw); hyaw = sr / KART.R; this.floatH = 0; }
     const FREE = !!(HF || TF);
+    if (this.hover) this.hover.update(t);
     put(this.car, p.s, PX, 0.02 + air * 2.2, -(p.lane * RACE.LANE_M - p.x) * 0.04 - 0.6 * (R.off(p.s + 3) - R.off(p.s - 3)) / 6); if (R.bots) R.bots.forEach((b, i) => put(this.bots[i], b.s, b.x + R.off(b.s), 0.02, -0.6 * (R.off(b.s + 3) - R.off(b.s - 3)) / 6)); else { this.bot.visible = true; put(this.bot, R.bot.s, R.bot.x, 0.02); }
     if (FREE) { this.car.position.copy(hw); this.car.rotation.set(0, hyaw, 0); }
     this.car.position.y += DP;
@@ -744,7 +752,7 @@ class Kart3D {
       if (this.camera.position.distanceTo(this.camPos) > 6) this.camera.position.copy(this.camPos); else this.camera.position.lerp(this.camPos, 0.5);
       this.camera.lookAt(this.ringPos(p.s + 9, (p.x * 0.5 + OFF) - 7, 1.6, this.v).setY(this.v.y + this.bankY(PX) + (R.dep(p.s + 10) + DP)));
     } else {
-    this.ringPos(p.s - 4.6, (p.x * 0.6 + OFF), 2.1 + air, this.camPos); this.camPos.y += this.bankY(PX) + (R.dep(p.s) + DP); if (this.camera.position.distanceTo(this.camPos) > 6) this.camera.position.copy(this.camPos); else this.camera.position.lerp(this.camPos, 0.5);
+    this.ringPos(p.s - (this.hover ? 5.4 : 4.6), (p.x * 0.6 + OFF), (this.hover ? 3.4 : 2.1) + air, this.camPos); this.camPos.y += this.bankY(PX) + (R.dep(p.s) + DP);      /* (with the player standing on the vehicle the chase camera is higher and a little farther: the standing player does not hide the road) */ if (this.camera.position.distanceTo(this.camPos) > 6) this.camera.position.copy(this.camPos); else this.camera.position.lerp(this.camPos, 0.5);
     this.camera.lookAt(this.ringPos(p.s + 12, (p.x * 0.4 + OFF), 0.9 + air * 0.6, this.v).setY(this.v.y + this.bankY(PX) + (R.dep(p.s + 10) + DP)));
     }
     { const Lk = g.look, nowL = performance.now();      /* FREE LOOK: the player's drag turns the view round the chase pose (up / down / left / right, all the way round sideways); it eases back to the road 2.5 s after the last drag */

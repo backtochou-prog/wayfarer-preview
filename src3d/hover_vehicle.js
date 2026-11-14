@@ -201,7 +201,7 @@
   // by the direction of the surface and falling back to the baked palette where no photo covers: so from the four photographed sides it is their picture, in between it is the same chrome.
   const PH = { X: 1.3, Z: 1.3, Y0: -0.5, Y1: 0.78 };       // the projection box: half width, half length, bottom, top (metres)
 
-  function buildPhoto(THREE) {
+  function buildPhoto(THREE, opt) {
     const group = new THREE.Group(), live = []; group.name = 'hover-vehicle-photos';
     const tex = {};
     for (const k of ['front', 'back', 'side', 'top', 'bottom']) { const t = new THREE.Texture(), im = new Image(); im.onload = () => { t.image = im; t.needsUpdate = true; }; im.src = VEH_PHOTOS[k].src; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; tex[k] = t; }
@@ -281,7 +281,7 @@
 
     // ---- no wheels, magnetic: the underside is ONE round magnetic plate (the user's bottom picture, projected on the hull's underside); it throws a cone of light to the ground and
     // sends slow rings of field spreading over it, a larger ring under the whole hull breathes ---------------------------------------------------------------------------------
-    const GY = -1.1, fields = [], ringGeo = new THREE.RingGeometry(0.92, 1.0, 64);
+    const GY = opt && opt.ground !== undefined ? opt.ground : -1.1, fields = [], ringGeo = new THREE.RingGeometry(0.92, 1.0, 64);
     const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 1.35, -GY - 0.5, 40, 1, true), new THREE.MeshBasicMaterial({ color: '#7a5cff', transparent: true, opacity: 0.08, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); cone.position.set(0, (GY - 0.5) / 2, 0); group.add(cone);
     for (let k = 0; k < 3; k++) { const r = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: k === 1 ? '#35f0ff' : '#b06cff', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); r.rotation.x = -Math.PI / 2; r.position.set(0, GY, 0); group.add(r); fields.push({ r, ph: k / 3 }); }
     const big = new THREE.Mesh(new THREE.RingGeometry(0.96, 1.0, 96), new THREE.MeshBasicMaterial({ color: '#8c5cff', transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); big.rotation.x = -Math.PI / 2; big.position.y = GY; group.add(big);
