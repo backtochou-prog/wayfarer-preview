@@ -205,10 +205,12 @@ class Kart3D {
         shell(-0.66, 0.2, 0.2, 0.4, true);         // the front copy: lower, darker, turned back to the player (it sits in front of the yoke)
         for (const sg of [-1, 1]) { box(0.07, 0.42, 0.22, sg * 0.29, 0.26, 0.2, '#1c1438', -0.22); box(0.1, 0.07, 0.36, sg * 0.3, 0.26, -0.02, '#31245f'); box(0.05, 0.02, 0.05, sg * 0.3, 0.3, -0.1, sg < 0 ? '#27e8a8' : '#ff3fd0'); box(0.05, 0.02, 0.05, sg * 0.3, 0.3, 0.04, '#27c8ff'); }
         box(0.54, 0.02, 0.02, 0, 0.42, 0.22, '#ff3fd0', -0.25);      // the harness, lit
-        const yoke = new THREE.Group(); yoke.position.set(0, 0.52, -0.46); yoke.rotation.x = -0.55; seat.add(yoke);                       // the steering yoke, tilted towards the player's hands
-        const rim = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.02, 8, 28), M('#cfd8ff')); yoke.add(rim); const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.03, 16), M('#35f0ff')); hub.rotation.x = Math.PI / 2; yoke.add(hub);
-        for (const a2 of [0, Math.PI / 2, Math.PI]) { const sp = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.02, 0.02), M('#8a7aff')); sp.rotation.z = a2; yoke.add(sp); }
-        const col = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, 0.4, 10), M('#2a2450')); col.position.set(0, 0.28, -0.52); col.rotation.x = -0.3; seat.add(col);
+        /* THE STEERING WHEEL (the user's picture, AS IT IS, 'sans contact direct avec le tableau de contrôle'): the open ring of black, red and blue chrome, floating in front of the player's chest with NO column and no hub touching the dashboard; it turns in its own plane when the vehicle changes lane, and a faint glow under it shows it is held by the field */
+        const yoke = new THREE.Group(); yoke.position.set(0, 0.5, -0.4); yoke.rotation.x = -0.5; seat.add(yoke);
+        const wt = new THREE.Texture(), wi = new Image(); wi.onload = () => { wt.image = wi; wt.needsUpdate = true; }; wi.src = VEH_PHOTOS.wheel.src; wt.colorSpace = THREE.SRGBColorSpace; wt.anisotropy = 4;
+        const wheel = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.42), new THREE.MeshBasicMaterial({ map: wt, transparent: true, alphaTest: 0.04, side: THREE.DoubleSide })); yoke.add(wheel);
+        const wg = (() => { const cv2 = document.createElement('canvas'); cv2.width = cv2.height = 64; const q = cv2.getContext('2d'), gr = q.createRadialGradient(32, 32, 14, 32, 32, 32); gr.addColorStop(0, 'rgba(255,60,60,0)'); gr.addColorStop(0.6, 'rgba(255,60,60,0.35)'); gr.addColorStop(1, 'rgba(255,60,60,0)'); q.fillStyle = gr; q.fillRect(0, 0, 64, 64); const t = new THREE.CanvasTexture(cv2); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+        const halo = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.6), new THREE.MeshBasicMaterial({ map: wg, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); halo.position.z = -0.01; yoke.add(halo);
         this.yoke = yoke;
         d.scale.setScalar(k); d.position.set(0, y0 + 0.07, zs + 0.06); z.pivot.position.y = -0.5; z.legs.forEach(l => { l.rotation.x = -1.45; }); z.shadow.visible = false; }      // SEATED, legs forward
 
