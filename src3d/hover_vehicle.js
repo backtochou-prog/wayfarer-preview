@@ -54,7 +54,7 @@
     const cv = document.createElement('canvas'); cv.width = cv.height = 256; const x = cv.getContext('2d');
     x.fillStyle = '#04030a'; x.fillRect(0, 0, 256, 256);
     for (let i = 0; i < 90; i++) { x.fillStyle = 'rgba(255,255,255,' + (0.25 + Math.random() * 0.6) + ')'; x.fillRect(Math.random() * 256, Math.random() * 256, 1.5, 1.5); }
-    [[120, '#ff7a3a', 0.8], [96, '#d62fc8', 0.7], [70, '#4a56ff', 0.7], [44, '#2ad8ff', 0.6]].forEach(([r, c, a]) => { x.strokeStyle = c; x.globalAlpha = a; x.lineWidth = 3; x.beginPath(); x.arc(128, 128, r, 0, 7); x.stroke(); });
+    [[122, '#4a56ff', 0.8], [104, '#d62fc8', 0.7], [84, '#2a3a9a', 0.7], [58, '#6a3fe0', 0.6], [30, '#2ad8ff', 0.5]].forEach(([r, c, a]) => { x.strokeStyle = c; x.globalAlpha = a; x.lineWidth = 3; x.beginPath(); x.arc(128, 128, r, 0, 7); x.stroke(); });
     x.globalAlpha = 1;
     const dishTex = new THREE.CanvasTexture(cv); dishTex.colorSpace = THREE.SRGBColorSpace;
     const dish = new THREE.Mesh(new THREE.CircleGeometry(0.88, 64), new THREE.MeshBasicMaterial({ map: dishTex })); dish.rotation.x = -Math.PI / 2; dish.position.y = 0.205; dish.scale.set(1, 0.94, 1); group.add(dish);
@@ -62,9 +62,16 @@
 
     // ---- the panels (the picture shows them at the BACK: a raised console with teal and green lights, two side consoles) ---------------------------------
     const lit = (w, h, d, px, py, pz, c, rx) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshBasicMaterial({ color: c })); m.position.set(px, py, pz); if (rx) m.rotation.x = rx; group.add(m); return m; };
-    const console_ = lit(0.62, 0.07, 0.26, 0, 0.36, 0.78, '#2a3a4a', -0.35); console_.name = 'console';
-    lit(0.14, 0.02, 0.05, -0.12, 0.40, 0.76, '#27e8a8', -0.35); lit(0.16, 0.02, 0.05, 0.14, 0.40, 0.76, '#27c8ff', -0.35); lit(0.08, 0.02, 0.05, 0.28, 0.40, 0.76, '#ff9a4a', -0.35);
-    for (const s of [-1, 1]) { lit(0.4, 0.06, 0.18, s * 0.72, 0.34, 0.6, '#3a2a58', 0); lit(0.07, 0.02, 0.05, s * 0.64, 0.375, 0.62, s < 0 ? '#27e8a8' : '#ff3fd0', 0); lit(0.07, 0.02, 0.05, s * 0.8, 0.375, 0.62, '#27c8ff', 0); }
+    /* (the top-view picture: along the BACK half of the cockpit ring runs an arc of segmented console panels, each with its small lit windows in teal, green, pink and white) */
+    const wins = ['#27c8ff', '#27e8a8', '#ff3fd0', '#f4ecff', '#ff9a4a'];
+    const NP = 5;
+    for (let n = 0; n < NP; n++) {
+      const a = Math.PI / 2 + (n - (NP - 1) / 2) * 0.5, rr = 0.96, px = Math.cos(a) * rr, pz = Math.sin(a) * rr * 0.94;      // a = pi/2 is straight to the back (+Z)
+      const pg = new THREE.Group(); pg.position.set(px, 0.36, pz); pg.rotation.y = -(a - Math.PI / 2) * -1 + Math.PI; pg.rotation.y = Math.atan2(px, pz) + Math.PI;
+      const base = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.07, 0.2), new THREE.MeshBasicMaterial({ color: '#26304a' })); base.rotation.x = -0.3; pg.add(base);
+      for (let w = 0; w < 3; w++) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.02, 0.05), new THREE.MeshBasicMaterial({ color: wins[(n + w * 2) % wins.length] })); m.position.set((w - 1) * 0.12, 0.04, 0.0); m.rotation.x = -0.3; pg.add(m); }
+      group.add(pg);
+    }
 
     // ---- the two arched handles, base on the outer shoulder, up and in to the cockpit ring ---------------------------------------------------------------
     for (const s of [-1, 1]) {
@@ -78,8 +85,8 @@
         c2[3 * i] = hc.r; c2[3 * i + 1] = hc.g; c2[3 * i + 2] = hc.b;
       }
       geo.setAttribute('color', new THREE.BufferAttribute(c2, 3));
-      const h = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true })); group.add(h);
-      const cap = new THREE.Mesh(new THREE.SphereGeometry(0.075, 12, 8), new THREE.MeshBasicMaterial({ color: '#e835dc' })); cap.position.copy(curve.getPoint(0.5)); group.add(cap);
+      const h = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true })); h.scale.set(1, 1, 1.9); group.add(h);      /* (a flat ribbon like the picture's horns: thin across, wide along the vehicle) */
+      const cap = new THREE.Mesh(new THREE.SphereGeometry(0.075, 12, 8), new THREE.MeshBasicMaterial({ color: '#e835dc' })); cap.position.copy(curve.getPoint(0.5)); cap.scale.set(1, 1, 1.9); group.add(cap);
     }
 
     // ---- the lights: headlamps at the nose (-Z), the rear exhaust glow (the picture's red arrow: the middle of the back's lower edge), the underside ------------
