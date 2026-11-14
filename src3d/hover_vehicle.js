@@ -291,8 +291,10 @@
     });
     const big = new THREE.Mesh(new THREE.RingGeometry(0.96, 1.0, 96), new THREE.MeshBasicMaterial({ color: '#8c5cff', transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); big.rotation.x = -Math.PI / 2; big.position.y = GY; group.add(big);
     live.push(t => { for (const f of fields) { const u = (t * 0.45 + f.ph) % 1; f.r.scale.setScalar(0.25 + 1.0 * u); f.r.material.opacity = 0.5 * (1 - u) * (1 - u); } big.scale.set(1.6 + 0.05 * Math.sin(t * 1.7), 1.9 + 0.06 * Math.sin(t * 1.7), 1); big.material.opacity = 0.28 + 0.1 * Math.sin(t * 1.7); });
-    return { group, update(t) { for (const f of live) f(t); } };
+    group.scale.setScalar(buildPhoto.SIZE);      // the real size is a choice, not a constraint (the user: 3 m is too much): the model is drawn 2.6 m wide, this scales it (0.65 = 1.7 m wide, about a kart)
+    return { group, update(t) { for (const f of live) f(t); }, size: buildPhoto.SIZE };
   }
+  buildPhoto.SIZE = 0.65;
 
   g.HoverVehicle = { build, buildFused, buildPhoto, PAL, PROFILE };
 })(typeof window !== 'undefined' ? window : globalThis);

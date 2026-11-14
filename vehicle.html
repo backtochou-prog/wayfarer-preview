@@ -43,9 +43,9 @@
   for (const k in MODELS) { const el = document.getElementById(MODELS[k][0]); if (el) el.addEventListener('click', () => pick(k)); }
   if (/[?&]model=hull/.test(location.search)) pick('hull');
   // the view: yaw 0 = looking at the BACK (the picture's side, +Z), pitch up positive; the vehicle's nose is -Z
-  let yaw = 0.5, pitch = 0.32, dist = 6.8, auto = true, tYaw = yaw, tPitch = pitch, tDist = dist;
+  let yaw = 0.5, pitch = 0.32, dist = 4.8, auto = true, tYaw = yaw, tPitch = pitch, tDist = dist;
   const VIEWS = { back: [0, 0.3, 'dos'], front: [Math.PI, 0.18, 'face'], left: [-Math.PI / 2, 0.12, 'gauche'], right: [Math.PI / 2, 0.12, 'droite'], top: [0, 1.5, 'dessus'], bottom: [0, -1.4, 'dessous'], q: [0.6, 0.34, '3/4 arrière'] };
-  const set = (k) => { const v = VIEWS[k]; let d = v[0] - tYaw; d = Math.atan2(Math.sin(d), Math.cos(d)); tYaw += d; tPitch = v[1]; tDist = 6.8; label.textContent = 'vue : ' + v[2]; auto = false; document.getElementById('spin').classList.remove('on'); };
+  const set = (k) => { const v = VIEWS[k]; let d = v[0] - tYaw; d = Math.atan2(Math.sin(d), Math.cos(d)); tYaw += d; tPitch = v[1]; tDist = 4.8; label.textContent = 'vue : ' + v[2]; auto = false; document.getElementById('spin').classList.remove('on'); };
   document.querySelectorAll('button[data-v]').forEach(b => b.addEventListener('click', () => set(b.dataset.v)));
   document.getElementById('spin').addEventListener('click', (e) => { auto = !auto; e.currentTarget.classList.toggle('on', auto); });
   // pointers: one finger / the mouse turns, two fingers pinch
@@ -54,11 +54,11 @@
   cv.addEventListener('pointermove', e => {
     if (!P.has(e.pointerId)) return; const o = P.get(e.pointerId); P.set(e.pointerId, [e.clientX, e.clientY]);
     if (P.size === 1) { tYaw -= (e.clientX - o[0]) * 0.008; tPitch = Math.max(-1.5, Math.min(1.5, tPitch + (e.clientY - o[1]) * 0.006)); }
-    else if (P.size === 2) { const [a, b] = [...P.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch) tDist = Math.max(3.5, Math.min(18, tDist * pinch / d)); pinch = d; }
+    else if (P.size === 2) { const [a, b] = [...P.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch) tDist = Math.max(2.2, Math.min(18, tDist * pinch / d)); pinch = d; }
   });
   const up = e => { P.delete(e.pointerId); if (P.size < 2) pinch = 0; };
   cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
-  cv.addEventListener('wheel', e => { e.preventDefault(); tDist = Math.max(3.5, Math.min(18, tDist * Math.exp(e.deltaY * 0.001))); }, { passive: false });
+  cv.addEventListener('wheel', e => { e.preventDefault(); tDist = Math.max(2.2, Math.min(18, tDist * Math.exp(e.deltaY * 0.001))); }, { passive: false });
   cv.addEventListener('dblclick', () => { set('q'); });
   let lastTap = 0; cv.addEventListener('pointerup', e => { if (e.pointerType === 'touch') { const n = performance.now(); if (n - lastTap < 320) set('q'); lastTap = n; } });
   function resize() { const w = innerWidth, h = innerHeight, dpr = Math.min(devicePixelRatio || 1, 2); renderer.setPixelRatio(dpr); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
