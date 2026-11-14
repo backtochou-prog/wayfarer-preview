@@ -199,19 +199,19 @@
   // arch from the back corners over the sides and down to the nose; the cockpit is a wide oval dish on top; at the nose two air intakes and a lamp, at the back two nozzles and two side
   // orbs. The hull is a real solid, and the CHROME is the user's own photos PROJECTED onto it (front photo on the front, back photo on the back, the flank photo on both flanks), blended
   // by the direction of the surface and falling back to the baked palette where no photo covers: so from the four photographed sides it is their picture, in between it is the same chrome.
-  const PH = { X: 1.3, Z: 1.5, Y0: -0.5, Y1: 0.78 };       // the projection box: half width, half length, bottom, top (metres)
+  const PH = { X: 1.3, Z: 1.3, Y0: -0.5, Y1: 0.78 };       // the projection box: half width, half length, bottom, top (metres)
 
   function buildPhoto(THREE) {
     const group = new THREE.Group(), live = []; group.name = 'hover-vehicle-photos';
     const tex = {};
-    for (const k of ['front', 'back', 'side']) { const t = new THREE.Texture(), im = new Image(); im.onload = () => { t.image = im; t.needsUpdate = true; }; im.src = VEH_PHOTOS[k].src; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; tex[k] = t; }
+    for (const k of ['front', 'back', 'side', 'top']) { const t = new THREE.Texture(), im = new Image(); im.onload = () => { t.image = im; t.needsUpdate = true; }; im.src = VEH_PHOTOS[k].src; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; tex[k] = t; }
     const FRONT_AT_LEFT_OF_SIDE = true;      // in the flank photo the nose (-Z) is at the left
     const mat = new THREE.ShaderMaterial({
-      uniforms: { tF: { value: tex.front }, tB: { value: tex.back }, tS: { value: tex.side }, box: { value: new THREE.Vector4(PH.X, PH.Z, PH.Y0, PH.Y1) }, sideFlip: { value: FRONT_AT_LEFT_OF_SIDE ? 0 : 1 } },
+      uniforms: { tF: { value: tex.front }, tB: { value: tex.back }, tS: { value: tex.side }, tT: { value: tex.top }, box: { value: new THREE.Vector4(PH.X, PH.Z, PH.Y0, PH.Y1) }, sideFlip: { value: FRONT_AT_LEFT_OF_SIDE ? 0 : 1 } },
       side: THREE.DoubleSide,
       vertexShader: 'varying vec3 vP; varying vec3 vN; varying vec3 vC; attribute vec3 color; void main(){ vP = position; vN = normalize(normal); vC = color; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
       fragmentShader: `
-        uniform sampler2D tF; uniform sampler2D tB; uniform sampler2D tS; uniform vec4 box; uniform float sideFlip;
+        uniform sampler2D tF; uniform sampler2D tB; uniform sampler2D tS; uniform sampler2D tT; uniform vec4 box; uniform float sideFlip;
         varying vec3 vP; varying vec3 vN; varying vec3 vC;
         vec4 smp(sampler2D t, vec2 uv){ uv = clamp(uv, vec2(0.002), vec2(0.998)); return texture2D(t, uv); }
         void main(){
@@ -219,11 +219,12 @@
           float v = clamp((vP.y - box.z) / (box.w - box.z), 0.0, 1.0);
           float uf = 1.0 - (vP.x + box.x) / (2.0 * box.x), ub = (vP.x + box.x) / (2.0 * box.x);
           float us = (vP.z + box.y) / (2.0 * box.y); if (sideFlip > 0.5) us = 1.0 - us;
-          vec4 cF = smp(tF, vec2(uf, v)), cB = smp(tB, vec2(ub, v)), cS = smp(tS, vec2(us, v));
+          vec4 cF = smp(tF, vec2(uf, v)), cB = smp(tB, vec2(ub, v)), cS = smp(tS, vec2(us, v)), cT = smp(tT, vec2((vP.x + box.x) / (2.0 * box.x), (box.y - vP.z) / (2.0 * box.y)));
           float wF = pow(max(0.0, -n.z), 3.0) * cF.a, wB = pow(max(0.0, n.z), 3.0) * cB.a, wS = pow(abs(n.x), 3.0) * cS.a;
-          float wb = 0.12 + 0.5 * pow(max(0.0, n.y), 2.0) + 0.5 * pow(max(0.0, -n.y), 2.0);
+          float wT = 3.0 * pow(max(0.0, n.y), 2.0) * cT.a;
+          float wb = 0.1 + 0.5 * pow(max(0.0, -n.y), 2.0);
           vec3 base = vC * (0.8 + 0.2 * n.y);
-          vec3 col = (cF.rgb * wF + cB.rgb * wB + cS.rgb * wS + base * wb) / (wF + wB + wS + wb);
+          vec3 col = (cF.rgb * wF + cB.rgb * wB + cS.rgb * wS + cT.rgb * wT + base * wb) / (wF + wB + wS + wT + wb);
           col *= (n.y < -0.3) ? 0.6 : 1.0;
           gl_FragColor = vec4(col, 1.0);
         }`,
@@ -235,7 +236,7 @@
     const N = 60, M = 56, pos = [], idx = [], ex = 2.5;
     const sup = (c, e) => Math.sign(c) * Math.pow(Math.abs(c), 2 / e);
     for (let i = 0; i < N; i++) {
-      const t = i / (N - 1), zc = Math.cos(t * Math.PI), z = -PH.Z * zc * 0.999, f = Math.pow(Math.max(0, 1 - Math.pow(Math.abs(zc), ex)), 1 / ex);      // z from the nose (-1.5) to the back (+1.5), the plan a superellipse
+      const t = i / (N - 1), zc = Math.cos(t * Math.PI), z = -PH.Z * zc * 0.999, az = Math.abs(zc), f = (1 - 0.56 * Math.pow(az, 1.5)) * Math.sqrt(Math.max(0, 1 - Math.pow(Math.max(0, az - 0.9) / 0.1, 2)));      // z from the nose to the back; the plan seen from above is a rounded hexagon (the top photo): widest at the middle, flat nose and flat back
       const hw = Math.max(0.008, PH.X * f * 0.97);
       for (let k = 0; k < M; k++) {
         const a = (k / M) * Math.PI * 2 - Math.PI / 2, c = Math.cos(a), s = Math.sin(a);
@@ -248,28 +249,18 @@
     const hg = new THREE.BufferGeometry(); hg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); hg.setIndex(idx); hg.computeVertexNormals(); withColour(hg, y => (y - PH.Y0) / (PH.Y1 - PH.Y0));
     const hull = new THREE.Mesh(hg, mat); group.add(hull);
 
-    // ---- the cockpit: the wide oval dish on top, dark glass, rings, the arc of lit consoles at the BACK ---------------------------------------------------------
-    const T = new THREE.Group(); T.position.set(0, 0.25, 0.05); group.add(T);
-    const oval = (r, tube, c, y) => { const t = new THREE.Mesh(new THREE.TorusGeometry(r, tube, 8, 96), new THREE.MeshBasicMaterial({ color: c })); t.rotation.x = Math.PI / 2; t.position.y = y; t.scale.set(1.18, 1.0, 1.0); T.add(t); return t; };
-    oval(0.95, 0.045, '#3a54c8', 0.0); oval(0.84, 0.025, '#8a2ab0', -0.04); oval(0.6, 0.012, '#ff9a4a', -0.09);
-    const cv = document.createElement('canvas'); cv.width = cv.height = 256; const x = cv.getContext('2d'); x.fillStyle = '#03020a'; x.fillRect(0, 0, 256, 256);
-    [[122, '#4a56ff', 0.7], [100, '#d62fc8', 0.6], [78, '#2a3a9a', 0.7], [52, '#6a3fe0', 0.5], [26, '#2ad8ff', 0.4]].forEach(([r, c, al]) => { x.strokeStyle = c; x.globalAlpha = al; x.lineWidth = 3; x.beginPath(); x.arc(128, 128, r, 0, 7); x.stroke(); });
-    const dt = new THREE.CanvasTexture(cv); dt.colorSpace = THREE.SRGBColorSpace; const dish = new THREE.Mesh(new THREE.CircleGeometry(0.8, 64), new THREE.MeshBasicMaterial({ map: dt })); dish.rotation.x = -Math.PI / 2; dish.position.y = 0.005; dish.scale.set(1.18, 1, 1); T.add(dish);
-    const wins = ['#27c8ff', '#27e8a8', '#ff3fd0', '#f4ecff', '#ff9a4a'], NP = 5;
-    for (let n = 0; n < NP; n++) { const a = Math.PI / 2 + (n - (NP - 1) / 2) * 0.46, px = Math.cos(a) * 1.0 * 1.18, pz = Math.sin(a) * 0.9, pg = new THREE.Group(); pg.position.set(px, 0.03, pz); pg.rotation.y = Math.atan2(px / 1.18, pz) + Math.PI;
-      const base = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.07, 0.2), new THREE.MeshBasicMaterial({ color: '#26304a' })); base.rotation.x = -0.3; pg.add(base);
-      for (let w = 0; w < 3; w++) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.02, 0.05), new THREE.MeshBasicMaterial({ color: wins[(n + w * 2) % wins.length] })); m.position.set((w - 1) * 0.12, 0.04, 0); m.rotation.x = -0.3; pg.add(m); } T.add(pg); }
+    // (the cockpit dish, its rings and the arc of consoles come from the user's TOP photo, projected on the hull's top)
 
     // ---- the two horns: from the back corners, over the sides, down to the nose; thick chrome ribbons with a window opening under each ------------------------------
     const glassTex = (() => { const cv2 = document.createElement('canvas'); cv2.width = cv2.height = 128; const q = cv2.getContext('2d'), gr = q.createLinearGradient(0, 128, 128, 0); gr.addColorStop(0, 'rgba(40,20,110,0.5)'); gr.addColorStop(1, 'rgba(110,150,255,0.3)'); q.fillStyle = gr; q.fillRect(0, 0, 128, 128); q.fillStyle = 'rgba(255,255,255,0.4)'; q.beginPath(); q.moveTo(20, 128); q.lineTo(44, 128); q.lineTo(108, 0); q.lineTo(84, 0); q.fill(); const t = new THREE.CanvasTexture(cv2); t.colorSpace = THREE.SRGBColorSpace; return t; })();
     for (const sg of [-1, 1]) {
       // [z, y, |x|]: from the back corner, up and over the side, then down and IN towards the nose (the front photo's V of horns)
-      const c = new THREE.CatmullRomCurve3([[1.15, 0.0, 1.22], [1.0, 0.45, 1.2], [0.55, 0.74, 1.12], [-0.1, 0.8, 1.0], [-0.75, 0.56, 0.8], [-1.2, 0.14, 0.5], [-1.4, -0.1, 0.3]].map(p => new THREE.Vector3(sg * p[2], p[1], p[0])));
+      const c = new THREE.CatmullRomCurve3([[1.0, 0.0, 1.22], [0.88, 0.45, 1.2], [0.5, 0.74, 1.12], [-0.1, 0.8, 1.0], [-0.65, 0.56, 0.8], [-1.05, 0.14, 0.5], [-1.22, -0.1, 0.3]].map(p => new THREE.Vector3(sg * p[2], p[1], p[0])));
       const tg = new THREE.TubeGeometry(c, 70, 0.1, 12, false); withColour(tg, y => (y - PH.Y0) / (PH.Y1 - PH.Y0));
       group.add(new THREE.Mesh(tg, mat));
       /* THE SIDE WINDOW (the user: the holes are the side windows): a curved pane of tinted glass filling the opening between the horn and the hull's rim, reflections slanting across it */
       const K = 24, gp = [], gu = [], gi = [];
-      for (let q = 0; q <= K; q++) { const u = 0.02 + 0.3 * q / K, hp = c.getPoint(u), zc2 = Math.max(-0.999, Math.min(0.999, hp.z / PH.Z)), f = Math.pow(Math.max(0, 1 - Math.pow(Math.abs(zc2), 2.5)), 1 / 2.5);
+      for (let q = 0; q <= K; q++) { const u = 0.02 + 0.3 * q / K, hp = c.getPoint(u), zc2 = Math.max(-0.999, Math.min(0.999, hp.z / PH.Z)), f = (1 - 0.56 * Math.pow(Math.abs(zc2), 1.5)) * Math.sqrt(Math.max(0, 1 - Math.pow(Math.max(0, Math.abs(zc2) - 0.9) / 0.1, 2)));
         gp.push(hp.x, hp.y, hp.z, sg * PH.X * f * 0.97, 0.12, hp.z); gu.push(q / K, 1, q / K, 0); if (q < K) { const a = q * 2; gi.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } }
       const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(gp, 3)); gg.setAttribute('uv', new THREE.Float32BufferAttribute(gu, 2)); gg.setIndex(gi);
       const pane = new THREE.Mesh(gg, new THREE.MeshBasicMaterial({ map: glassTex, transparent: true, side: THREE.DoubleSide, depthWrite: false })); pane.renderOrder = 4; group.add(pane);
@@ -277,18 +268,18 @@
 
     // ---- the nose: two air intakes and a lamp; the back: two nozzles and two orbs ---------------------------------------------------------------------------------------
     const box = (w, h, d, px, py, pz, c) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshBasicMaterial({ color: c })); m.position.set(px, py, pz); group.add(m); return m; };
-    for (const sg of [-1, 1]) { box(0.34, 0.2, 0.05, sg * 0.5, -0.05, -1.43, '#0b0816'); for (let k = 0; k < 4; k++) box(0.34, 0.012, 0.055, sg * 0.5, -0.12 + k * 0.045, -1.435, '#4a3a8a'); }
-    box(0.3, 0.07, 0.06, 0, 0.03, -1.46, '#e8fbff');
+    for (const sg of [-1, 1]) { box(0.34, 0.2, 0.05, sg * 0.5, -0.05, -1.28, '#0b0816'); for (let k = 0; k < 4; k++) box(0.34, 0.012, 0.055, sg * 0.5, -0.12 + k * 0.045, -1.285, '#4a3a8a'); }
+    box(0.3, 0.07, 0.06, 0, 0.03, -1.31, '#e8fbff');
     const noz = [];
-    for (const sg of [-1, 1]) { const r = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.05, 10, 40), new THREE.MeshBasicMaterial({ color: '#2a2450' })); r.position.set(sg * 0.5, -0.12, 1.43); group.add(r); const d = new THREE.Mesh(new THREE.CircleGeometry(0.24, 32), new THREE.MeshBasicMaterial({ color: '#060410' })); d.position.set(sg * 0.5, -0.12, 1.44); group.add(d); noz.push([sg * 0.5, -0.12, 1.47]);
-      const orb = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 12), new THREE.MeshBasicMaterial({ color: '#10102a' })); orb.position.set(sg * 1.0, 0.0, 1.0); group.add(orb); }
+    for (const sg of [-1, 1]) { const r = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.05, 10, 40), new THREE.MeshBasicMaterial({ color: '#2a2450' })); r.position.set(sg * 0.5, -0.12, 1.28); group.add(r); const d = new THREE.Mesh(new THREE.CircleGeometry(0.24, 32), new THREE.MeshBasicMaterial({ color: '#060410' })); d.position.set(sg * 0.5, -0.12, 1.29); group.add(d); noz.push([sg * 0.5, -0.12, 1.32]);
+      const orb = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 12), new THREE.MeshBasicMaterial({ color: '#10102a' })); orb.position.set(sg * 1.0, 0.0, 0.85); group.add(orb); }
     const glowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const q = c.getContext('2d'), gr = q.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.35, 'rgba(255,90,216,0.6)'); gr.addColorStop(1, 'rgba(255,90,216,0)'); q.fillStyle = gr; q.fillRect(0, 0, 64, 64); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
     const glow = (p, size, c) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: c, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); s.position.set(p[0], p[1], p[2]); s.scale.set(size, size, 1); group.add(s); return s; };
     const ng = noz.map(p => glow(p, 0.5, '#ff5ad8'));
     live.push(t => { ng.forEach((s, i) => { s.material.opacity = 0.65 + 0.3 * Math.sin(t * 6 + i); }); });
 
     // ---- no wheels: four magnetic pads under the hull, light cones and spreading field rings ------------------------------------------------------------------------
-    const GY = -1.1, padPos = [[-0.75, -0.85], [0.75, -0.85], [-0.75, 0.85], [0.75, 0.85]], fields = [], ringGeo = new THREE.RingGeometry(0.92, 1.0, 64);
+    const GY = -1.1, padPos = [[-0.75, -0.75], [0.75, -0.75], [-0.75, 0.75], [0.75, 0.75]], fields = [], ringGeo = new THREE.RingGeometry(0.92, 1.0, 64);
     padPos.forEach(([px, pz], i) => {
       const pad = new THREE.Group(); pad.position.set(px, -0.5, pz); group.add(pad);
       pad.add(new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 0.07, 32), new THREE.MeshBasicMaterial({ color: '#10142a' })));
