@@ -14,20 +14,26 @@ const run = (R, n, f) => { for (let i = 0; i < n && !R.done; i++) { R.step(1 / 6
   run(R, 20000, R => { const A = R.p.away; if (A && A.k === 3) A.id = true; if (A) { began = true; steps++; if (seq[seq.length - 1] !== A.ph + (A.k >= 0 ? A.k : '')) seq.push(A.ph + (A.k >= 0 ? A.k : '')); if (A.ph === 'c1' && sFrozen === null) { sFrozen = R.p.s; tFrozen = R.t; } if (A.ph === 'ring' && A.th > 0) laps[A.k] = A.th; if (R.p.s !== sFrozen) sMoved = true; if (R.t !== tFrozen) tMoved = true; if (R.bots.some((b, i) => b.s !== bots0[i] + (b.s - bots0[i]) && false)) botsMoved = true; } if (began && !A) R.done = true; });
   T('the right lane takes the arch at PORT_A (' + KART.PORT_A + '): c1 > e1 (ring 0) > ring 0 > c2 > e2 ... ring 3 (the last floor, round the flower) > fl (floats up the anti-gravity column) > cE > eE (tunnel), then it is over', seq.join('>') === 'c10>e10>ring0>c20>e21>ring1>c21>e22>ring2>c22>e23>ring3>fl3>cE3>eE' && R.p.away === null, seq.join('>'));
   T('each ring gets one FULL lap (the angle goes to 2 pi on all four rings: ' + laps.map(v => v.toFixed(2)).join(' / ') + ')', laps.length === 4 && laps.every(v => v > 6.0), '');
-  T('the race stands still on the rings: the kart\'s s (' + sFrozen + ') and the clock do not move, and afterwards the kart is back at the arch', !sMoved && !tMoved && Math.abs(R.p.s - sFrozen) < 0.001, JSON.stringify({ sMoved, tMoved, s: R.p.s, sFrozen }));
+  T('the race goes on on the rings: the clock runs (the user: la course continue sur les anneaux), the kart\'s own s (' + sFrozen + ') stays at the arch while its credited position moves', !sMoved && tMoved && Math.abs(R.p.s - sFrozen) < 0.001, JSON.stringify({ sMoved, tMoved, s: R.p.s, sFrozen }));
   const secs = steps / 60; const exp = KART.PORT_RINGS.reduce((a, r) => a + 2 * Math.PI * (KART.R + r.x) / (RACE.BASE * KART.RING_SPEED), 0) + 8 * 0.45 + (KART.FLOAT ? KART.FLOAT_T : 0);
   T('the tour is the four laps round the rings at the kart\'s own pace: ' + secs.toFixed(0) + ' s (expected about ' + exp.toFixed(0) + ' s)', Math.abs(secs - exp) < 12, '') }
 
-// 2. the other karts do not move while the kart is away
+// 2. the other karts keep racing while the kart is on the rings
 { const R = mk(1); let moved = false, before = null; run(R, 20000, R => { const A = R.p.away; if (A && A.ph === 'ring' && before === null) before = R.bots.map(b => b.s); if (A && A.ph === 'ring' && R.bots.some((b, i) => b.s !== before[i])) moved = true; if (before && !A) R.done = true; });
-  T('the other karts stand still on the rings tour (the race is paused, not lost)', before !== null && !moved, '') }
+  T('the other karts keep racing on the rings tour (the race goes on)', before !== null && moved, '') }
 
 // 3. optional: the middle and the left lanes go straight on
 for (const lane of [0, -1]) { const R = mk(lane); let hit = false; run(R, 1500, R => { if (R.p.away) hit = true; }); T('lane ' + lane + ' ignores the arch (it is optional)', !hit, ''); }
 
-// 4. afterwards the race goes on: the kart drives on from the arch and the others move again
-{ const R = mk(1); let began = false, done = false; run(R, 20000, R => { if (R.p.away) began = true; if (began && !R.p.away) done = true; if (done) R.done = true; }); R.done = false; const s0 = R.p.s, b0 = R.bots[0].s; run(R, 120, null);
-  T('after the tour the race goes on from the arch (the kart +' + (R.p.s - s0).toFixed(0) + ' m, a robot +' + (R.bots[0].s - b0).toFixed(0) + ' m in 2 s)', R.p.s - s0 > 60 && R.bots[0].s - b0 > 30, '') }
+// 4. the metres driven on the rings count: the credited position (sA + cr) is the player's place in the race; the race is decided when the tour ends (the robots' finish times against the player's)
+{ const R = mk(1); let crMax = 0, sA = null, pos0 = null, posMax = 0; run(R, 20000, R => { const A = R.p.away; if (A) { if (sA === null) sA = A.sA; crMax = Math.max(crMax, A.cr || 0); posMax = Math.max(posMax, R.pos()); } });
+  const ringM = KART.PORT_RINGS.reduce((a, r) => a + 2 * Math.PI * (KART.R + r.x), 0);
+  T('the ring metres count: ' + crMax.toFixed(0) + ' m credited of ' + ringM.toFixed(0) + ' m driven (RING_CREDIT ' + KART.RING_CREDIT + '), the position the HUD shows goes up to ' + posMax.toFixed(0), crMax > ringM * KART.RING_CREDIT * 0.8 && posMax > sA + 1000, '');
+  T('the player crossed the line on the rings with the robots behind: the race is won when the tour ends', R.done && R.result === 'win', JSON.stringify({ done: R.done, result: R.result })) }
+{ const R = mk(1); R.bots.forEach((b, i) => { b.s = KART.PORT_A + 60 + i; b.v = 70; b.speed = 70; }); run(R, 30000, null);
+  T('robots ahead that finish before the player crosses on the rings: the race is lost when the tour ends', R.done && R.result === 'lose', JSON.stringify({ done: R.done, result: R.result })) }
+{ const R = mk(1); KART.RING_RACE = false; let sM = false, tM = false, t0 = null, s0 = null; run(R, 20000, R => { const A = R.p.away; if (A && t0 === null) { t0 = R.t; s0 = R.p.s; } if (A && (R.t !== t0)) tM = true; if (A && R.p.s !== s0) sM = true; if (t0 !== null && !A) R.done = true; }); KART.RING_RACE = true;
+  T('KART.RING_RACE = false: the old rule, the race stands still on the rings', t0 !== null && !tM && !sM, '') }
 
 // 5. both laps have the arch, and nothing happens before the tunnel
 { const R = mk(1); R.p.s = KART.PORT_A + KART.LAP - 40; R.bots.forEach(b => { b.s = 100; }); let hit = false; run(R, 300, R => { if (R.p.away) hit = true; }); const Q = mk(1); Q.p.s = KART.PORT_A - 3 * KART.LAP - 60; Q.bots.forEach(b => { b.s = 100; }); let early = false; run(Q, 300, R => { if (R.p.away) early = true; });
