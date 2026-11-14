@@ -255,8 +255,8 @@
     const glassTex = (() => { const cv2 = document.createElement('canvas'); cv2.width = cv2.height = 128; const q = cv2.getContext('2d'), gr = q.createLinearGradient(0, 128, 128, 0); gr.addColorStop(0, 'rgba(40,20,110,0.5)'); gr.addColorStop(1, 'rgba(110,150,255,0.3)'); q.fillStyle = gr; q.fillRect(0, 0, 128, 128); q.fillStyle = 'rgba(255,255,255,0.4)'; q.beginPath(); q.moveTo(20, 128); q.lineTo(44, 128); q.lineTo(108, 0); q.lineTo(84, 0); q.fill(); const t = new THREE.CanvasTexture(cv2); t.colorSpace = THREE.SRGBColorSpace; return t; })();
     for (const sg of [-1, 1]) {
       // [z, y, |x|]: from the back corner, up and over the side, then down and IN towards the nose (the front photo's V of horns)
-      const c = new THREE.CatmullRomCurve3([[1.0, 0.0, 1.22], [0.88, 0.45, 1.2], [0.5, 0.74, 1.12], [-0.1, 0.8, 1.0], [-0.65, 0.56, 0.8], [-1.05, 0.14, 0.5], [-1.22, -0.1, 0.3]].map(p => new THREE.Vector3(sg * p[2], p[1], p[0])));
-      const tg = new THREE.TubeGeometry(c, 70, 0.1, 12, false); withColour(tg, y => (y - PH.Y0) / (PH.Y1 - PH.Y0));
+      const c = new THREE.CatmullRomCurve3([[0.95, 0.2, 0.72], [0.88, 0.42, 0.98], [0.62, 0.68, 1.14], [0.1, 0.8, 1.1], [-0.45, 0.66, 0.92], [-0.9, 0.36, 0.66], [-1.15, 0.0, 0.4]].map(p => new THREE.Vector3(sg * p[2], p[1], p[0])));
+      const tg = new THREE.TubeGeometry(c, 70, 0.058, 12, false);      /* (thinner horns, the user: 'diminue l'épaisseur des cornes'; the rear foot now leaves the hull's shoulder on a slant, as the red line showed) */ withColour(tg, y => (y - PH.Y0) / (PH.Y1 - PH.Y0));
       group.add(new THREE.Mesh(tg, mat));
       /* THE SIDE WINDOW (the user: the holes are the side windows): a curved pane of tinted glass filling the opening between the horn and the hull's rim, reflections slanting across it */
       const K = 24, gp = [], gu = [], gi = [];
