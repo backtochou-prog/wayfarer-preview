@@ -107,7 +107,7 @@ class GameAudio {
     const e = this.eng, f0 = 44 + 70 * k + 22 * boost, set = (p2, v) => p2.setTargetAtTime(v, t, 0.1);
     set(e.o1.frequency, f0); set(e.o2.frequency, f0 * 1.006); set(e.o3.frequency, f0 * 2); set(e.sub.frequency, f0 * 0.5);
     set(e.sh.frequency, f0 * 5 + 120 * boost); set(e.shG.gain, 0.012 + 0.03 * k + 0.03 * boost);                             // the shimmer rises with the speed
-    set(e.lp.frequency, 300 + 800 * k + 400 * boost); set(e.nG.gain, 0.006 + 0.012 * k);
+    set(e.lp.frequency, 300 + 800 * k + 400 * boost); set(e.nG.gain, 0.006 + 0.012 * k + 0.05 * k * k * k);      // the air rushing past rises with the cube of the speed
     e.want = { f0: +f0.toFixed(1), cut: +(300 + 800 * k + 400 * boost).toFixed(0), k: +k.toFixed(3), level: +level.toFixed(2) };
     set(e.gain.gain, (hurt ? 0.02 : 0.028 + 0.022 * k) * level * (this.muted ? 0 : 1) * this.musicVol);        // `level`: loud at the start (the launch), a faint hum for the rest of the race
   }
@@ -161,7 +161,7 @@ class GameAudio {
     // the engine of the race cars: on while a race runs, its pitch following the car's speed (the boost of a spiral opens it up, a hit chokes it)
     if (s === 'race' && g.race) {                                                                                           // the engine is at its loudest at the START (the countdown and the launch: the user liked it there) and
       const R = g.race, k = Math.max(0, Math.min(1, (R.p.speed - RACE.BASE * 0.5) / (RACE.BASE * 1.6)));                     // then falls to a faint hum over 3 s, so it does not wear on the ear for the rest of the race
-      const level = R.cd > 0 ? 1.6 : Math.max(0.16, 1.6 - (1.6 - 0.16) * Math.min(1, R.t / 3));
+      const level = R.cd > 0 ? 1.6 : Math.max(0.16 + 0.7 * k * k, 1.6 - (1.6 - 0.16) * Math.min(1, R.t / 3));      // (the user: feel the speed: the floor of the engine's level rises with the speed, so at 230 km/h it is no longer a faint hum)
       this.engine(true, k, R.p.boostT > 0 ? 1 : 0, R.p.hitT > 0 ? 1 : 0, level);
     }
     else if (this.eng) this.engine(false);
