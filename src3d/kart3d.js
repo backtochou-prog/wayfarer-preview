@@ -179,7 +179,21 @@ class Kart3D {
     } else this.car.add(Kit.mesh(Kit.merge(pk)));
     if (typeof RunnerZagla !== 'undefined' && typeof ZAGLA_ASSETS !== 'undefined') {                    // Zagla at the wheel: her body on the seat, her legs forward to the pedals
       const z = new RunnerZagla(), d = z.group, k = 0.62;
-      if (HOVER) { d.scale.setScalar(k); d.position.set(0, 0.25 + 0.5 * HoverVehicle.buildPhoto.SIZE + 0.24 * HoverVehicle.buildPhoto.SIZE, 0.03); z.legs.forEach(l => { l.rotation.x = 0.06; }); z.shadow.visible = false; }      // STANDING on the cockpit
+      if (HOVER) {       /* SEATED IN THE COCKPIT, hands on the yoke (the user: 'un fauteuil pour que le joueur soit bien assis et contrôle bien l'engin: debout il est trop loin pour contrôler, on ne sent pas que c'est toi qui conduis'): an armchair sunk in the cockpit dish, the player seated in it, legs forward, a steering yoke right in front of the chest, armrests with their lit buttons */
+        const S = HoverVehicle.buildPhoto.SIZE, y0 = 0.25 + 0.5 * S + 0.15 * S, zs = 0.12, M = (c, o) => new THREE.MeshBasicMaterial(Object.assign({ color: c }, o || {}));
+        const seat = new THREE.Group(); seat.position.set(0, y0, zs); this.car.add(seat);
+        const box = (w, h, dd, x, y, zz, c, rx, glow) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, dd), M(c)); m.position.set(x, y, zz); if (rx) m.rotation.x = rx; seat.add(m); return m; };
+        box(0.5, 0.1, 0.5, 0, 0.05, 0.0, '#241a44'); box(0.5, 0.05, 0.1, 0, 0.1, -0.22, '#3a2a78', 0.15);                                   // the cushion and its raised front lip
+        box(0.5, 0.34, 0.08, 0, 0.24, 0.26, '#2a1f55', -0.25); box(0.3, 0.07, 0.09, 0, 0.44, 0.3, '#3a2a78', -0.25);                       // the back and the headrest
+        for (const sg of [-1, 1]) { box(0.07, 0.3, 0.2, sg * 0.28, 0.2, 0.18, '#1c1438', -0.2); box(0.1, 0.07, 0.36, sg * 0.3, 0.26, -0.02, '#31245f'); box(0.05, 0.02, 0.05, sg * 0.3, 0.3, -0.1, sg < 0 ? '#27e8a8' : '#ff3fd0'); box(0.05, 0.02, 0.05, sg * 0.3, 0.3, 0.04, '#27c8ff'); }
+        box(0.54, 0.02, 0.02, 0, 0.42, 0.22, '#ff3fd0', -0.25);      // the harness, lit
+        const yoke = new THREE.Group(); yoke.position.set(0, 0.52, -0.46); yoke.rotation.x = -0.55; seat.add(yoke);                       // the steering yoke, tilted towards the player's hands
+        const rim = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.02, 8, 28), M('#cfd8ff')); yoke.add(rim); const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.03, 16), M('#35f0ff')); hub.rotation.x = Math.PI / 2; yoke.add(hub);
+        for (const a2 of [0, Math.PI / 2, Math.PI]) { const sp = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.02, 0.02), M('#8a7aff')); sp.rotation.z = a2; yoke.add(sp); }
+        const col = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, 0.4, 10), M('#2a2450')); col.position.set(0, 0.28, -0.52); col.rotation.x = -0.3; seat.add(col);
+        this.yoke = yoke;
+        d.scale.setScalar(k); d.position.set(0, y0 + 0.07, zs + 0.06); z.pivot.position.y = -0.5; z.legs.forEach(l => { l.rotation.x = -1.45; }); z.shadow.visible = false; }      // SEATED, legs forward
+
       else { d.scale.setScalar(k); d.position.set(0, 0.28 - 0.95 * k * 0, 0.42); z.pivot.position.y = -0.5; z.legs.forEach(l => { l.rotation.x = -1.45; }); }
       this.driver = z; this.car.add(d); }
     this.bot = kart('#c8243a', '#ffffff'); sc.add(this.car, this.bot); this.bot.visible = false;
@@ -725,6 +739,7 @@ class Kart3D {
     } else if (TF) { const rk = KART.PORT_RINGS[TF.k], sr = TF.sA + TF.th * KART.R; this.ringPos(sr, rk.x + Math.max(-8, Math.min(8, p.x * 3)), rk.y + 0.02, hw); hyaw = sr / KART.R; this.floatH = 0; }
     const FREE = !!(HF || TF);
     if (this.hover) this.hover.update(t);
+    if (this.yoke) this.yoke.rotation.z += ((p.lane * RACE.LANE_M - p.x) * 0.35 - this.yoke.rotation.z) * Math.min(1, dtk * 8);      // the yoke turns when the vehicle changes lane
     put(this.car, p.s, PX, 0.02 + air * 2.2, -(p.lane * RACE.LANE_M - p.x) * 0.04 - 0.6 * (R.off(p.s + 3) - R.off(p.s - 3)) / 6); if (R.bots) R.bots.forEach((b, i) => put(this.bots[i], b.s, b.x + R.off(b.s), 0.02, -0.6 * (R.off(b.s + 3) - R.off(b.s - 3)) / 6)); else { this.bot.visible = true; put(this.bot, R.bot.s, R.bot.x, 0.02); }
     if (FREE) { this.car.position.copy(hw); this.car.rotation.set(0, hyaw, 0); }
     this.car.position.y += DP;
@@ -752,7 +767,7 @@ class Kart3D {
       if (this.camera.position.distanceTo(this.camPos) > 6) this.camera.position.copy(this.camPos); else this.camera.position.lerp(this.camPos, 0.5);
       this.camera.lookAt(this.ringPos(p.s + 9, (p.x * 0.5 + OFF) - 7, 1.6, this.v).setY(this.v.y + this.bankY(PX) + (R.dep(p.s + 10) + DP)));
     } else {
-    this.ringPos(p.s - (this.hover ? 5.4 : 4.6), (p.x * 0.6 + OFF), (this.hover ? 3.4 : 2.1) + air, this.camPos); this.camPos.y += this.bankY(PX) + (R.dep(p.s) + DP);      /* (with the player standing on the vehicle the chase camera is higher and a little farther: the standing player does not hide the road) */ if (this.camera.position.distanceTo(this.camPos) > 6) this.camera.position.copy(this.camPos); else this.camera.position.lerp(this.camPos, 0.5);
+    this.ringPos(p.s - (this.hover ? 5.2 : 4.6), (p.x * 0.6 + OFF), (this.hover ? 2.8 : 2.1) + air, this.camPos); this.camPos.y += this.bankY(PX) + (R.dep(p.s) + DP);      /* (a little higher and farther: the vehicle is bigger than the old kart) */ if (this.camera.position.distanceTo(this.camPos) > 6) this.camera.position.copy(this.camPos); else this.camera.position.lerp(this.camPos, 0.5);
     this.camera.lookAt(this.ringPos(p.s + 12, (p.x * 0.4 + OFF), 0.9 + air * 0.6, this.v).setY(this.v.y + this.bankY(PX) + (R.dep(p.s + 10) + DP)));
     }
     { const Lk = g.look, nowL = performance.now();      /* FREE LOOK: the player's drag turns the view round the chase pose (up / down / left / right, all the way round sideways); it eases back to the road 2.5 s after the last drag */
