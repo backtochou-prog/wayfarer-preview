@@ -45,8 +45,8 @@ class Renderer {
     bar(R.pos() / R.len, 6, '#35e6ff'); bar(R.bot.s / R.len, 16, R.kart ? '#ff9a2a' : '#ff2a4a');
     this.txt('YOU', x0 - 24, 5, '#35e6ff'); this.txt('BOT', x0 - 24, 15, R.kart ? '#ff9a2a' : '#ff2a4a');
     if (R.kart && g.speedFeel > 0.15) { const sf = g.speedFeel, tt = performance.now() / 1000, cx = 160, cy = 90;      // SPEED LINES (the user: feel the speed): short rays streak outward from the edges of the screen, more and longer the faster you go
-      for (let i = 0; i < 26; i++) { const ang = i * 2.399963 + Math.floor(tt * 3 + i) * 0.7, ph = (tt * (1.2 + sf * 2.2) + i * 0.37) % 1, r0 = 84 + ph * 80, len = 6 + sf * 26 * ph, col = i % 3 === 0 ? '#ff7ad9' : '#35f0ff';
-        if (ph < 0.15) continue; const nx = Math.cos(ang), ny = Math.sin(ang) * 0.62; for (let s = 0; s < len; s += 2) { const x = Math.round(cx + nx * (r0 + s)), y = Math.round(cy + ny * (r0 + s)); if (x < 0 || x > 319 || y < 14 || y > 179) break; this.ctx.globalAlpha = 0.18 + 0.5 * sf * (1 - s / len); this.ctx.fillStyle = col; this.ctx.fillRect(x, y, 2, 1); } }
+      for (let i = 0; i < 12; i++) { const ang = i * 2.399963 + Math.floor(tt * 3 + i) * 0.7, ph = (tt * (1.2 + sf * 2.2) + i * 0.37) % 1, r0 = 84 + ph * 80, len = 5 + sf * 16 * ph, col = i % 3 === 0 ? '#ff7ad9' : '#35f0ff';
+        if (ph < 0.15) continue; const nx = Math.cos(ang), ny = Math.sin(ang) * 0.62; for (let s = 0; s < len; s += 2) { const x = Math.round(cx + nx * (r0 + s)), y = Math.round(cy + ny * (r0 + s)); if (x < 0 || x > 319 || y < 14 || y > 179) break; this.ctx.globalAlpha = 0.06 + 0.2 * sf * (1 - s / len); this.ctx.fillStyle = col; this.ctx.fillRect(x, y, 1, 1); } }
       this.ctx.globalAlpha = 1; }
     if (R.kart) this.drawComm(g, R.keepLeft(p.s) && p.lane > -1);      // the detour's notification, as a holographic comm panel      // (the detour: blinking until the kart is in the left lane)
     if (R.kart && typeof location !== 'undefined' && /[?&]xrDebug=1/.test(location.search) && g.r && g.r.kart3d) {      // ?xrDebug=1: the numbers of the VR camera on the HUD, for tuning on a headset (the rig's and the camera's height, the kart's, where on the track)

@@ -108,8 +108,8 @@ const res = []; const T = (n, ok, i = '') => { res.push(ok); console.log((ok ? '
     g.state = 'play'; sfx.tick(g, 1 / 60); out.off = !sfx.eng; g.state = 'race';
     return out;
   });
-  T('the race cars have an electric engine of their own (' + EN.nodes + ' voices, no file): it runs while the race runs, its pitch follows the speed (' + EN.f1 + ' -> ' + EN.fFast + ' Hz, filter ' + EN.cut + ' Hz), it is loud at the start and a faint hum later (' + EN.levStart + ' -> ' + EN.levLate + ') and it stops when the race ends (' + EN.off + ')',
-    EN.on && EN.nodes >= 5 && EN.fFast > EN.f1 && EN.cut > 500 && EN.levStart > 1.4 && EN.levLate < 0.3 && EN.off, JSON.stringify(EN));
+  T('the race cars have an electric engine of their own (' + EN.nodes + ' voices, no file): it runs while the race runs, its pitch follows the speed (' + EN.f1 + ' -> ' + EN.fFast + ' Hz, filter ' + EN.cut + ' Hz), it is loud at the start and quieter later, but no longer a faint hum at speed: its floor rises with the speed, the user: feel the speed (' + EN.levStart + ' -> ' + EN.levLate + ') and it stops when the race ends (' + EN.off + ')',
+    EN.on && EN.nodes >= 5 && EN.fFast > EN.f1 && EN.cut > 500 && EN.levStart > 1.4 && EN.levLate < 0.9 && EN.levLate >= 0.16 && EN.off, JSON.stringify(EN));
   const BU = await pz.evaluate(() => {
     const g = __wf; g.start(); g.advance(1 / 60); const R = g.race; R.cd = 0;
     R.p.s = 300; R.p.speed = RACE.BASE * 1.6; R.bot.s = 306; R.step(1 / 60, { lane: 0 });                      // one step first: the robot picks the lane it is really in

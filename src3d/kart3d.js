@@ -186,7 +186,7 @@ class Kart3D {
         const S = HoverVehicle.buildPhoto.SIZE, y0 = 0.25 + 0.5 * S + 0.15 * S, zs = 0.12, M = (c, o) => new THREE.MeshBasicMaterial(Object.assign({ color: c }, o || {}));
         const fS = S / 0.65, seat = new THREE.Group(); seat.position.set(0, y0, zs * fS); seat.scale.setScalar(fS); this.car.add(seat);      // (the seat, wheel and player scale with the vehicle: 0.65 was the size they were drawn for)
         /* THE SEAT, AS IT IS (the user: 'ceci est le siège, posez-le tel quel, juste adapter'): their picture of the chair, the back with its rings and the glass frame with its armrests, cut out and stood behind the player (facing the chase camera) at a size that suits the vehicle; a smaller, darker copy in front (the back used at the front too) */
-        const ct = new THREE.Texture(), ci = new Image(); ci.onload = () => { ct.image = ci; ct.needsUpdate = true; }; ci.src = VEH_PHOTOS.seatCard.src; ct.colorSpace = THREE.SRGBColorSpace; ct.anisotropy = 4;
+        const ct = new THREE.Texture(), ci = new Image(); ci.onload = () => { ct.image = ci; ct.needsUpdate = true; }; ci.src = VEH_PHOTOS.seatCard.src; ct.colorSpace = THREE.SRGBColorSpace; ct.anisotropy = 4; this.seatTex = ct;
         const card = (w, x, y, zz, tint, ry, sgn) => { const h5 = w * VEH_PHOTOS.seatCard.h / VEH_PHOTOS.seatCard.w, pg = new THREE.PlaneGeometry(w, h5, 28, 28), pp = pg.attributes.position;
           /* (the user: 'étirer le métal du siège en courbure vers le personnage'): the seat is BENT round the player, its sides curving forward, and more at the bottom where the glass frame and the armrests are: z = -(0.14 + 0.18 (1 - t)) u^2, u = -1..1 across, t = 0 at the foot .. 1 at the top */
           for (let q = 0; q < pp.count; q++) { const u = pp.getX(q) / (w / 2), t = (pp.getY(q) + h5 / 2) / h5; pp.setZ(q, -(sgn || 1) * (0.14 + 0.18 * (1 - t)) * u * u); }
@@ -205,6 +205,7 @@ class Kart3D {
       else { d.scale.setScalar(k); d.position.set(0, 0.28 - 0.95 * k * 0, 0.42); z.pivot.position.y = -0.5; z.legs.forEach(l => { l.rotation.x = -1.45; }); }
       this.driver = z; this.car.add(d); }
     /* THE ROBOTS DRIVE THE SAME VEHICLE (the user: 'donnons aux autres joueurs, aux robots, le même véhicule que le mien, mais de couleurs différentes'): the lite hover vehicle (hull, horns, windows) with the chrome's hue turned to the robot's colour, and a small helmet of that colour above the seat */
+    const glowT = (() => { const cv5 = document.createElement('canvas'); cv5.width = cv5.height = 64; const q = cv5.getContext('2d'), gr = q.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.35, 'rgba(255,255,255,0.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); q.fillStyle = gr; q.fillRect(0, 0, 64, 64); const t7 = new THREE.CanvasTexture(cv5); t7.colorSpace = THREE.SRGBColorSpace; return t7; })();
     const botVeh = (c, helm) => { if (!HOVER) return kart(c, helm); const S = HoverVehicle.buildPhoto.SIZE, hv = HoverVehicle.buildPhoto(THREE, { lite: true }), cc = new THREE.Color(c), hsl = {}; cc.getHSL(hsl);
       hv.setHue((hsl.h - 0.75) * 2 * Math.PI, Math.min(1, hsl.s * 1.4), 0.9 + 0.7 * Math.max(0, hsl.l - 0.5)); hv.setTint(cc, 0.6);
       const g6 = new THREE.Group(); hv.group.position.y = 0.25 + 0.5 * S; g6.add(hv.group);
@@ -212,6 +213,10 @@ class Kart3D {
       const tor = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 0.34, 12), new THREE.MeshBasicMaterial({ color: new THREE.Color(c).multiplyScalar(0.55) })); tor.position.set(0, hm.position.y - 0.3, 0.12); g6.add(tor);
       const vis = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.06, 0.1), new THREE.MeshBasicMaterial({ color: '#08080e' })); vis.position.set(0, hm.position.y + 0.03, -0.12); g6.add(vis);
       const gl6 = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); gl6.rotation.x = -Math.PI / 2; gl6.position.y = 0.04; g6.add(gl6);      // a soft coloured light on the road under it
+      /* (the user: 'ajouter les ok': the robots get the crystal seat behind the pilot and the speed effects too: a thruster glow and a light trail that grow with each robot's own speed) */
+      { const fS = S / 0.65, st = new THREE.Mesh(new THREE.PlaneGeometry(0.5 * fS, 0.5 * fS * VEH_PHOTOS.seatCard.h / VEH_PHOTOS.seatCard.w), new THREE.MeshBasicMaterial({ map: this.seatTex, transparent: true, alphaTest: 0.06, side: THREE.DoubleSide, color: new THREE.Color(c).lerp(new THREE.Color('#ffffff'), 0.6) })); st.position.set(0, 0.25 + 0.5 * S + 0.15 * S + 0.36 * fS, 0.3 * fS * 1.1); g6.add(st);
+        const gw = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowT, color: c, transparent: true, opacity: 0.15, blending: THREE.AdditiveBlending, depthWrite: false })); gw.position.set(0, 0.5, 1.2 * S / 0.65 * 0.85); g6.add(gw);
+        const tr = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: glowT, color: c, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); tr.rotation.x = -Math.PI / 2; tr.position.set(0, 0.3, 2.4); g6.add(tr); g6.userData.glow = gw; g6.userData.trail = tr; }
       return g6; };
     this.bot = botVeh('#c8243a', '#ffffff'); sc.add(this.car, this.bot); this.bot.visible = false;
     /* THE FEEL OF SPEED (the user: 'je veux que l'utilisateur sente la vitesse'): (1) SPEED STREAKS, 170 thin lines in a tube round the view that rush past, longer and brighter the faster you go; (2) the field of view opens and the camera trembles a little with speed;
@@ -762,6 +767,7 @@ class Kart3D {
     } else if (TF) { const rk = KART.PORT_RINGS[TF.k], sr = TF.sA + TF.th * KART.R; this.ringPos(sr, rk.x + Math.max(-8, Math.min(8, p.x * 3)), rk.y + 0.02, hw); hyaw = sr / KART.R; this.floatH = 0; }
     const FREE = !!(HF || TF);
     if (this.hover) this.hover.update(t);
+    if (R.bots) R.bots.forEach((b, i) => { const G = this.bots[i]; if (G && G.userData.glow) { const sb = Math.max(0, Math.min(1, (b.speed - RACE.BASE * 0.8) / (RACE.BASE * 0.95))); G.userData.glow.material.opacity = 0.15 + 0.6 * sb; G.userData.glow.scale.set(0.5 + 1.5 * sb, 0.5 + 1.5 * sb, 1); G.userData.trail.material.opacity = 0.55 * sb; G.userData.trail.scale.set(0.8, 0.05 + 3.8 * sb, 1); G.userData.trail.position.z = 1.4 + 1.9 * sb; } });
     if (this.hover && this.hoverGlow) { const sf0 = this.sf || 0; this.hoverGlow.material.opacity = 0.15 + 0.75 * sf0; this.hoverGlow.scale.set(0.5 + 1.8 * sf0, 0.5 + 1.8 * sf0, 1); this.hoverTrail.material.opacity = 0.7 * sf0; this.hoverTrail.scale.set(0.9, 0.05 + 4.5 * sf0, 1); this.hoverTrail.position.z = 1.2 + 2.2 * sf0 * 0.5 + 0.2; }      // the thruster glow and light trail follow the speed
     if (this.yoke) this.yoke.rotation.z += ((p.lane * RACE.LANE_M - p.x) * 0.35 - this.yoke.rotation.z) * Math.min(1, dtk * 8);      // the yoke turns when the vehicle changes lane
     put(this.car, p.s, PX, 0.02 + air * 2.2, -(p.lane * RACE.LANE_M - p.x) * 0.04 - 0.6 * (R.off(p.s + 3) - R.off(p.s - 3)) / 6); if (R.bots) R.bots.forEach((b, i) => put(this.bots[i], b.s, b.x + R.off(b.s), 0.02, -0.6 * (R.off(b.s + 3) - R.off(b.s - 3)) / 6)); else { this.bot.visible = true; put(this.bot, R.bot.s, R.bot.x, 0.02); }
@@ -800,8 +806,8 @@ class Kart3D {
         if (!(g.r && g.r.xr && g.r.xr.presenting) && (Lk.yaw !== 0 || Lk.pitch !== 0)) { this.camera.rotateY(Lk.yaw); this.camera.rotateX(Lk.pitch); } } }
     if (Kart3D.IDENT) this.identStep(g, p, R, hw, hyaw, renderer, dtk, t);
     { const S5 = this.streaks; if (S5) {
-        S5.ls.visible = sf > 0.03; S5.ls.material.opacity = Math.min(0.8, 0.9 * sf);
-        if (S5.ls.visible) { const v = (p.speed * 0.9 + 12) * dtk, len = 0.5 + sf * 6.5, P = S5.pos;
+        S5.ls.visible = sf > 0.03; S5.ls.material.opacity = Math.min(0.4, 0.45 * sf); S5.g5.setDrawRange(0, 80 * 2);      // (the user: fewer lines, more transparent, thinner: 80 of the 170, at half the opacity)
+        if (S5.ls.visible) { const v = (p.speed * 0.9 + 12) * dtk, len = 0.4 + sf * 4.0, P = S5.pos;
           for (let i = 0; i < S5.st.length; i++) { const s6 = S5.st[i]; s6.z += v; if (s6.z > 3) { s6.z = -42 - Math.random() * 6; const a3 = Math.random() * Math.PI * 2, r3 = 2.2 + Math.random() * 7; s6.x = Math.cos(a3) * r3; s6.y = Math.sin(a3) * r3 * 0.6; }
             P[i * 6] = s6.x; P[i * 6 + 1] = s6.y; P[i * 6 + 2] = s6.z; P[i * 6 + 3] = s6.x; P[i * 6 + 4] = s6.y; P[i * 6 + 5] = s6.z - len; }
           S5.g5.attributes.position.needsUpdate = true; this.camera.updateMatrixWorld(true); S5.ls.position.copy(this.camera.position); S5.ls.quaternion.copy(this.camera.quaternion); }
