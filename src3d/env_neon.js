@@ -96,6 +96,13 @@ window.ENV3D = window.ENV3D || {};
   const signOf = (a, b) => () => Kit.merge([
     Kit.cyl(0.07, 0.09, 3.4, 0, 0, -1.2, N.post), Kit.cyl(0.07, 0.09, 3.4, 0, 0, 1.2, N.post),
     Kit.box(0.12, 1.7, 3.3, -0.06, 3.0, 0, a, { glow: true }), Kit.box(0.14, 1.2, 2.7, -0.08, 3.25, 0, N.base), Kit.box(0.16, 0.5, 2.3, -0.1, 3.6, 0, b, { glow: true }), Kit.box(0.16, 0.12, 2.3, -0.1, 3.2, 0, b, { glow: true })]);
+  const TUN_CUTS = [0, 0.1, 0.2, 0.3, 0.4, 0.5];                                    // where a slot's window of the picture starts (u), see neonTunnel0..5
+  // one slot (12.2 m) of the round tunnel: dark shell, the picture inside from u0 to u1, a green ring of light at the slot's start, a lamp at the top
+  const tube = (u0, u1) => { const L = 12.2, R = 6.6, cy = 3.6, p = [], n = 28;
+    for (let k = 0; k < n; k++) { const a = -0.5 + (Math.PI + 1.0) * k / (n - 1), len = (Math.PI + 1.0) * (R + 0.3) / (n - 1) * 1.2; p.push(Kit.box(len, 0.4, L, Math.cos(a) * (R + 0.3), cy + Math.sin(a) * (R + 0.3), 0, '#14141c', { rz: a + Math.PI / 2 })); }
+    for (let k = 0; k < 22; k++) { const a = -0.45 + (Math.PI + 0.9) * k / 21, len = (Math.PI + 0.9) * (R - 0.15) / 21 * 1.15; p.push(Kit.box(len, 0.14, 0.14, Math.cos(a) * (R - 0.15), cy + Math.sin(a) * (R - 0.15), -L / 2 + 0.1, N.green, { glow: true, rz: a + Math.PI / 2 })); }
+    p.push(Kit.box(2.4, 0.12, 0.6, 0, cy + R - 0.35, 0, N.warm, { glow: true }));
+    return { merged: Kit.merge(p), sprite: NeonArt.vault(R, cy, L, -0.5, u0, u1), material: () => NeonArt.materialTunnel() }; };
   const ring = (cx, cy, R, thick, col, parts, n = 20) => { for (let k = 0; k < n; k++) { const a = 2 * Math.PI * k / n, len = 2 * Math.PI * R / n * 1.15; parts.push(Kit.box(len, thick, thick, cx + Math.cos(a) * R, cy + Math.sin(a) * R, 0, col, { glow: true, rz: a + Math.PI / 2 })); } };
 
   // the name of the tower, RED TOWER, in neon letters on a dark board at its foot (one material per colour)
@@ -173,6 +180,16 @@ window.ENV3D = window.ENV3D || {};
           Kit.box(0.42, 0.22, 8.3, -0.1, 13.3, 0, N.mag, { glow: true }), Kit.box(0.42, 0.22, 8.3, -0.1, 5.35, 0, N.teal, { glow: true }),
           Kit.box(0.42, 8.1, 0.22, -0.1, 5.35, -4.2, N.yellow, { glow: true }), Kit.box(0.42, 8.1, 0.22, -0.1, 5.35, 4.2, N.green, { glow: true })];
         return { merged: Kit.merge(p), sprite: NeonArt.panel('bill', -0.24, -3.7, 3.7, 5.7, 13.1), material: () => NeonArt.material() }; },
+      // THE TUNNEL (the user: a tunnel of 170 m, with the green ring on entering): 14 slots of 12 m. A closed tube over the street: dark walls on both sides, a roof 7.5 m up, green light along the roof edges,
+      // magenta along the kerbs and a lamp in every slot. neonTunnel is one slot of it; neonTunnelMouth is the first slot's green ring, across the road at the entrance.
+      // the tube: dark panels outside, and inside the user's paper-city picture bent to the vault (NeonArt.vault), standing on each wall from the foot to the top. Each half-vault is (pi/2 + 0.5) x 6.6 = 13.7 m tall,
+      // so the picture (1376 x 768) is 24.5 m long and a slot (12.2 m) shows half of it. The user: repeat it with RANDOM CUTS: each slot shows its own half-wide window of the picture, cut at one of
+      // the TUN_CUTS (neonTunnel0..5), drawn at random slot by slot (never the same cut twice in a row).
+      ...Object.fromEntries(TUN_CUTS.map((u, k) => ['neonTunnel' + k, () => tube(u, u + 0.5)])),
+      // a pink neon at the top of the vault, 1.5 m long along the tunnel (the user: one every 40 m)
+      neonTunnelPink: () => Kit.merge([Kit.box(0.5, 0.12, 1.7, 0, 9.95, 0, N.base), Kit.box(0.22, 0.16, 1.5, 0, 9.82, 0, N.mag, { glow: true })]),
+      neonTunnelMouth: () => { const p = [], zr = (R, th, col, n) => { for (let k = 0; k < n; k++) { const a = 2 * Math.PI * k / n, len = 2 * Math.PI * R / n * 1.15; p.push(Kit.box(len, th, th, Math.cos(a) * R, 3.6 + Math.sin(a) * R, -5.9, col, { glow: true, rz: a + Math.PI / 2 })); } };
+        zr(7.4, 0.3, N.teal, 40); zr(6.7, 0.45, N.green, 40); zr(6.1, 0.15, N.green, 36); return Kit.merge(p); },
       // marks where the street turns to neon (the first slot of the quarter): a glowing pylon
       gateNeon: () => Kit.merge([Kit.box(0.5, 4.2, 0.5, 0, 0, 0, N.post), Kit.box(0.12, 4.0, 0.2, -0.3, 0.1, 0, N.mag, { glow: true }), Kit.box(0.12, 4.0, 0.2, 0.3, 0.1, 0, N.green, { glow: true }), Kit.box(0.9, 0.24, 0.9, 0, 4.2, 0, N.yellow, { glow: true })]),
     },
@@ -188,6 +205,10 @@ window.ENV3D = window.ENV3D || {};
     //   7 screens: floating cyan dots, light-ray towers, a striped boutique, green-line banners, cap signs
     // A landmark (neon ring / spire / billboard / halo / the four pictures on posts: vortex, sphere, rings, spiral) replaces the building on its side of one slot per stretch.
     layout(i, rnd) {
+      if (mod(i, 50) < 14) { const j = mod(i, 50), cut = s => Math.floor(rnd(s, 77) * TUN_CUTS.length), k = cut(i) === cut(i - 1) ? (cut(i) + 1) % TUN_CUTS.length : cut(i);
+        const o = [{ prop: 'neonTunnel' + k, x: 0, dist: 6 }]; if (j === 0) o.push({ prop: 'neonTunnelMouth', x: 0, dist: 6 });
+        for (let m = 0; m < 170; m += 40) if (Math.floor(m / 12) === j) o.push({ prop: 'neonTunnelPink', x: 0, dist: m - 12 * j + 0.75 });      // a pink neon every 40 m
+        return o; }      // the 170 m tunnel, every 50 slots (600 m)
       const out = [], LMS = ['neonRing', 'neonSpire', 'neonBillboard', 'neonHalo', 'neonBoardVortex', 'neonBoardSphere', 'neonBoardRings', 'neonBoardSpiral', 'neonHotel', 'neonRedTower', 'neonRedTowerB'], S = Stretch.of(i, 120, 10, LMS), TOW = ['neonTowerA', 'neonBlockA', 'neonTowerB', 'neonBlockD', 'neonBlockB', 'neonBlockE', 'neonBlockC'], SH = ['neonShopA', 'neonShopB', 'neonShopF', 'neonShopG', 'neonShopH', 'neonShopI'];
       for (const side of [-1, 1]) {
         const k = i * 2 + (side > 0 ? 1 : 0), r = n => rnd(k, n), lm = S.lm && S.lm.slot === i && S.lm.side === side ? S.lm.kind : null;

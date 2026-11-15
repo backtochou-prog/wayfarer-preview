@@ -61,6 +61,35 @@ const NeonArt = {
     }
     return this._mat4d;
   },
+  // THE TUNNEL'S PICTURE (NEON_TUNNEL_ART, the user's paper city): its own texture, repeated along the tunnel
+  _matT: null,
+  materialTunnel() {
+    if (!this._matT) {
+      const img = new Image(), tex = new THREE.Texture(img);
+      tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4; tex.generateMipmaps = true; tex.minFilter = THREE.LinearMipmapLinearFilter;
+      const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+      mat.visible = false; img.onload = () => { tex.needsUpdate = true; mat.visible = true; }; img.src = NEON_TUNNEL_ART.src;
+      this._matT = mat;
+    }
+    return this._matT;
+  },
+  // the picture bent to the tunnel's curve: the vault (radius R round (0, cy)) split in two halves, each from its foot (angle a0, below the road) up to the top of the vault; the picture stands upright
+  // on each wall (v from the foot to the top) and runs along the tunnel (u from u0 to u1 over z -L/2 .. L/2). The right half runs u the other way, so the picture is not mirrored there.
+  vault(R, cy, L, a0, u0, u1, nA = 16, nZ = 2) {
+    const pos = [], uv = [], idx = [];
+    for (const side of [-1, 1]) {
+      const o = pos.length / 3, aFoot = side < 0 ? Math.PI - a0 : a0, aTop = Math.PI / 2;
+      for (let j = 0; j <= nZ; j++) for (let k = 0; k <= nA; k++) {
+        const t = k / nA, a = aFoot + (aTop - aFoot) * t, f = j / nZ;
+        pos.push(Math.cos(a) * R, cy + Math.sin(a) * R, -L / 2 + f * L);
+        uv.push(side < 0 ? u0 + (u1 - u0) * f : u1 - (u1 - u0) * f, t);
+      }
+      for (let j = 0; j < nZ; j++) for (let k = 0; k < nA; k++) { const a = o + j * (nA + 1) + k, b = a + 1, c = a + nA + 1, d = c + 1; idx.push(a, c, b, b, c, d); }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeBoundingSphere(); g.computeBoundingBox();
+    return g;
+  },
   panel4(cell, x, z0, z1, y0, y1) { return this.panel(cell, x, z0, z1, y0, y1, NEON_ASSETS4); },
   panel3(cell, x, z0, z1, y0, y1) { return this.panel(cell, x, z0, z1, y0, y1, NEON_ASSETS3); },
   // same as panel(), for a cell of the second atlas
