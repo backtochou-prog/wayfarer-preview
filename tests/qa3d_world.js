@@ -203,14 +203,14 @@ const res = []; const T = (n, ok, i = '') => { res.push(ok); console.log((ok ? '
       const before = w.pieces[w.pieces.indexOf(P) - 1], after = w.pieces[w.pieces.indexOf(P) + 1];      // the neighbours are plain city, so the quarter is entered and left from the base palette
       if (before && after) out.ids.push((before.id || 'fork') + '>' + P.id + '>' + after.id);      // (the last one may sit at the edge of the generated track)
     }
-    const lay = []; for (let i = -3; i < 600; i++) lay.push(ENV3D.neon.layout(i, rnd).length); out.layout = { min: Math.min(...lay), max: Math.max(...lay) };
+    const lay = []; for (let i = -3; i < 600; i++) { const l = ENV3D.neon.layout(i, rnd); if (!l.some(q => /^neonTunnel\d/.test(q.prop))) lay.push(l.length); } out.layout = { min: Math.min(...lay), max: Math.max(...lay) };      // (a slot of the tunnel is the tube itself: 1 to 4 props)
     const kinds = new Set(); for (let i = -3; i < 1500; i++) for (const q of ENV3D.neon.layout(i, rnd)) kinds.add(q.prop); out.kinds = [...kinds].sort();
     out.missing = out.kinds.filter(k => !ENV3D.neon.props[k]); out.has2D = !!BIOMES.neon;
     return out;
   });
   T('the neon quarter is a district: biome neon through the whole segment, atmosphere fades in over the first 120 m and out over the last 120 m (no jumps), full strength for the ~250 m between, the segment sits after the last stretch of Utrecht and before the coastal zone: the neon quarter comes round again (' + Nq.ids[0] + ')',
     Nq.segs >= 2 && Nq.len >= 5000 && Nq.bad.length === 0 && Nq.maxStep < 0.1 && Nq.mid > 5 && Nq.ends > 0 && Nq.ids.every(x => /^vicR4>neonRun>coast(Sunset|Midday|BlueHour|Morning)$/.test(x)), JSON.stringify({ segs: Nq.segs, len: Nq.len, bad: Nq.bad.slice(0, 3), maxStep: +Nq.maxStep.toFixed(3), ids: Nq.ids.slice(0, 2) }));
-  T('the neon quarter\'s layout only uses props it defines, dresses every slot (2..18 props) and uses >= 30 kinds incl. the eight landmarks; the 2D game has a palette for it',
+  T('the neon quarter\'s layout only uses props it defines, dresses every slot outside the tunnel (2..18 props) and uses >= 30 kinds incl. the eight landmarks; the 2D game has a palette for it',
     Nq.missing.length === 0 && Nq.layout.min >= 2 && Nq.layout.max <= 18 && Nq.kinds.length >= 30 && ['neonRing', 'neonSpire', 'neonBillboard', 'neonHalo', 'neonBoardVortex', 'neonBoardSphere', 'neonBoardRings', 'neonBoardSpiral', 'neonRedTower', 'neonRedTowerB'].every(k => Nq.kinds.includes(k)) && Nq.has2D, JSON.stringify({ missing: Nq.missing, layout: Nq.layout, kinds: Nq.kinds.length }));
 
   const Na = await pg.evaluate(async () => {

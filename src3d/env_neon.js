@@ -96,6 +96,14 @@ window.ENV3D = window.ENV3D || {};
   const signOf = (a, b) => () => Kit.merge([
     Kit.cyl(0.07, 0.09, 3.4, 0, 0, -1.2, N.post), Kit.cyl(0.07, 0.09, 3.4, 0, 0, 1.2, N.post),
     Kit.box(0.12, 1.7, 3.3, -0.06, 3.0, 0, a, { glow: true }), Kit.box(0.14, 1.2, 2.7, -0.08, 3.25, 0, N.base), Kit.box(0.16, 0.5, 2.3, -0.1, 3.6, 0, b, { glow: true }), Kit.box(0.16, 0.12, 2.3, -0.1, 3.2, 0, b, { glow: true })]);
+  // WHERE THE TUNNEL IS: 14 slots from 180 m into each stretch of the neon quarter on the track (neonStart, neonRun), until the new quarter's junction exists. The layout only gets the slot index,
+  // so it looks up the running game's world (a scenery slot is 12 m = 120 track units); without a game (some tests) there is no tunnel. The renderer clears its layout cache on each new run.
+  const TUN_AT = 15, TUN_N = 14;
+  const tunSlot = i => {
+    const w = typeof window !== 'undefined' && window.__wf && window.__wf.world; if (!w || !w.pieces) return -1;
+    const z = i * 120 + 60, pc = w.pieces.find(p => p.z0 <= z && p.z1 > z && TRACK.segments[p.id] && TRACK.segments[p.id].biome === 'neon'); if (!pc) return -1;
+    const j = i - Math.ceil(pc.z0 / 120) - TUN_AT; return j >= 0 && j < TUN_N ? j : -1;
+  };
   const TUN_CUTS = [0, 0.1, 0.2, 0.3, 0.4, 0.5];                                    // where a slot's window of the picture starts (u), see neonTunnel0..5
   // one slot (12.2 m) of the round tunnel: dark shell, the picture inside from u0 to u1, a green ring of light at the slot's start, a lamp at the top
   const tube = (u0, u1) => { const L = 12.2, R = 6.6, cy = 3.6, p = [], n = 28;
@@ -186,6 +194,10 @@ window.ENV3D = window.ENV3D || {};
       // so the picture (1376 x 768) is 24.5 m long and a slot (12.2 m) shows half of it. The user: repeat it with RANDOM CUTS: each slot shows its own half-wide window of the picture, cut at one of
       // the TUN_CUTS (neonTunnel0..5), drawn at random slot by slot (never the same cut twice in a row).
       ...Object.fromEntries(TUN_CUTS.map((u, k) => ['neonTunnel' + k, () => tube(u, u + 0.5)])),
+      // THE QUARTER'S PICTURE round the tunnel's mouth (the user: put the picture as is): scaled so its painted tunnel (radius 93 px) is the real tunnel's outer teal ring (7.4 m), its centre on the ring's
+      // centre (3.6 m up), just behind the rings; the painted tunnel is cut out, so the runner rides through the picture into the real tunnel. 0.0796 m per pixel: 110 m wide, 61 m tall (its floor goes under the road).
+      neonQuarterWall: () => { const A = NEON_QUARTER_ART, k = 7.4 / A.r, cy = 3.6;
+        return { merged: Kit.merge([Kit.box(0.1, 0.1, 0.1, 0, -5, 0, N.base)]), sprite: NeonArt.across(-5.7, -A.cx * k, (A.w - A.cx) * k, cy - (A.h - A.cy) * k, cy + A.cy * k), material: () => NeonArt.materialQuarter() }; },
       // a pink neon at the top of the vault, 1.5 m long along the tunnel (the user: one every 40 m)
       neonTunnelPink: () => Kit.merge([Kit.box(0.5, 0.12, 1.7, 0, 9.95, 0, N.base), Kit.box(0.22, 0.16, 1.5, 0, 9.82, 0, N.mag, { glow: true })]),
       neonTunnelMouth: () => { const p = [], zr = (R, th, col, n) => { for (let k = 0; k < n; k++) { const a = 2 * Math.PI * k / n, len = 2 * Math.PI * R / n * 1.15; p.push(Kit.box(len, th, th, Math.cos(a) * R, 3.6 + Math.sin(a) * R, -5.9, col, { glow: true, rz: a + Math.PI / 2 })); } };
@@ -205,10 +217,10 @@ window.ENV3D = window.ENV3D || {};
     //   7 screens: floating cyan dots, light-ray towers, a striped boutique, green-line banners, cap signs
     // A landmark (neon ring / spire / billboard / halo / the four pictures on posts: vortex, sphere, rings, spiral) replaces the building on its side of one slot per stretch.
     layout(i, rnd) {
-      if (mod(i, 50) < 14) { const j = mod(i, 50), cut = s => Math.floor(rnd(s, 77) * TUN_CUTS.length), k = cut(i) === cut(i - 1) ? (cut(i) + 1) % TUN_CUTS.length : cut(i);
-        const o = [{ prop: 'neonTunnel' + k, x: 0, dist: 6 }]; if (j === 0) o.push({ prop: 'neonTunnelMouth', x: 0, dist: 6 });
-        for (let m = 0; m < 170; m += 40) if (Math.floor(m / 12) === j) o.push({ prop: 'neonTunnelPink', x: 0, dist: m - 12 * j + 0.75 });      // a pink neon every 40 m
-        return o; }      // the 170 m tunnel, every 50 slots (600 m)
+      const j = tunSlot(i); if (j >= 0) { const cut = s => Math.floor(rnd(s, 77) * TUN_CUTS.length), k = cut(i) === cut(i - 1) ? (cut(i) + 1) % TUN_CUTS.length : cut(i);
+        const o = [{ prop: 'neonTunnel' + k, x: 0, dist: 6 }]; if (j === 0) o.push({ prop: 'neonTunnelMouth', x: 0, dist: 6 }, { prop: 'neonQuarterWall', x: 0, dist: 6 });
+        for (let m = 0; m < TUN_N * 12; m += 40) if (Math.floor(m / 12) === j) o.push({ prop: 'neonTunnelPink', x: 0, dist: m - 12 * j + 0.75 });      // a pink neon every 40 m
+        return o; }      // the 170 m tunnel (tunSlot)
       const out = [], LMS = ['neonRing', 'neonSpire', 'neonBillboard', 'neonHalo', 'neonBoardVortex', 'neonBoardSphere', 'neonBoardRings', 'neonBoardSpiral', 'neonHotel', 'neonRedTower', 'neonRedTowerB'], S = Stretch.of(i, 120, 10, LMS), TOW = ['neonTowerA', 'neonBlockA', 'neonTowerB', 'neonBlockD', 'neonBlockB', 'neonBlockE', 'neonBlockC'], SH = ['neonShopA', 'neonShopB', 'neonShopF', 'neonShopG', 'neonShopH', 'neonShopI'];
       for (const side of [-1, 1]) {
         const k = i * 2 + (side > 0 ? 1 : 0), r = n => rnd(k, n), lm = S.lm && S.lm.slot === i && S.lm.side === side ? S.lm.kind : null;
@@ -332,6 +344,7 @@ window.ENV3D = window.ENV3D || {};
   const layout0 = ENV3D.neon.layout, LMX = /^(neonRing|neonSpire|neonBillboard|neonHalo|neonBoardVortex|neonBoardSphere|neonBoardRings|neonBoardSpiral|neonRedTower|neonRedTowerB)$/;
   ENV3D.neon.layout = (i, rnd) => {
     const out = layout0(i, rnd);
+    if (out.some(q => /^neonTunnel\d/.test(q.prop))) return out;                                                        // the new zone (the tunnel): no vehicle (the user, for now), no cables, poles or puddles
     for (const q of out.slice()) if (/^neonRedTower/.test(q.prop) && !out.some(o => Math.sign(o.x) === -Math.sign(q.x) && Math.abs(o.x) > 6 && LMX.test(o.prop))) out.push({ prop: q.prop, x: -q.x, dist: q.dist });       // RED TOWER stands in pairs: another one facing it across the road
     for (const side of [-1, 1]) {
       const k = i * 2 + (side > 0 ? 1 : 0), e = rnd(k, 70);

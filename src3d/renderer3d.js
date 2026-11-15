@@ -238,7 +238,7 @@ class Renderer3D {
     else if (ev.t === 'expire') this.perk.ring(ev.kind, lat, 0.15, z, t, 2.2);
     else if (ev.t === 'mission' || ev.t === 'combo') this.perk.celebrate(lat, y, z, t);
   }
-  onReset() { this.fx.clear(); this.perk.clear(); this.heading = 0; this.lastT = 0; this.usedSpots.clear(); this.armedSpot = null; }
+  onReset() { for (const k in this.layouts) this.layouts[k].clear(); this.fx.clear(); this.perk.clear(); this.heading = 0; this.lastT = 0; this.usedSpots.clear(); this.armedSpot = null; }
 
   // does the runner ride the kick scooter? The player decides (Game.riding: tap the indicator over a parked scooter or a station, or press E; again to get off); ?scooter=1 rides
   // everywhere and always, ?scooter=0 never (for testing)

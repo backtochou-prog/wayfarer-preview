@@ -61,6 +61,26 @@ const NeonArt = {
     }
     return this._mat4d;
   },
+  // THE QUARTER'S PICTURE (NEON_QUARTER_ART), alpha-tested: the hole of its painted tunnel stays open
+  _matQ: null,
+  materialQuarter() {
+    if (!this._matQ) {
+      const img = new Image(), tex = new THREE.Texture(img);
+      tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4; tex.generateMipmaps = true; tex.minFilter = THREE.LinearMipmapLinearFilter;
+      const mat = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5, side: THREE.DoubleSide });
+      mat.visible = false; img.onload = () => { tex.needsUpdate = true; mat.visible = true; }; img.src = NEON_QUARTER_ART.src;
+      this._matQ = mat;
+    }
+    return this._matQ;
+  },
+  // a picture across the road (in the plane z = `z`, facing the runner), x from x0 to x1, y from y0 to y1
+  across(z, x0, x1, y0, y1) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute([x0, y0, z, x1, y0, z, x1, y1, z, x0, y1, z], 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2));
+    g.setIndex([0, 1, 2, 0, 2, 3]); g.computeBoundingSphere(); g.computeBoundingBox();
+    return g;
+  },
   // THE TUNNEL'S PICTURE (NEON_TUNNEL_ART, the user's paper city): its own texture, repeated along the tunnel
   _matT: null,
   materialTunnel() {
