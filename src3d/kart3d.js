@@ -204,14 +204,23 @@ class Kart3D {
 
       else { d.scale.setScalar(k); d.position.set(0, 0.28 - 0.95 * k * 0, 0.42); z.pivot.position.y = -0.5; z.legs.forEach(l => { l.rotation.x = -1.45; }); }
       this.driver = z; this.car.add(d); }
-    this.bot = kart('#c8243a', '#ffffff'); sc.add(this.car, this.bot); this.bot.visible = false;
+    /* THE ROBOTS DRIVE THE SAME VEHICLE (the user: 'donnons aux autres joueurs, aux robots, le même véhicule que le mien, mais de couleurs différentes'): the lite hover vehicle (hull, horns, windows) with the chrome's hue turned to the robot's colour, and a small helmet of that colour above the seat */
+    const botVeh = (c, helm) => { if (!HOVER) return kart(c, helm); const S = HoverVehicle.buildPhoto.SIZE, hv = HoverVehicle.buildPhoto(THREE, { lite: true }), cc = new THREE.Color(c), hsl = {}; cc.getHSL(hsl);
+      hv.setHue((hsl.h - 0.75) * 2 * Math.PI, Math.min(1, hsl.s * 1.4), 0.9 + 0.7 * Math.max(0, hsl.l - 0.5)); hv.setTint(cc, 0.6);
+      const g6 = new THREE.Group(); hv.group.position.y = 0.25 + 0.5 * S; g6.add(hv.group);
+      const hm = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 12), new THREE.MeshBasicMaterial({ color: c })); hm.position.set(0, 0.25 + 0.5 * S + 0.15 * S + 0.46, 0.12); g6.add(hm);
+      const tor = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 0.34, 12), new THREE.MeshBasicMaterial({ color: new THREE.Color(c).multiplyScalar(0.55) })); tor.position.set(0, hm.position.y - 0.3, 0.12); g6.add(tor);
+      const vis = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.06, 0.1), new THREE.MeshBasicMaterial({ color: '#08080e' })); vis.position.set(0, hm.position.y + 0.03, -0.12); g6.add(vis);
+      const gl6 = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); gl6.rotation.x = -Math.PI / 2; gl6.position.y = 0.04; g6.add(gl6);      // a soft coloured light on the road under it
+      return g6; };
+    this.bot = botVeh('#c8243a', '#ffffff'); sc.add(this.car, this.bot); this.bot.visible = false;
     /* THE FEEL OF SPEED (the user: 'je veux que l'utilisateur sente la vitesse'): (1) SPEED STREAKS, 170 thin lines in a tube round the view that rush past, longer and brighter the faster you go; (2) the field of view opens and the camera trembles a little with speed;
        (3) the vehicle's own thruster glow and a light trail behind it grow with speed; (4) in render.js speed lines streak in from the screen edges; (5) in audio.js the wind rises with speed. sf = 0 at the pace of the start, 1 at the rings' full speed. */
     { const N = 170, pos = new Float32Array(N * 6), col = new Float32Array(N * 6), st = []; for (let i = 0; i < N; i++) { const a2 = Math.random() * Math.PI * 2, r = 2.2 + Math.random() * 7, c3 = [[0.2, 0.9, 1], [1, 0.25, 0.85], [0.9, 0.95, 1]][i % 3]; st.push({ x: Math.cos(a2) * r, y: Math.sin(a2) * r * 0.6, z: -Math.random() * 46 + 2, c: c3 }); for (let q = 0; q < 2; q++) { col[i * 6 + q * 3] = c3[0] * (q ? 0.15 : 1); col[i * 6 + q * 3 + 1] = c3[1] * (q ? 0.15 : 1); col[i * 6 + q * 3 + 2] = c3[2] * (q ? 0.15 : 1); } }
       const g5 = new THREE.BufferGeometry(); g5.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g5.setAttribute('color', new THREE.BufferAttribute(col, 3));
       const ls = new THREE.LineSegments(g5, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); ls.frustumCulled = false; ls.renderOrder = 15; ls.visible = false; sc.add(ls); this.streaks = { ls, st, pos, g5 }; }
     this.sf = 0;
-    this.bots = ['#c8243a', '#ff8a2a', '#e8d020', '#2ad0ff', '#b040ff', '#ff3fa0', '#20e0a0', '#f0f0f0', '#3a50ff', '#9aff30', '#ff5050', '#40ffd8', '#c080ff', '#ffb0d0'].map((c, i) => { const k = kart(c, i % 2 ? '#101018' : '#ffffff'); sc.add(k); return k; });      // THE EIGHT ROBOT KARTS
+    this.bots = ['#c8243a', '#ff8a2a', '#e8d020', '#2ad0ff', '#b040ff', '#ff3fa0', '#20e0a0', '#f0f0f0', '#3a50ff', '#9aff30', '#ff5050', '#40ffd8', '#c080ff', '#ffb0d0'].map((c, i) => { const k = botVeh(c, i % 2 ? '#101018' : '#ffffff'); sc.add(k); return k; });      // THE EIGHT ROBOT KARTS
     // THE ARROW BANDS (the user: 'bandes de flèches bleues, contour turquoise néon, animées vers l'avant, à droite du circuit, à chaque 40 m'): three chevrons flat on the floor near the right edge,
     // lit one after the other toward the front (a chase light), every 40 m round the ring
     // THE ARROW BANDS on the BELT of the circuit (the user, 2nd round: 'horizontales, adaptées à la ceinture du contour'): three blue chevrons with a turquoise rim on the inner face of the outer wall,

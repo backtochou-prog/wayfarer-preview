@@ -203,15 +203,16 @@
 
   function buildPhoto(THREE, opt) {
     const group = new THREE.Group(), live = []; group.name = 'hover-vehicle-photos';
-    const tex = {};
-    for (const k of ['front', 'back', 'side', 'top', 'bottom']) { const t = new THREE.Texture(), im = new Image(); im.onload = () => { t.image = im; t.needsUpdate = true; }; im.src = VEH_PHOTOS[k].src; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; tex[k] = t; }
+    const lite = !!(opt && opt.lite), tex = buildPhoto._tex || (buildPhoto._tex = {});      // (the textures are loaded once and shared by every vehicle: the player's and the robots')
+    for (const k of ['front', 'back', 'side', 'top', 'bottom']) { if (tex[k]) continue; const t = new THREE.Texture(), im = new Image(); im.onload = () => { t.image = im; t.needsUpdate = true; }; im.src = VEH_PHOTOS[k].src; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; tex[k] = t; }
     const FRONT_AT_LEFT_OF_SIDE = true;      // in the flank photo the nose (-Z) is at the left
     const mat = new THREE.ShaderMaterial({
-      uniforms: { tF: { value: tex.front }, tB: { value: tex.back }, tS: { value: tex.side }, tT: { value: tex.top }, tU: { value: tex.bottom }, box: { value: new THREE.Vector4(PH.X, PH.Z, PH.Y0, PH.Y1) }, sideFlip: { value: FRONT_AT_LEFT_OF_SIDE ? 0 : 1 } },
+      uniforms: { tF: { value: tex.front }, tB: { value: tex.back }, tS: { value: tex.side }, tT: { value: tex.top }, tU: { value: tex.bottom }, box: { value: new THREE.Vector4(PH.X, PH.Z, PH.Y0, PH.Y1) }, sideFlip: { value: FRONT_AT_LEFT_OF_SIDE ? 0 : 1 }, hue: { value: 0 }, sat: { value: 1 }, gain: { value: 1 }, tint: { value: new THREE.Vector3(1, 1, 1) }, tmix: { value: 0 } },
       side: THREE.DoubleSide,
       vertexShader: 'varying vec3 vP; varying vec3 vN; varying vec3 vC; attribute vec3 color; void main(){ vP = position; vN = normalize(normal); vC = color; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
       fragmentShader: `
-        uniform sampler2D tF; uniform sampler2D tB; uniform sampler2D tS; uniform sampler2D tT; uniform sampler2D tU; uniform vec4 box; uniform float sideFlip;
+        uniform sampler2D tF; uniform sampler2D tB; uniform sampler2D tS; uniform sampler2D tT; uniform sampler2D tU; uniform vec4 box; uniform float sideFlip; uniform float hue; uniform float sat; uniform float gain; uniform vec3 tint; uniform float tmix;
+        vec3 hueRot(vec3 c, float a){ vec3 k = vec3(0.57735); float cs = cos(a), sn = sin(a); return c * cs + cross(k, c) * sn + k * dot(k, c) * (1.0 - cs); }
         varying vec3 vP; varying vec3 vN; varying vec3 vC;
         vec4 smp(sampler2D t, vec2 uv){ uv = clamp(uv, vec2(0.002), vec2(0.998)); return texture2D(t, uv); }
         void main(){
@@ -227,7 +228,8 @@
           float wb = 0.1 + 0.5 * pow(max(0.0, -n.y), 2.0);
           vec3 base = vC * (0.8 + 0.2 * n.y);
           vec3 col = (cF.rgb * wF + cB.rgb * wB + cS.rgb * wS + cT.rgb * wT + cU.rgb * wU + base * wb) / (wF + wB + wS + wT + wU + wb);
-          gl_FragColor = vec4(col, 1.0);
+          vec3 hc = hueRot(col, hue); float lum = dot(hc, vec3(0.299, 0.587, 0.114)); hc = mix(vec3(lum), hc, sat) * gain; hc = mix(hc, hc * tint * 1.7, tmix);
+          gl_FragColor = vec4(clamp(hc, 0.0, 1.0), 1.0);
         }`,
     });
     // vertex colours for the fallback: the baked palette by height
@@ -267,6 +269,7 @@
       const pane = new THREE.Mesh(gg, new THREE.MeshBasicMaterial({ map: glassTex, transparent: true, side: THREE.DoubleSide, depthWrite: false })); pane.renderOrder = 4; group.add(pane);
     }
 
+    if (!lite) {
     // ---- the nose: two air intakes and a lamp; the back: two nozzles and two orbs ---------------------------------------------------------------------------------------
     const box = (w, h, d, px, py, pz, c) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshBasicMaterial({ color: c })); m.position.set(px, py, pz); group.add(m); return m; };
     for (const sg of [-1, 1]) { box(0.34, 0.2, 0.05, sg * 0.5, -0.05, -1.28, '#0b0816'); for (let k = 0; k < 4; k++) box(0.34, 0.012, 0.055, sg * 0.5, -0.12 + k * 0.045, -1.285, '#4a3a8a'); }
@@ -286,8 +289,9 @@
     for (let k = 0; k < 3; k++) { const r = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: k === 1 ? '#35f0ff' : '#b06cff', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); r.rotation.x = -Math.PI / 2; r.position.set(0, GY, 0); group.add(r); fields.push({ r, ph: k / 3 }); }
     const big = new THREE.Mesh(new THREE.RingGeometry(0.96, 1.0, 96), new THREE.MeshBasicMaterial({ color: '#8c5cff', transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); big.rotation.x = -Math.PI / 2; big.position.y = GY; group.add(big);
     live.push(t => { for (const f of fields) { const u = (t * 0.4 + f.ph) % 1; f.r.scale.setScalar(0.5 + 1.2 * u); f.r.material.opacity = 0.5 * (1 - u) * (1 - u); } big.scale.setScalar(1.7 + 0.05 * Math.sin(t * 1.7)); big.material.opacity = 0.28 + 0.1 * Math.sin(t * 1.7); cone.material.opacity = 0.07 + 0.03 * Math.sin(t * 2.2); });
+    }      // (the robots' vehicles are the lite version: the hull, horns and windows only, without the intakes, orbs, cone and field rings)
     group.scale.setScalar(buildPhoto.SIZE);      // the real size is a choice, not a constraint (the user: 3 m is too much): the model is drawn 2.6 m wide, this scales it (0.65 = 1.7 m wide, about a kart)
-    return { group, update(t) { for (const f of live) f(t); }, size: buildPhoto.SIZE };
+    return { group, update(t) { for (const f of live) f(t); }, size: buildPhoto.SIZE, setTint(c, m) { mat.uniforms.tint.value.set(c.r, c.g, c.b); mat.uniforms.tmix.value = m; }, setHue(h, s, gn) { mat.uniforms.hue.value = h; mat.uniforms.sat.value = s === undefined ? 1 : s; mat.uniforms.gain.value = gn === undefined ? 1 : gn; } };
   }
   buildPhoto.SIZE = 0.85;      // 2.2 m across (the user: the vehicle and the player are too far and small to be seen); the lane spacing is 2.4 m
 
