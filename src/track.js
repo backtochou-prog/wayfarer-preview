@@ -107,6 +107,7 @@ const WAYMARKS = {
 // stretch of the neon quarter a junction (24 m in at the start of the run, so the district ends before the passage out of the quarter; 108 m in after a passage between zones, whose exit door stands 55 m in: the corner is never inside the passage); the runner who reaches it in the LEFT lane turns into the picture district (a sharp 90-degree pivot of 0.4 s, no curve), rides its street
 // (14 slots of 12 m) and its tunnel (14 slots) and comes back out on the neon street; in the centre or right lane the street goes on as before. Game: corner / detour; scenery: src3d/env_neon.js.
 const NEON_CORNER = {
+  NAME: 'ART CITY',    // the district's name on the HUD (the user, 2026-11-16: 'Ville d'art', in English like the other zone names)
   on: true, REL: 2, REL_AFTER: 9, STREET: 14, TUNNEL: 14, SLOT: 120, T: 0.4,
   // the junction (track units, a slot boundary) of the neon stretch holding z, or null
   junction(w, z) {

@@ -477,7 +477,7 @@ class Renderer {
       [[5, '#d9baff'], [4.4, '#ff2a8a'], [3.8, '#62d444'], [2.8, '#e9f7a8'], [2.1, '#8dff1f'], [1.4, '#52ff2e'], [0.7, '#c8ffb8']].forEach(([r, col]) => { this.ctx.fillStyle = col; this.ctx.beginPath(); this.ctx.arc(cx, cy, r, 0, 6.2832); this.ctx.fill(); });
     } else this.ctx.drawImage(SPR.coin[pulse ? 1 : 0], 7, pulse ? 14 : 15);
     this.txt('' + g.coins, 18, 17, pulse ? C.bone : C.amberL);
-    const pb = w.playerBand(p.z, p.x), lb = BIOMES[pb.to] && BIOMES[pb.to].label, nm = lb && pb.t > 0.5 ? lb : T.segments[pb.route].name, nw = textW(nm) + 8;     // inside the aquarium tunnel the plate shows its own name
+    const pb = w.playerBand(p.z, p.x), lb = BIOMES[pb.to] && BIOMES[pb.to].label, nm = g.detour && p.z >= g.detour.z0 ? NEON_CORNER.NAME : lb && pb.t > 0.5 ? lb : T.segments[pb.route].name, nw = textW(nm) + 8;     // inside the aquarium tunnel the plate shows its own name
     this.plate(VW - 3 - nw, 3, nw, 11);
     this.txt(nm, VW - 3 - nw + 4, 6, C.tealL);
     if (pk) this.drawPerksHud(g);
