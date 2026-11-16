@@ -359,7 +359,11 @@ class Game {
       const C = NEON_CORNER, zD = this.detour.z0 + (C.STREET + C.TUNNEL + C.ART - C.UP) * C.SLOT;
       if (prevZ < zD && p.z >= zD) {
         const up = p.x - w.playerBand(zD, p.x).c < -LANE_W * 0.5, d = Object.assign({}, this.detour, { decided: true, up });
-        if (up) { d.z1 = d.z0 + (C.STREET + C.TUNNEL + C.ART + C.CANYON + C.DOWN + C.EXIT) * C.SLOT; w.items = w.items.filter(it => !(OBST[it.kind] && it.z >= zD && it.z <= d.z1)); w.extraLift = z => C.lift(d, z); this.emit('corner'); }
+        if (up) { d.z1 = d.z0 + (C.STREET + C.TUNNEL + C.ART + C.CANYON + C.DOWN + C.EXIT) * C.SLOT; const rampL = (a, b) => { const c = w.playerBand(a, 0).c; return it => it.z >= a && it.z <= b && Math.abs(it.x - c) > 0.2; };
+          const onUp = rampL(zD, zD + C.UP * C.SLOT), onDown = rampL(zD + (C.UP + C.CANYON) * C.SLOT, zD + (C.UP + C.CANYON + C.DOWN) * C.SLOT);
+          w.items = w.items.filter(it => !(OBST[it.kind] && it.z >= zD && it.z <= d.z1) && !(it.kind === 'coin' && (onUp(it) || onDown(it))));      // (the ramps have one lane: only the coins of the middle stay)
+          w.extraLift = z => C.lift(d, z); this.emit('corner'); }
+        else { d.down = true; d.z1 = d.z0 + (C.STREET + C.TUNNEL + C.ART + C.DIVE + C.UNDER + C.RISE + C.EXIT) * C.SLOT; w.items = w.items.filter(it => !(OBST[it.kind] && it.z >= zD + C.UP * C.SLOT && it.z <= d.z1)); w.extraLift = z => C.lift(d, z); }      // no ramp: the underground tunnel
         this.detour = d;
       }
     }
@@ -441,7 +445,8 @@ class Game {
     const w = this.world, p = this.p;
     const dir = (this.keys.right || this.tright ? 1 : 0) - (this.keys.left || this.tleft ? 1 : 0);
     const vp = w.pieceAt(p.z); let lanes = 0, lc = 0;
-    if (vp && vp.type === 'seg') lanes = vp.seg.lanes || 0; else if (vp && vp.type === 'fork' && vp.choice) { lanes = w.track.segments[vp.fork[vp.choice].route].lanes || 0; lc = w.playerBand(p.z, p.x).c; }       // (on a chosen road of a junction the places are those of that road)
+    if (w.extraLift && w.extraLift(p.z) > 1) { lanes = 1; lc = w.playerBand(p.z, p.x).c; }      // THE GLASS RAMPS (up and down, NEON_CORNER): one lane, narrower than the circuit, like the ramps of a motorway
+    else if (vp && vp.type === 'seg') lanes = vp.seg.lanes || 0; else if (vp && vp.type === 'fork' && vp.choice) { lanes = w.track.segments[vp.fork[vp.choice].route].lanes || 0; lc = w.playerBand(p.z, p.x).c; }       // (on a chosen road of a junction the places are those of that road)
     if (lanes) {                                   // VIC, the narrow streets: only TWO places, the left half and the right half of the street (lane +-0.28), or ONE in the alley: a key sends the runner to that half, it stays there until the other key
       if (dir) this.lane2 = dir; else if (!this.lane2) this.lane2 = p.x < lc ? -1 : 1;
       const tx = lc + (lanes === 1 ? 0 : this.lane2 * 0.28), nx = p.x + (tx - p.x) * Math.min(1, dt * 15); p.vx = dt > 0 ? (nx - p.x) / dt : 0; p.x = nx;

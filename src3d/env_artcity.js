@@ -72,11 +72,13 @@ const ArtCity = {
     artBeanbag: () => Kit.merge([Kit.ico(1.6, 0, 1.1, 0, A.red), Kit.ico(1.2, 0.5, 1.9, 0.6, A.red), Kit.ico(1.1, -0.6, 0.8, -0.8, A.redD)]),
     // THE GREEN SPIRAL at the end of the district, high on a lavender wall across the road, over the tunnel back to the neon street
     artSpiralUp: () => props.artSpiral(true),
-    artSpiral: (top) => { const Q = NEON_QUARTER_ART, cx = 680, cy = 180, rp = 140, R = top ? 9 : 11, Y = top ? 30 : 24, seg = 48, pos = [], uv = [], idx = [];      // (the spiral of the neon-quarter picture: the user crossed out the other one)
+    artSpiral: (top) => { const Q = NEON_QUARTER_ART, cx = 680, cy = 180, rp = 140, R = top ? 7 : 11, Y = top ? 30 : 24, seg = 48, pos = [], uv = [], idx = [];      // (the spiral of the neon-quarter picture: the user crossed out the other one)
       pos.push(0, Y, 1.9); uv.push(cx / Q.w, 1 - cy / Q.h);
       for (let k = 0; k <= seg; k++) { const a = 2 * Math.PI * k / seg; pos.push(Math.cos(a) * R, Y + Math.sin(a) * R, 1.9); uv.push((cx + Math.cos(a) * rp) / Q.w, 1 - (cy - Math.sin(a) * rp) / Q.h); if (k) idx.push(0, k, k + 1); }
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeBoundingSphere(); g.computeBoundingBox();
-      const p = [Kit.box(24, 40, 1, -19.5, -2, 1.2, '#b9b6ee'), Kit.box(24, 40, 1, 19.5, -2, 1.2, '#b9b6ee'), Kit.box(15, top ? 18 : 28, 1, 0, top ? 20 : 10, 1.2, '#b9b6ee')];       // the lavender wall, open for the tunnel under the spiral (and, `top`, for the high road over the bridge: open up to 20 m)
+      const W = '#b9b6ee', o = top ? -NeonAvenue.shift((NEON_CORNER.UP - 1) / NEON_CORNER.UP) : 0;          // (`top`: the wall seen from the glass ramp, whose road passes o m to the left of the tunnel, high up)
+      const p = top ? [Kit.box(30, 40, 1, o - 7.5 - 15, -2, 1.2, W), Kit.box(36, 40, 1, 7.5 + 18, -2, 1.2, W), Kit.box(7.5 - (o + 7.5), 28, 1, (o + 7.5 + 7.5) / 2, 10, 1.2, W), Kit.box(15, 16, 1, o, 22, 1.2, W)]
+                    : [Kit.box(24, 40, 1, -19.5, -2, 1.2, W), Kit.box(24, 40, 1, 19.5, -2, 1.2, W), Kit.box(15, 28, 1, 0, 10, 1.2, W)];       // the lavender wall, open for the tunnel under the spiral (`top`: and for the ramp's road, up to 22 m)
       return { merged: Kit.merge(p), sprite: g, material: () => NeonArt.materialQuarterStreet() }; },      // (the disc 0.7 m in front of the wall: local +z is toward the runner)
   };
 
@@ -108,7 +110,12 @@ const ArtCity = {
     const U = typeof NEON_CORNER !== 'undefined' ? NEON_CORNER.UP : 6, up = !!(det && det.up);
     if (r === N - 1) out.push({ prop: up ? 'artSpiralUp' : 'artSpiral', x: 0.001, dist: 0, dy: up ? -liftM : 0 }, { prop: 'artBridge', x: 0.001, dist: 2.5, dy: -liftM });   // THE BRIDGE over the tunnel, under the spiral
     if (!up && r >= N - U) out.push({ prop: 'artGlassRamp' + (r - (N - U)), x: 0.001, dist: 6 });                                                                  // THE GLASS RAMP on the left (the choice: the left lane)
-    if (up && r >= N - U) for (const o of out) if (o.dy === undefined && !/^artRail$/.test(o.prop)) o.dy = -liftM;                                      // (climbing it: what stands on the ground stays there)
+    if (up && r >= N - U) {                                                                                     // ON THE RAMP: what stands on the ground stays there, and the circuit parts to the right (NeonAvenue.shift)
+      const k = r - (N - U), sh = d => NeonAvenue.shift((k + d / 12.2) / U), keep = out.filter(o => o.prop !== 'artRail');
+      for (const o of keep) { if (o.dy === undefined) o.dy = -liftM; o.x += sh(o.dist); }
+      for (let n = keep.length - 1; n >= 0; n--) if (keep[n].x < 4 && !/^(artFloor|cnMainRoad)$/.test(keep[n].prop)) keep.splice(n, 1);      // (the ramp goes off to the left: what stood on the left of the circuit is where it passes)
+      keep.push({ prop: 'cnMainRoad', x: sh(6), dist: 6, dy: -liftM }); out.length = 0; out.push(...keep);
+    }
     for (const q of out) q.solo = true;
     return out;
   };

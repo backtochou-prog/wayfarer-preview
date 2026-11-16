@@ -113,8 +113,13 @@ const NEON_CORNER = {
   // under the spiral and goes on HIGH UP (H units of run) along the NEON AVENUE (CANYON slots, the user's picture of circuit-board towers at sunset), then comes down (DOWN slots) to the short
   // tunnel back to the neon street. Drawing only, like every slope of the game (World.extraLift -> dropAt): the rules stay flat.
   UP: 6, CANYON: 40, DOWN: 6, H: 140,
-  // the height of the road (units of run) at z for a detour that took the glass ramp
+  // THE UNDERGROUND TUNNEL (the user): a runner who does not take the glass ramp goes on into the tunnel under the spiral, which goes DOWN (DIVE slots, DEPTH units of run under the street),
+  // runs underground (UNDER slots: the place of the tunnel's own scenario, to come) and comes back UP (RISE slots) to the short tunnel out to the neon street.
+  DIVE: 6, UNDER: 20, RISE: 6, DEPTH: 120,
+  // the height of the road (units of run) at z for a detour that took the glass ramp (positive), or the underground tunnel (negative)
   lift(d, z) {
+    if (d && d.down) { const S = this.SLOT, z0 = d.z0 + (this.STREET + this.TUNNEL + this.ART) * S, zA = z0 + this.DIVE * S, zB = zA + this.UNDER * S, zC = zB + this.RISE * S, e = t => t * t * (3 - 2 * t);
+      return z <= z0 || z >= zC ? 0 : -this.DEPTH * (z < zA ? e((z - z0) / (zA - z0)) : z < zB ? 1 : 1 - e((z - zB) / (zC - zB))); }
     if (!d || !d.up) return 0;
     const S = this.SLOT, z0 = d.z0 + (this.STREET + this.TUNNEL + this.ART - this.UP) * S, zA = z0 + this.UP * S, zB = zA + this.CANYON * S, zC = zB + this.DOWN * S, e = t => t * t * (3 - 2 * t);
     return z <= z0 || z >= zC ? 0 : z < zA ? this.H * e((z - z0) / (zA - z0)) : z < zB ? this.H : this.H * (1 - e((z - zB) / (zC - zB)));
