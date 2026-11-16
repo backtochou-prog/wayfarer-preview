@@ -358,7 +358,7 @@ class Game {
     if (this.detour && !this.detour.decided) {                                              // THE GLASS RAMP near the end of ART CITY: the left lane climbs it (NEON_CORNER.UP), the others go on to the tunnel
       const C = NEON_CORNER, zD = this.detour.z0 + (C.STREET + C.TUNNEL + C.ART - C.UP) * C.SLOT;
       if (prevZ < zD && p.z >= zD) {
-        const up = p.x - w.playerBand(zD, p.x).c < -LANE_W * 0.5, d = Object.assign({}, this.detour, { decided: true, up });
+        const dx = p.x - w.playerBand(zD, p.x).c, up = dx < -LANE_W * 0.3 || (dx < 0 && (this.keys.left || this.tleft)), d = Object.assign({}, this.detour, { decided: true, up });      // (forgiving: nearly in the left lane, or on the way to it)
         if (up) { d.z1 = d.z0 + (C.STREET + C.TUNNEL + C.ART + C.CANYON + C.DOWN + C.EXIT) * C.SLOT; const rampL = (a, b) => { const c = w.playerBand(a, 0).c; return it => it.z >= a && it.z <= b && Math.abs(it.x - c) > 0.2; };
           const onUp = rampL(zD, zD + C.UP * C.SLOT), onDown = rampL(zD + (C.UP + C.CANYON) * C.SLOT, zD + (C.UP + C.CANYON + C.DOWN) * C.SLOT);
           w.items = w.items.filter(it => !(OBST[it.kind] && it.z >= zD && it.z <= d.z1) && !(it.kind === 'coin' && (onUp(it) || onDown(it))));      // (the ramps have one lane: only the coins of the middle stay)

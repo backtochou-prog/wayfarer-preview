@@ -358,8 +358,9 @@ class Renderer3D {
     // descent: how far below the runner's level a point z (design units) lies (0 on flat road); the slope of the far ground follows the steepest slope seen from here to 150 m ahead
     const d0 = w.dropAt(p.z), dy = z => -(w.dropAt(z) - d0) * U.Z;
     this.groundPivot.rotation.x = -Math.atan(Math.max(w.gradeAt(p.z), w.gradeAt(p.z + 1500)));
-    { const el = w.extraLift ? w.extraLift(p.z) * U.Z : 0; this.groundPivot.position.y = -0.03 - el; this.groundBack.position.y = -0.03 - el; }      // (on the high road of the glass ramp the ground stays down there)
     { const rf = w.riseFork(p.z); this.groundPivot.position.y = -0.03 - (rf && rf.fork.rise && rf.choice === rf.fork.rise.side ? w.riseAt(rf, p.z) * U.Z : 0); }       // (on the raised road, the upper circuit of Utrecht, the ground is the level of the water: 3.45 m under the runner)
+    if (w.extraLift) { const el = w.extraLift(p.z) * U.Z; this.groundPivot.position.y = -0.03 - el; this.groundBack.position.y = -0.03 - el; this.groundPivot.rotation.x = 0; }      // (the glass ramps of ART CITY and the underground tunnel: the ground stays flat at street level, under or over the road; it was reset by the line above)
+    else this.groundBack.position.y = -0.03;
     // under the sea: the coast road beside the tunnel is not seen once the runner is deep (hide = the side of the junction not drawn); the surface of the sea is a plane at the sea's own height over the tunnel, from mouth
     // to mouth, but only visible where the road under it is deep (its alpha follows the depth: the entrance and its surroundings stay dry), seen from above on the way down and up and from below in the deep
     const depthM = w.seaDepth(p.z) * U.Z, hide = depthM >= 3.5 ? -1 : 0; this.road.hide = hide; this.hide = hide;
