@@ -104,14 +104,14 @@ const WAYMARKS = {
 //  fork          : zone (roads diverge) + branchLen (two parallel roads) + merge (roads rejoin)
 // The sequence repeats from `loopFrom` so the run is endless but fully deterministic.
 // THE NEON CORNER (the user, 2026-11-16, with a retouched screenshot: a square opening on the left of the neon street, the picture district seen through it, an arrow turning left into it): in each
-// stretch of the neon quarter, 36 m in, a junction; the runner who reaches it in the LEFT lane turns into the picture district (a sharp 90-degree pivot of 0.4 s, no curve), rides its street
+// stretch of the neon quarter a junction (24 m in at the start of the run, so the district ends before the passage out of the quarter; 108 m in after a passage between zones, whose exit door stands 55 m in: the corner is never inside the passage); the runner who reaches it in the LEFT lane turns into the picture district (a sharp 90-degree pivot of 0.4 s, no curve), rides its street
 // (14 slots of 12 m) and its tunnel (14 slots) and comes back out on the neon street; in the centre or right lane the street goes on as before. Game: corner / detour; scenery: src3d/env_neon.js.
 const NEON_CORNER = {
-  on: true, REL: 3, STREET: 14, TUNNEL: 14, SLOT: 120, T: 0.4,
+  on: true, REL: 2, REL_AFTER: 9, STREET: 14, TUNNEL: 14, SLOT: 120, T: 0.4,
   // the junction (track units, a slot boundary) of the neon stretch holding z, or null
   junction(w, z) {
     const pc = w.pieces.find(p => p.z0 <= z && p.z1 > z && TRACK.segments[p.id] && TRACK.segments[p.id].biome === 'neon');
-    return pc ? (Math.ceil(pc.z0 / this.SLOT) + this.REL) * this.SLOT : null;
+    return pc ? (Math.ceil(pc.z0 / this.SLOT) + (pc.id === 'neonStart' ? this.REL : this.REL_AFTER)) * this.SLOT : null;
   },
 };
 const TRACK = {
