@@ -72,7 +72,7 @@ class Road3D {
   }
 
   // the palette of a road at section z: the tunnel under the sea blends in from the coast by DEPTH (never a cut at its mouths), every other road by its biome blend
-  palBand(w, b, zm) { return b.to === 'coastAqua' && b.pre ? this.pal('coastAqua', World.seaK(w.seaDepth(zm / U3.Z)), b.pre) : this.pal(b.to, b.t); }
+  palBand(w, b, zm) { if (this.art && zm / U3.Z >= this.art[0] && zm / U3.Z < this.art[1]) return this.pal('artcity', 1); return b.to === 'coastAqua' && b.pre ? this.pal('coastAqua', World.seaK(w.seaDepth(zm / U3.Z)), b.pre) : this.pal(b.to, b.t); }
 
   update(w, rzm, Lref) {
     const N = this.N, DS = TRACK3D.SECTION, n0 = Math.floor((rzm - TRACK3D.BEHIND) / DS), E = this.edge, OUT = this.OUT, P = this.P, X = U3.X;

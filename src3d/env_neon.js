@@ -228,6 +228,9 @@ window.ENV3D = window.ENV3D || {};
     //   7 screens: floating cyan dots, light-ray towers, a striped boutique, green-line banners, cap signs
     // A landmark (neon ring / spire / billboard / halo / the four pictures on posts: vortex, sphere, rings, spiral) replaces the building on its side of one slot per stretch.
     layout(i, rnd) {
+      { const r = detRel(i) - PIC_N - TUN_N, NA = NEON_CORNER.ART;                                                              // ART CITY (src3d/env_artcity.js), then the short tunnel back to the neon street
+        if (r >= 0 && r < NA && typeof ArtCity !== 'undefined') return ArtCity.layout(r, rnd);
+        if (r >= NA && r < NA + NEON_CORNER.EXIT) { const o = [{ prop: 'neonTunnel' + (r % 6), x: 0, dist: 6, solo: true }]; if (r === NA) o.push({ prop: 'neonTunnelMouth', x: 0, dist: 6, solo: true }); return o; } }
       const ps = picSlot(i); if (ps >= 0) return [{ prop: 'neonPicSt' + ps, x: 0, dist: 6, solo: true }];      // the picture street: the picture and nothing else
       const j = tunSlot(i); if (j >= 0) { const cut = s => Math.floor(rnd(s, 77) * TUN_CUTS.length), k = cut(i) === cut(i - 1) ? (cut(i) + 1) % TUN_CUTS.length : cut(i);
         const o = [{ prop: 'neonTunnel' + k, x: 0, dist: 6, solo: true }]; if (j === 0) o.push({ prop: 'neonTunnelMouth', x: 0, dist: 6 }, { prop: 'neonPicBack', x: 0, dist: 6 });
@@ -356,7 +359,7 @@ window.ENV3D = window.ENV3D || {};
   const layout0 = ENV3D.neon.layout, LMX = /^(neonRing|neonSpire|neonBillboard|neonHalo|neonBoardVortex|neonBoardSphere|neonBoardRings|neonBoardSpiral|neonRedTower|neonRedTowerB)$/;
   ENV3D.neon.layout = (i, rnd) => {
     const out = layout0(i, rnd);
-    if (out.some(q => /^(neonTunnel|neonPicSt)\d/.test(q.prop))) return out;                                                        // the new zone (the tunnel): no vehicle (the user, for now), no cables, poles or puddles
+    if (out.some(q => q.solo)) return out;                                                                                    // the district's slots (picture street, tunnels, ART CITY): nothing else                                                        // the new zone (the tunnel): no vehicle (the user, for now), no cables, poles or puddles
     for (const q of out.slice()) if (/^neonRedTower/.test(q.prop) && !out.some(o => Math.sign(o.x) === -Math.sign(q.x) && Math.abs(o.x) > 6 && LMX.test(o.prop))) out.push({ prop: q.prop, x: -q.x, dist: q.dist });       // RED TOWER stands in pairs: another one facing it across the road
     for (const side of [-1, 1]) {
       const k = i * 2 + (side > 0 ? 1 : 0), e = rnd(k, 70);

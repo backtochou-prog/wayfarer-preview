@@ -208,6 +208,11 @@ class Renderer3D {
     return ((b.lo + b.hi) / 2 + b.off) * U3.X;
   }
 
+  // ART CITY (NEON_CORNER, src3d/env_artcity.js): its stretch of the track while the runner is in the district [a0, a1) (track units), and how much its look is in (0..1): in over the last
+  // 60 m of the tunnel before it, out over its last 60 m (the short tunnel back)
+  artRange(g) { if (!g.detour || typeof NEON_CORNER === 'undefined' || !this.envs.artcity) return null; const C = NEON_CORNER, a0 = g.detour.z0 + (C.STREET + C.TUNNEL) * C.SLOT; return [a0, a0 + C.ART * C.SLOT]; }
+  artK(g) { const R = this.artRange(g); if (!R) return 0; const z = g.p.z, s = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); }; return s((z - (R[0] - 600)) / 600) * s((R[1] + 300 - z) / 600); }
+
   // the neon quarter's layout depends on the game's detour (the picture district, NEON_CORNER): a change clears its cache
   syncDetour(g) { if (g.detour !== this._detour) { this._detour = g.detour; if (this.layouts.neon) this.layouts.neon.clear(); } }
 
@@ -335,7 +340,7 @@ class Renderer3D {
     if (g.state !== 'pause') this.lastT = g.time;
     const rz = p.z * U.Z, Lref = (g.camX + g.camOff) * U.X, SL = SEG_LEN;
     const SC = g.state === 'scene' ? g.scene : null;                                      // the Gare du Midi cutscene, if one is running
-    { const tp = w.tubeFork(g.p.z); if (tp) this.applyAtmosphere('coastAqua', World.seaK(w.seaDepth(g.p.z)), tp.fork.tube.pre); else this.applyAtmosphere(g.bgTo, g.bgT); }       // in the tunnel under the sea the look follows the DEPTH: from the coast's own light to the deep, and back (never a cut)
+    { const tp = w.tubeFork(g.p.z); if (tp) this.applyAtmosphere('coastAqua', World.seaK(w.seaDepth(g.p.z)), tp.fork.tube.pre); else if (this.artK(g) > 0) this.applyAtmosphere('artcity', this.artK(g)); else this.applyAtmosphere(g.bgTo, g.bgT); }       // in the tunnel under the sea the look follows the DEPTH: from the coast's own light to the deep, and back (never a cut)
     // the music's beat (g.sfx.beat(): pulse 1 on each kick, decaying), scaled by how loud the track is at that moment, drives the animation: the sun-side light, the glowing
     // neon parts (one shared material), the PLAY button, the avatar. Stronger in the neon quarter. Without sound (the pulse is a clock at the same tempo) it still moves.
     const bt = g.sfx ? g.sfx.beat() : null, nw = g.bgTo === 'neon' ? g.bgT : 0, pulse = bt ? bt.pulse * (0.4 + 0.6 * bt.energy) : 0;
@@ -361,7 +366,7 @@ class Renderer3D {
     }
     // THE CANAL BETWEEN THE TWO DOORS of a passage (Portal): from the entry door to the exit door the houses, the road and the ground are not drawn: a tube of pink light joins the two spirals
     let cut = null; if (g.portal && typeof PortalArt !== 'undefined') for (const q of g.portal.list) if (p.z > q.zIn - 1200 && p.z < q.zOut + 100) { cut = [q.zIn * U.Z, q.zOut * U.Z]; break; }
-    this.road.cut = cut; this.cut = cut;
+    this.road.cut = cut; this.cut = cut; this.road.art = this.artRange(g);                    // (ART CITY's road is grey with white lines: Road3D.palBand)
     this.groundPivot.visible = this.groundBack.visible = !(cut && rz - 7.5 > cut[0] && rz - 7.5 < cut[1]);
     if (!this.tubeSegs && typeof PortalArt !== 'undefined') { this.tubeSegs = []; for (let k = 0; k < 16; k++) { const geo = new THREE.CylinderGeometry(5.5, 5.5, 5.2, 28, 1, true); geo.rotateX(Math.PI / 2); const m = new THREE.Mesh(geo, PortalArt.tubeMaterial()); m.visible = false; m.frustumCulled = false; this.scene.add(m); this.tubeSegs.push(m); } }
     if (this.tubeSegs) {

@@ -341,7 +341,7 @@ class Game {
   cornerStep(dt) {
     const c = this.corner, w = this.world, p = this.p; c.t += dt;
     if (c.t < NEON_CORNER.T) return;
-    this.corner = null; this.detour = { z0: c.z0, z1: c.z0 + (NEON_CORNER.STREET + NEON_CORNER.TUNNEL) * NEON_CORNER.SLOT };
+    this.corner = null; this.detour = { z0: c.z0, z1: c.z0 + (NEON_CORNER.STREET + NEON_CORNER.TUNNEL + NEON_CORNER.ART + NEON_CORNER.EXIT) * NEON_CORNER.SLOT };
     w.items = w.items.filter(it => !(OBST[it.kind] && it.z >= this.detour.z0 - 40 && it.z <= this.detour.z1));
     p.x = w.playerBand(p.z, 0).c; this.camRel = 0; this.camErr = 0; this.prevTgt = p.x;
   }

@@ -108,11 +108,12 @@ const WAYMARKS = {
 // (14 slots of 12 m) and its tunnel (14 slots) and comes back out on the neon street; in the centre or right lane the street goes on as before. Game: corner / detour; scenery: src3d/env_neon.js.
 const NEON_CORNER = {
   NAME: 'ART CITY',    // the district's name on the HUD (the user, 2026-11-16: 'Ville d'art', in English like the other zone names)
-  on: true, REL: 2, REL_AFTER: 9, STREET: 14, TUNNEL: 14, SLOT: 120, T: 0.4,
+  on: true, REL: 2, REL_AFTER: 9, STREET: 14, TUNNEL: 14, ART: 50, EXIT: 2, SLOT: 120, T: 0.4,      // (the district: picture street, tunnel, ART CITY, a short tunnel back)
   // the junction (track units, a slot boundary) of the neon stretch holding z, or null
   junction(w, z) {
     const pc = w.pieces.find(p => p.z0 <= z && p.z1 > z && TRACK.segments[p.id] && TRACK.segments[p.id].biome === 'neon');
-    return pc ? (Math.ceil(pc.z0 / this.SLOT) + (pc.id === 'neonStart' ? this.REL : this.REL_AFTER)) * this.SLOT : null;
+    if (!pc || pc.id === 'neonStart') return null;                                  // (the opening stretch of the run, 400 m, is too short for the district: no corner there)
+    return (Math.ceil(pc.z0 / this.SLOT) + this.REL_AFTER) * this.SLOT;
   },
 };
 const TRACK = {
@@ -133,7 +134,7 @@ const TRACK = {
     // the run opens in the quarter: `opening` = no fade-in (it is already night at distance 0); it fades back to the sunset city over its last 1200 units
     neonStart: { gate: 0.5, name: 'NEON QUARTER',  biome: 'neon',   length: 4000, curve: 0,    first: 420, spacing: 210, district: 1200, opening: true, calmStart: true,
                  patterns: ['line', 'crateJump', 'hurdle', 'slideGate', 'trailR', 'dodgeL', 'risky', 'zig'] },
-    neonRun:   { gate: 0.5, name: 'NEON QUARTER',  biome: 'neon',   length: 5000, curve: -0.8, first: 140, spacing: 210, district: 1200,
+    neonRun:   { gate: 0.5, name: 'NEON QUARTER',  biome: 'neon',   length: 12000, curve: -0.8, first: 140, spacing: 210, district: 1200,
                  patterns: ['line', 'trailR', 'crateJump', 'dodgeL', 'hurdle', 'risky', 'slideGate', 'zig'], extra: ['gateTrail', 'slideJump', 'stagger'] },
     // the TRAM STREET: a Brussels street at sunset (low sun ahead, tram rails in the cobbles, overhead wires); a district like the neon quarter, fading in and out over 120 m
     tramRun:   { name: 'SAINT-GILLES',   biome: 'tram',   length: 4500, curve: 0.6,  first: 140, spacing: 210, district: 1200, stay: true, grade: 0.07,   // grade: the street runs downhill (7 %), like in the photos
