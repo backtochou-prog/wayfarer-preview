@@ -406,7 +406,7 @@ class Renderer3D {
           const info = sg < 0 ? b.eL : b.eR;
           // which biome dresses this side of this slot: the blend decides, with a seeded threshold per pair of slots, so the scenery changes once, cleanly, as the blend passes ~half
           const pick = j => (0.35 + 0.3 * rnd(Math.floor(j / 2) * 4 + bi * 2 + (sg > 0 ? 1 : 0), 21) < info.t ? info.to : this.baseId);
-          const envId = pick(i), env = this.envs[envId];
+          const envId = this.layouts.neon && this.envs.neon && this.layoutFor('neon', i).some(q => q.solo) ? 'neon' : pick(i), env = this.envs[envId];      // (the neon quarter's picture street and tunnel own their slots: no other biome's scenery inside)
           if (c0 === null) { c0 = this.centreOf(sc.a, b.side) - Lref; c1 = this.centreOf(sc.b, b.side) - Lref; }
           // an entrance marker at the first slot of a new biome (only when the change is clean: the two slots before differ, the next one agrees)
           if (env.entrance && !inner && pick(i - 1) !== envId && pick(i - 2) !== envId && pick(i + 1) === envId)

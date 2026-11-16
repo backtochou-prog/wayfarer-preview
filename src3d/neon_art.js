@@ -73,11 +73,54 @@ const NeonArt = {
     }
     return this._matQ;
   },
+  // the whole picture (no cut-out), for the picture street's floor and facades
+  _matQS: null,
+  materialQuarterStreet() {
+    if (!this._matQS) {
+      const img = new Image(), tex = new THREE.Texture(img);
+      tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; tex.generateMipmaps = true; tex.minFilter = THREE.LinearMipmapLinearFilter;
+      const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+      mat.visible = false; img.onload = () => { tex.needsUpdate = true; mat.visible = true; }; img.src = NEON_QUARTER_ART.street;
+      this._matQS = mat;
+    }
+    return this._matQS;
+  },
   // a picture across the road (in the plane z = `z`, facing the runner), x from x0 to x1, y from y0 to y1
   across(z, x0, x1, y0, y1) {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute([x0, y0, z, x1, y0, z, x1, y1, z, x0, y1, z], 3));
     g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2));
+    g.setIndex([0, 1, 2, 0, 2, 3]); g.computeBoundingSphere(); g.computeBoundingBox();
+    return g;
+  },
+  // THE PICTURE STREET (NEON_QUARTER_ART opened up along its own perspective, "tour into the picture"): the picture is seen from a camera 3.6 m over the floor, looking at its vanishing point (the painted
+  // tunnel, 712,565); its far wall is the rectangle x 545..885 px (the spiral and the tunnel), 12.55 px a metre at that depth, so the street is 27 m wide (walls at -13.3 and +13.8 m) and the painted tunnel
+  // is the real one (radius 7.4 m, centre 3.6 m up). The picture's depth (from 0.2227 of the far wall's distance at its bottom edge to 1) is stretched over the street's length, evenly in the picture's rows; every vertex takes the
+  // texture point the picture's camera sees it at, so from the street's start the picture reads as painted, and it opens up as the runner rides into it.
+  PIC: { vx: 712, vy: 565, k: 12.55, xl: -13.3, xr: 13.8, h: 3.6, z0: 0.2227, fy: -0.12 },
+  _picUV(x, y, zr) { const P = this.PIC, A = NEON_QUARTER_ART; return [(P.vx + P.k * x / zr) / A.w, 1 - (P.vy - P.k * (y - P.h) / zr) / A.h]; },
+  // slot j of n of the street (12.2 m, local z from +6.1 = the near end to -6.1 = the far end): the floor and the two facades
+  picStreet(j, n, L = 12.2) {
+    const P = this.PIC, pos = [], uv = [], idx = [], nT = 6;
+    const quad = (fn, nu) => {                                                    // a grid over (u along its width 0..1, t along the slot 0..1); fn(u, zr) -> [x, y]
+      const o = pos.length / 3;
+      for (let a = 0; a <= nT; a++) { const f = a / nT, t = (j + f) / n, zr = 1 / (1 / P.z0 + t * (1 - 1 / P.z0)), z = L / 2 - f * L;      // (1/depth linear along the street: each metre takes the same share of the picture's rows)
+        for (let b = 0; b <= nu; b++) { const [x, y] = fn(b / nu, zr); pos.push(x, y, z); uv.push(...this._picUV(x, y, zr)); } }
+      for (let a = 0; a < nT; a++) for (let b = 0; b < nu; b++) { const p0 = o + a * (nu + 1) + b, p1 = p0 + 1, p2 = p0 + nu + 1, p3 = p2 + 1; idx.push(p0, p2, p1, p1, p2, p3); }
+    };
+    const top = zr => P.h + P.vy * zr / P.k;                                     // the picture's top edge on a facade at that depth
+    quad((u) => [P.xl + u * (P.xr - P.xl), P.fy], 10);                           // the floor
+    quad((u, zr) => [P.xl, P.fy + u * (top(zr) - P.fy)], 12);                    // the left facade
+    quad((u, zr) => [P.xr, P.fy + u * (top(zr) - P.fy)], 12);                    // the right facade
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeBoundingSphere(); g.computeBoundingBox();
+    return g;
+  },
+  // the street's end wall (the picture's far wall: the spiral, the painted tunnel cut out round the real one) across the road at local z
+  picBack(z) { const P = this.PIC, t = P.h + P.vy / P.k; const [u0, v0] = this._picUV(P.xl, P.fy, 1), [u1, v1] = this._picUV(P.xr, t, 1);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute([P.xl, P.fy, z, P.xr, P.fy, z, P.xr, t, z, P.xl, t, z], 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute([u0, v0, u1, v0, u1, v1, u0, v1], 2));
     g.setIndex([0, 1, 2, 0, 2, 3]); g.computeBoundingSphere(); g.computeBoundingBox();
     return g;
   },
