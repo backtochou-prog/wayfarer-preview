@@ -142,6 +142,7 @@ class Game {
     this.bgT = ahead0.t; this.bgTo = ahead0.t > 0 ? ahead0.to : this.world.baseBiome; this.canopy = 0; this.flash = 0; this.overT = 0; this.overDelay = 0.5;
     this.fx = []; this.dustT = 0; this.shake = 0; this.coinPulse = 0; this.jumpBuf = 0;
     this.scene = null; this.fadeIn = 0;                                                 // no cutscene running, no fade
+    this.corner = null; this.detour = null;                                             // the neon corner: no pivot running, not in the picture district (NEON_CORNER)
     this.riding = false; this.vehicle = 'scooter'; this.scooterHint = null; this.surf = false;                // on foot, no indicator, not on the water
     this.carryC = 0; this.lane2 = 0; this.lean = 0; this.kick = null; this.sway = 0; this.prompt = null; this.banner = null;
     if (this.r.onReset) this.r.onReset(this);
@@ -243,7 +244,7 @@ class Game {
     this.time += dt;
     if (this.riding && !((this.bgTo === 'tram' || this.bgTo === 'gare' || this.bgTo === 'neon') && this.bgT > 0.25)) this.riding = false;          // the vehicles belong to Saint-Gilles and the Neon Quarter: getting out of those zones puts the runner back on foot
     this.updateFx(dt);
-    if (this.state === 'play') this.step(dt);
+    if (this.state === 'play') { if (this.corner) this.cornerStep(dt); else this.step(dt); }
     else if (this.state === 'scene') this.sceneStep(dt);
     else if (this.state === 'race') this.raceStep(dt);
     else if (this.state === 'title') {
@@ -335,11 +336,26 @@ class Game {
     }
   }
 
+  // the pivot at the neon corner: the run holds still for NEON_CORNER.T seconds while the camera and the runner turn 90 degrees left (Renderer3D), then the run goes on in the picture district:
+  // its street and tunnel take the next 28 slots (the scenery reads g.detour), its hazards are cleared, the runner stands in the middle of its road
+  cornerStep(dt) {
+    const c = this.corner, w = this.world, p = this.p; c.t += dt;
+    if (c.t < NEON_CORNER.T) return;
+    this.corner = null; this.detour = { z0: c.z0, z1: c.z0 + (NEON_CORNER.STREET + NEON_CORNER.TUNNEL) * NEON_CORNER.SLOT };
+    w.items = w.items.filter(it => !(OBST[it.kind] && it.z >= this.detour.z0 - 40 && it.z <= this.detour.z1));
+    p.x = w.playerBand(p.z, 0).c; this.camRel = 0; this.camErr = 0; this.prevTgt = p.x;
+  }
+
   step(dt) {
     const w = this.world, p = this.p, prevZ = p.z, pk = this.pk;
     p.speed = Math.min(MAX_SPEED, p.speed + ACCEL * dt);
     if (pk) pk.update(dt);                                                         // power-up timers, mission distance, toasts: only ever advance here, so a pause or a cutscene freezes them
     p.z += p.speed * (pk ? pk.speedMul : 1) * dt;                                  // the dash: a forward boost on top of the run's own speed ramp
+    if (typeof NEON_CORNER !== 'undefined' && NEON_CORNER.on && !this.detour) {          // THE NEON CORNER: reaching the junction in the left lane turns into the picture district
+      const zJ = NEON_CORNER.junction(w, prevZ + 1);
+      if (zJ !== null && prevZ < zJ && p.z >= zJ && p.x - w.playerBand(zJ, p.x).c < -LANE_W * 0.5) { p.z = zJ; this.corner = { t: 0, z0: zJ }; this.emit('corner'); return; }
+    }
+    if (this.detour && p.z > this.detour.z1) this.detour = null;                          // out of the tunnel: back on the neon street
     this.steer(dt);
     if (this.jumpBuf > 0) { // jump starts on the ground, cancels a slide; a press just before landing is kept briefly
       this.jumpBuf -= dt;

@@ -17,7 +17,7 @@ const res = []; const T = (n, ok, i = '') => { res.push(ok); console.log((ok ? '
   const b = await chromium.launch({ executablePath: process.env.CHROMIUM || require('./_chromium')(), args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const pg = await (await b.newContext({ viewport: { width: 480, height: 270 } })).newPage(); const errs = [];
   pg.on('pageerror', e => errs.push(e.message)); pg.on('console', m => m.type() === 'error' && errs.push(m.text()));
-  await pg.goto((process.env.TEST_URL || 'http://localhost:' + PORT + '/'), { timeout: 90000 }); await pg.waitForFunction(() => window.__wf, null, { timeout: 60000 }); await pg.waitForTimeout(600);
+  await pg.addInitScript(() => { window.__keepOver = true; }); await pg.goto((process.env.TEST_URL || 'http://localhost:' + PORT + '/'), { timeout: 90000 }); await pg.waitForFunction(() => window.__wf, null, { timeout: 60000 }); await pg.waitForTimeout(600);
   await pg.evaluate(() => { window.requestAnimationFrame = () => 0; });
 
   // ---------------------------------------------------------------- 1. routes: all five destinations, order varies, fair picks

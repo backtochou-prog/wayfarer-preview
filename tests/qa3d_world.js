@@ -410,6 +410,8 @@ const res = []; const T = (n, ok, i = '') => { res.push(ok); console.log((ok ? '
   T('all six tree kinds are the artwork (two crossed planes + a flat round bed + a ring of upright flowers, one shared material), the image loads, heights differ (tree 4.6 .. giant oak 12 m) and the beds grow with the tree (the user disc is now 0.62 of its old size, mixed with other flowers)',
     Tr.loaded && ['tree', 'pine', 'pineTall', 'oak', 'birch', 'giantOak'].every(n => Tr.kinds[n]) && Tr.mats === 1 && ['tree', 'pine', 'pineTall', 'oak', 'birch', 'giantOak'].every(n => Tr.kinds[n + 'V'] === 12 + 8 * Tr.kinds[n + 'F'] && Tr.kinds[n + 'F'] >= 4 && Tr.kinds[n + 'F'] <= 30 && Tr.kinds[n + 'bed'] && Tr.kinds[n + 'R'] >= 0.85 && Tr.kinds[n + 'R'] <= 2.1) && Tr.kinds.giantOakR > Tr.kinds.treeR && Tr.kinds.giantOakF > Tr.kinds.treeF && Tr.kinds.treeH > 4 && Tr.kinds.giantOakH > 11 && Tr.kinds.giantOakH > Tr.kinds.pineTallH && Tr.kinds.pineTallH > Tr.kinds.pineH, JSON.stringify(Tr));
 
+  const NoOver = await pg.evaluate(() => { const w = new World(TRACK); w.reset(); w.extend(150000); return { noOver: TRACK.noOver, over: w.items.filter(i => i.kind === 'over').length, hazards: w.items.filter(i => OBST[i.kind]).length }; });
+  T('no banner gate (the `over` obstacle) on any circuit (the user, 2026-11-16), the other hazards still there', NoOver.noOver === true && NoOver.over === 0 && NoOver.hazards > 100, JSON.stringify(NoOver));
   T('no JS errors during the whole session', errs.length === 0, errs.slice(0, 2).join('|'));
   console.log('\n' + res.filter(Boolean).length + '/' + res.length + ' passed');
   await b.close(); srv.close(); process.exit(res.every(Boolean) ? 0 : 1);

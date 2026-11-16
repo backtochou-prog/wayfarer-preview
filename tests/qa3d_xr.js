@@ -50,7 +50,7 @@ const FAKE = (opt) => {
     const ctx = await b.newContext({ viewport: { width: 640, height: 360 } }), pg = await ctx.newPage(), errs = [];
     pg.on('pageerror', e => errs.push(e.message)); pg.on('console', m => m.type() === 'error' && errs.push(m.text()));
     if (opt) await pg.addInitScript(FAKE, opt);
-    for (let a = 0; a < 2; a++) { try { await pg.goto('http://localhost:' + PORT + '/' + q, { timeout: 240000 }); break; } catch (e) { if (a) throw e; } }
+    for (let a = 0; a < 2; a++) { try { await pg.addInitScript(() => { window.__keepOver = true; }); await pg.goto('http://localhost:' + PORT + '/' + q, { timeout: 240000 }); break; } catch (e) { if (a) throw e; } }
     await pg.waitForFunction(() => window.__wf, null, { timeout: 240000 }); await pg.waitForTimeout(800);
     return { pg, ctx, errs };
   };

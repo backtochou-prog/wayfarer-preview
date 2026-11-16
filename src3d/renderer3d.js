@@ -208,6 +208,9 @@ class Renderer3D {
     return ((b.lo + b.hi) / 2 + b.off) * U3.X;
   }
 
+  // the neon quarter's layout depends on the game's detour (the picture district, NEON_CORNER): a change clears its cache
+  syncDetour(g) { if (g.detour !== this._detour) { this._detour = g.detour; if (this.layouts.neon) this.layouts.neon.clear(); } }
+
   layoutFor(envId, i) {
     const m = this.layouts[envId];
     let lay = m.get(i);
@@ -321,6 +324,7 @@ class Renderer3D {
     else if (this._fast > 2000 && pr < this._cap - 0.01) { this.renderer.setPixelRatio(Math.min(this._cap, pr + 0.15)); this.resize(); this._fast = 0; }
   }
   draw(g) {
+    this.syncDetour(g);
     this.adapt();
     if (g.state === 'race' && g.race) {                                                              // the race zone: its own scene (src3d/race3d.js) on the same renderer, under the pixel HUD
       if (!this.race3d) this.race3d = new Race3D(); if (g.state !== 'pause') this.lastT = g.time;
@@ -506,8 +510,9 @@ class Renderer3D {
     const c1 = w.playerBand(p.z + 50, p.x), c0 = w.playerBand(p.z - 50, p.x);
     const slope = ((c1.c + c1.off) - (c0.c + c0.off)) * U.X / (100 * U.Z);
     this.heading += (-Math.atan(slope) - this.heading) * (1 - Math.exp(-10 * dt));
-    this.runner.group.rotation.y = Math.PI * mm + this.heading * (1 - mm);
-    this.runner.update(dt, { beat: pulse, faceYaw: Math.atan2(this.cam.x - relX, this.cam.z), time: g.time, runRate: 2.3 + p.speed / 340 * 1.1, airborne: p.jy > 0, vy: p.vy, sliding: p.slide > 0,
+    let cornerA = 0; if (g.corner && !(this.xr && this.xr.presenting)) { const k = Math.min(1, g.corner.t / NEON_CORNER.T); cornerA = Math.PI / 2 * k * k * (3 - 2 * k); }   // THE NEON CORNER's pivot angle
+    this.runner.group.rotation.y = Math.PI * mm + this.heading * (1 - mm) + cornerA;
+    this.runner.update(dt, { beat: pulse, faceYaw: Math.atan2(this.cam.x - relX, this.cam.z) + cornerA, time: g.time, runRate: 2.3 + p.speed / 340 * 1.1, airborne: p.jy > 0, vy: p.vy, sliding: p.slide > 0,
                              absorb: absK, absorbSpin: absSpin, lean: Math.max(-1, Math.min(1, p.vx / STEER)), state: g.state, scooter: this.riding(g) || !!g.surf, vehicle: g.surf ? 'surf' : g.vehicle || 'scooter' });
     if (absK && !(this.runner instanceof RunnerSprite)) this.runner.group.rotation.y += absSpin;      // (the 3D-model avatar has no card to turn: its group turns)
 
@@ -518,6 +523,10 @@ class Renderer3D {
     this.lookX += (ahead * 0.8 - this.lookX) * (1 - Math.exp(-4 * dt));
     this.look.set(this.lookX + ((relX - 1.0) - this.lookX) * mm, 0.8 + 0.3 * mm, -20 * (1 - mm));
     const XRP = !!(this.xr && this.xr.presenting);                                       // VR (src3d/xr3d.js): no shake, no cutscene camera move, the pose goes to the rig
+    if (cornerA) {                                                                       // THE NEON CORNER (NEON_CORNER): the camera turns 90 degrees left round the runner (the runner turned with it above), in NEON_CORNER.T seconds
+      const ca = Math.cos(cornerA), sa = Math.sin(cornerA);
+      for (const v of [this.cam, this.look]) { const dx = v.x - relX, dz = v.z; v.x = relX + dx * ca + dz * sa; v.z = -dx * sa + dz * ca; }
+    }
     if (g.shake > 0 && !XRP) { this.cam.x += Math.sin(g.time * 90) * g.shake * 0.5; this.cam.y += Math.cos(g.time * 70) * g.shake * 0.3; }
     // the cutscene's camera: from the road side, beside the runner (run, board, doors), then following the train out (depart); it eases in and out of the chase camera
     this.sceneK += ((SC ? 1 : 0) - this.sceneK) * (1 - Math.exp(-(SC ? 2.2 : 5) * dt));

@@ -18,7 +18,7 @@ const res = []; const T = (n, ok, i = '') => { res.push(ok); console.log((ok ? '
   const base = process.env.TEST_URL || 'http://localhost:' + PORT + '/';
   const open = async q => {
     const pg = await (await b.newContext({ viewport: { width: 960, height: 540 } })).newPage(); pg.errs = []; pg.on('pageerror', e => pg.errs.push(e.message)); pg.on('console', m => m.type() === 'error' && pg.errs.push(m.text()));
-    await pg.goto(base + q, { timeout: 240000 }); await pg.waitForFunction(() => window.__wf, null, { timeout: 240000 }); await pg.evaluate(() => { window.requestAnimationFrame = () => 0; }); await pg.waitForTimeout(700);   // (the game's own loop is stopped: the test steps frames itself)
+    await pg.addInitScript(() => { window.__keepOver = true; }); await pg.goto(base + q, { timeout: 240000 }); await pg.waitForFunction(() => window.__wf, null, { timeout: 240000 }); await pg.evaluate(() => { window.requestAnimationFrame = () => 0; }); await pg.waitForTimeout(700);   // (the game's own loop is stopped: the test steps frames itself)
     await pg.evaluate(() => {
       const g = __wf, r = g.r; window.G = g;
       window.frames = n => { for (let i = 0; i < n; i++) { g.time += 1 / 60; g.draw(); } };

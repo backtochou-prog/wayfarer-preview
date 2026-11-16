@@ -96,16 +96,21 @@ window.ENV3D = window.ENV3D || {};
   const signOf = (a, b) => () => Kit.merge([
     Kit.cyl(0.07, 0.09, 3.4, 0, 0, -1.2, N.post), Kit.cyl(0.07, 0.09, 3.4, 0, 0, 1.2, N.post),
     Kit.box(0.12, 1.7, 3.3, -0.06, 3.0, 0, a, { glow: true }), Kit.box(0.14, 1.2, 2.7, -0.08, 3.25, 0, N.base), Kit.box(0.16, 0.5, 2.3, -0.1, 3.6, 0, b, { glow: true }), Kit.box(0.16, 0.12, 2.3, -0.1, 3.2, 0, b, { glow: true })]);
-  // WHERE THE TUNNEL IS: 14 slots from 180 m into each stretch of the neon quarter on the track (neonStart, neonRun), until the new quarter's junction exists. The layout only gets the slot index,
-  // so it looks up the running game's world (a scenery slot is 12 m = 120 track units); without a game (some tests) there is no tunnel. The renderer clears its layout cache on each new run.
-  const TUN_AT = 15, TUN_N = 14;
-  const tunSlot = i => {
-    const w = typeof window !== 'undefined' && window.__wf && window.__wf.world; if (!w || !w.pieces) return -1;
-    const z = i * 120 + 60, pc = w.pieces.find(p => p.z0 <= z && p.z1 > z && TRACK.segments[p.id] && TRACK.segments[p.id].biome === 'neon'); if (!pc) return -1;
-    const j = i - Math.ceil(pc.z0 / 120) - TUN_AT; return j >= 0 && j < TUN_N ? j : -1;
-  };
-  // THE PICTURE STREET (the user: "make my picture a small circuit, the street that goes to the tunnel, a new district; first, stretch the picture forward"): the 14 slots before the tunnel (168 m)
-  const PIC_N = 14, picSlot = i => { const j = tunSlot(i + PIC_N); return j >= 0 && j < PIC_N ? j : -1; };
+  // THE PICTURE DISTRICT (the user's picture opened up into a street, then the tunnel) is reached by the NEON CORNER (src/track.js NEON_CORNER): it takes the 28 slots after the junction only while
+  // the runner is in it (g.detour); otherwise the neon street goes on and the junction is a square opening on its left where the district is seen, turned 90 degrees (neonPicSide*).
+  // The layout only gets the slot index, so it reads the running game (a scenery slot is 12 m = 120 track units); without a game (some tests) there is neither. The renderer clears the cache on a change.
+  const TUN_N = 14, PIC_N = 14, GAME = () => typeof window !== 'undefined' && window.__wf;
+  const detRel = i => { const g = GAME(); return g && g.detour ? i - g.detour.z0 / 120 : -1; };
+  const picSlot = i => { const r = detRel(i); return r >= 0 && r < PIC_N ? r : -1; };
+  const tunSlot = i => { const r = detRel(i) - PIC_N; return r >= 0 && r < TUN_N ? r : -1; };
+  const cornerRel = i => { const g = GAME(); if (!g || !g.world || !g.world.pieces || typeof NEON_CORNER === 'undefined' || !NEON_CORNER.on) return null; const zJ = NEON_CORNER.junction(g.world, i * 120 + 60); return zJ === null ? null : i - zJ / 120; };
+  // the district seen from the junction: inline slot j of the district (local z +6.1 = its near end) moved to the junction's frame (forward = -z), then turned 90 degrees to the left
+  const SIDE = j => new THREE.Matrix4().makeRotationY(Math.PI / 2).multiply(new THREE.Matrix4().makeTranslation(0, 0, -(12.2 * j + 6.1)));
+  const mergeGeo = list => { list = list.filter(Boolean); if (!list.length) return null; const names = Object.keys(list[0].attributes).filter(n => list.every(g => g.attributes[n])), out = new THREE.BufferGeometry(), idx = []; let base = 0;
+    for (const n of names) { const it = list[0].attributes[n].itemSize, arr = new Float32Array(list.reduce((a, g) => a + g.attributes[n].count * it, 0)); let o = 0; for (const g of list) { arr.set(g.attributes[n].array, o); o += g.attributes[n].count * it; } out.setAttribute(n, new THREE.BufferAttribute(arr, it)); }
+    for (const g of list) { const c = g.attributes.position.count; if (g.index) for (const v of g.index.array) idx.push(v + base); else for (let v = 0; v < c; v++) idx.push(v + base); base += c; }
+    if (list.some(g => g.index)) out.setIndex(idx); out.computeBoundingSphere(); out.computeBoundingBox(); return out; };
+  const sideMerged = parts => ({ lit: mergeGeo(parts.map(([m, j]) => m.lit && m.lit.clone().applyMatrix4(SIDE(j)))), glow: mergeGeo(parts.map(([m, j]) => m.glow && m.glow.clone().applyMatrix4(SIDE(j)))) });
   const TUN_CUTS = [0, 0.1, 0.2, 0.3, 0.4, 0.5];                                    // where a slot's window of the picture starts (u), see neonTunnel0..5
   // one slot (12.2 m) of the round tunnel: dark shell, the picture inside from u0 to u1, a green ring of light at the slot's start, a lamp at the top
   const tube = (u0, u1) => { const L = 12.2, R = 6.6, cy = 3.6, p = [], n = 28;
@@ -200,6 +205,10 @@ window.ENV3D = window.ENV3D || {};
       // facades, its far wall (the green spiral, the painted tunnel cut out) the end wall at the tunnel's mouth. neonPicSt0..13 are the 14 slots of the street, neonPicBack the end wall.
       ...Object.fromEntries(Array.from({ length: PIC_N }, (_, j) => ['neonPicSt' + j, () => ({ merged: Kit.merge([Kit.box(0.1, 0.1, 0.1, 0, -5, 0, N.base)]), sprite: NeonArt.picStreet(j, PIC_N), material: () => NeonArt.materialQuarterStreet() })])),
       neonPicBack: () => ({ merged: Kit.merge([Kit.box(0.1, 0.1, 0.1, 0, -5, 0, N.base)]), sprite: NeonArt.picBack(5.7), material: () => NeonArt.materialQuarter() }),
+      // the district seen through the opening of the junction (turned 90 degrees, to the left): its street, its end wall with the tunnel's green rings, the first two slots of the tunnel
+      neonPicSide: () => ({ merged: Kit.merge([Kit.box(0.1, 0.1, 0.1, 0, -5, 0, N.base)]), sprite: mergeGeo(Array.from({ length: PIC_N }, (_, j) => NeonArt.picStreet(j, PIC_N).applyMatrix4(SIDE(j)))), material: () => NeonArt.materialQuarterStreet() }),
+      neonPicSideBack: () => { const mouth = ENV3D.neon.props.neonTunnelMouth(); return { merged: sideMerged([[mouth, PIC_N]]), sprite: NeonArt.picBack(5.7).applyMatrix4(SIDE(PIC_N)), material: () => NeonArt.materialQuarter() }; },
+      neonPicSideTube: () => { const a = tube(0, 0.5), b = tube(0.5, 1); return { merged: sideMerged([[a.merged, PIC_N], [b.merged, PIC_N + 1]]), sprite: mergeGeo([a.sprite.applyMatrix4(SIDE(PIC_N)), b.sprite.applyMatrix4(SIDE(PIC_N + 1))]), material: () => NeonArt.materialTunnel() }; },
       // a pink neon at the top of the vault, 1.5 m long along the tunnel (the user: one every 40 m)
       neonTunnelPink: () => Kit.merge([Kit.box(0.5, 0.12, 1.7, 0, 9.95, 0, N.base), Kit.box(0.22, 0.16, 1.5, 0, 9.82, 0, N.mag, { glow: true })]),
       neonTunnelMouth: () => { const p = [], zr = (R, th, col, n) => { for (let k = 0; k < n; k++) { const a = 2 * Math.PI * k / n, len = 2 * Math.PI * R / n * 1.15; p.push(Kit.box(len, th, th, Math.cos(a) * R, 3.6 + Math.sin(a) * R, 5.95, col, { glow: true, rz: a + Math.PI / 2 })); } };
@@ -357,6 +366,8 @@ window.ENV3D = window.ENV3D || {};
       if (out.some(q => LMX.test(q.prop) && Math.sign(q.x) === side)) continue;
       if (e < 0.07) out.push({ prop: 'neonHoverDock', x: side * 4.9, dist: 6 }); else if (e < 0.21) out.push({ prop: 'neonHover', x: side * 5.3, dist: 9.5 }); else if (e < 0.33) out.push({ prop: LAMPS[Math.floor(rnd(k, 71) * LAMPS.length)], x: side * 5.1, dist: 4.5 + rnd(k, 72) * 2 });      // a lamp of the fourth set
     }
+    const cr = cornerRel(i);                                                                                                    // THE CORNER: a square opening in the left row (27 m), the district seen through it
+    if (cr !== null && cr >= -2 && cr <= 1) { const keep = out.filter(q => q.x > 0.5); if (cr === 0) keep.push({ prop: 'neonPicSide', x: 0, dist: 0 }, { prop: 'neonPicSideBack', x: 0, dist: 0 }, { prop: 'neonPicSideTube', x: 0, dist: 0 }); return keep; }
     return out;
   };
 })();

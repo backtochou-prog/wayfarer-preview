@@ -26,7 +26,7 @@ const res = []; const T = (n, ok, i = '') => { res.push(ok); console.log((ok ? '
   const b = await chromium.launch({ executablePath: process.env.CHROMIUM || require('./_chromium')(), args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const ctx = await b.newContext({ viewport: { width: 640, height: 360 } });
   const base = process.env.TEST_URL || 'http://localhost:' + PORT + '/';
-  const open = async (url = base) => { const pg = await ctx.newPage(); pg.errs = []; pg.on('pageerror', e => pg.errs.push(e.message)); pg.on('console', m => m.type() === 'error' && pg.errs.push(m.text())); await pg.goto(url, { timeout: 90000 }); await pg.waitForFunction(() => window.__wf, null, { timeout: 60000 }); await pg.waitForTimeout(500); return pg; };
+  const open = async (url = base) => { const pg = await ctx.newPage(); pg.errs = []; pg.on('pageerror', e => pg.errs.push(e.message)); pg.on('console', m => m.type() === 'error' && pg.errs.push(m.text())); await pg.addInitScript(() => { window.__keepOver = true; }); await pg.goto(url, { timeout: 90000 }); await pg.waitForFunction(() => window.__wf, null, { timeout: 60000 }); await pg.waitForTimeout(500); return pg; };
   const pg = await open();
 
   // ================================================================ 1. locked until a gesture, then it plays
@@ -243,7 +243,7 @@ const res = []; const T = (n, ok, i = '') => { res.push(ok); console.log((ok ? '
     HTMLMediaElement.prototype.play = function () { const ok = ['touchend', 'click', 'keydown'].includes(window.__kind); window.__plays.push((window.__kind || 'none') + ':' + (ok ? 'allowed' : 'REJECTED')); return ok ? real.call(this) : Promise.reject(new DOMException('needs a user gesture', 'NotAllowedError')); };
   });
   const pp = await pctx.newPage(); pp.errs = []; pp.on('pageerror', e => pp.errs.push(e.message));
-  await pp.goto(base, { timeout: 90000 }); await pp.waitForFunction(() => window.__wf && window.__wf.sfx, null, { timeout: 60000 }); await pp.waitForTimeout(800);
+  await pp.addInitScript(() => { window.__keepOver = true; }); await pp.goto(base, { timeout: 90000 }); await pp.waitForFunction(() => window.__wf && window.__wf.sfx, null, { timeout: 60000 }); await pp.waitForTimeout(800);
   const ppos = await pp.evaluate(() => { const cv = document.getElementById('screen'), r0 = cv.getBoundingClientRect(), b2 = BTN.title; return { x: r0.left + (b2.x + b2.w / 2) / VW * r0.width, y: r0.top + (b2.y + b2.h / 2) / VH * r0.height }; });
   await pp.touchscreen.tap(ppos.x, ppos.y);
   await pp.waitForFunction(() => __wf.sfx.music.currentTime > 0.5, null, { timeout: 20000 }).catch(() => {});

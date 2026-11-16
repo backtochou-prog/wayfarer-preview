@@ -17,7 +17,7 @@ const res = []; const T = (n, ok, i = '') => { res.push(ok); console.log((ok ? '
   }).listen(PORT);
   const b = await chromium.launch({ executablePath: process.env.CHROMIUM || require('./_chromium')(), args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const base = process.env.TEST_URL || 'http://localhost:' + PORT + '/';
-  const open = async (url, opts = {}) => { const pg = await (await b.newContext(Object.assign({ viewport: { width: 480, height: 270 } }, opts))).newPage(); pg.errs = []; pg.on('pageerror', e => pg.errs.push(e.message)); pg.on('console', m => m.type() === 'error' && !/404/.test(m.text()) && pg.errs.push(m.text())); await pg.goto(url, { timeout: 90000 }); await pg.waitForFunction(() => window.__wf, null, { timeout: 60000 }); await pg.waitForTimeout(1500); return pg; };
+  const open = async (url, opts = {}) => { const pg = await (await b.newContext(Object.assign({ viewport: { width: 480, height: 270 } }, opts))).newPage(); pg.errs = []; pg.on('pageerror', e => pg.errs.push(e.message)); pg.on('console', m => m.type() === 'error' && !/404/.test(m.text()) && pg.errs.push(m.text())); await pg.addInitScript(() => { window.__keepOver = true; }); await pg.goto(url, { timeout: 90000 }); await pg.waitForFunction(() => window.__wf, null, { timeout: 60000 }); await pg.waitForTimeout(1500); return pg; };
   const setup = () => {
     window.H = {
       at(z) { const g = __wf; g.r.renderer.render = () => {}; g.start(); g.world.extend(170000); g.portal.scan(g.world); g.state = 'play'; g.p.z = z; g.p.x = 0; g.p.speed = 300; g.scene = null; g.fadeIn = 0; g.world.extend(z); g.world.items = g.world.items.filter(i => i.kind === 'prop');

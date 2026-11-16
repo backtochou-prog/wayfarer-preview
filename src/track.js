@@ -103,7 +103,19 @@ const WAYMARKS = {
 //  segment.curve : lateral bump (world units) the road swings through, returning to centre at both ends
 //  fork          : zone (roads diverge) + branchLen (two parallel roads) + merge (roads rejoin)
 // The sequence repeats from `loopFrom` so the run is endless but fully deterministic.
+// THE NEON CORNER (the user, 2026-11-16, with a retouched screenshot: a square opening on the left of the neon street, the picture district seen through it, an arrow turning left into it): in each
+// stretch of the neon quarter, 36 m in, a junction; the runner who reaches it in the LEFT lane turns into the picture district (a sharp 90-degree pivot of 0.4 s, no curve), rides its street
+// (14 slots of 12 m) and its tunnel (14 slots) and comes back out on the neon street; in the centre or right lane the street goes on as before. Game: corner / detour; scenery: src3d/env_neon.js.
+const NEON_CORNER = {
+  on: true, REL: 3, STREET: 14, TUNNEL: 14, SLOT: 120, T: 0.4,
+  // the junction (track units, a slot boundary) of the neon stretch holding z, or null
+  junction(w, z) {
+    const pc = w.pieces.find(p => p.z0 <= z && p.z1 > z && TRACK.segments[p.id] && TRACK.segments[p.id].biome === 'neon');
+    return pc ? (Math.ceil(pc.z0 / this.SLOT) + this.REL) * this.SLOT : null;
+  },
+};
 const TRACK = {
+  noOver: !(typeof window !== "undefined" && window.__keepOver),             // THE USER (2026-11-16): no banner gates (the `over` obstacles, slide under) on any circuit; the patterns keep them, World skips them while this is true (tests that check the slide set window.__keepOver before the page loads)
   segments: {
     cityStart: { name: 'OLD TOWN',      biome: 'city',   length: 900,  curve: 0,    first: 420, spacing: 210, calmStart: true,   // calmStart: the run always opens with the first (hazard-free) pattern
                  patterns: ['line', 'crateJump', 'hurdle', 'slideGate'] },

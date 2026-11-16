@@ -95,6 +95,7 @@ class World {
       n++; last = k;
       const px = PATTERNS_X[list[k]], items = px ? px.items : PATTERNS[list[k]], inst = h + '.' + n;
       for (const [kind, dz, lane, hh] of items) {
+        if (kind === 'over' && TRACK.noOver) continue;                                  // (the user: no banner gates on any circuit)
         const it = { kind, z: z + dz, x: cx + lane * LANE_W, h: hh === undefined ? 12 : hh, tag, pat: list[k], seg: id, inst: n };       // pat / seg / inst: which pattern, segment and occurrence made this item (for tests)
         if (px && px.combo && OBST[kind]) { it.combo = inst + tag; it.comboN = px.combo; }                                  // the hazards of a sequence: passing them all without a hit earns the skill bonus
         this.items.push(it);
@@ -131,7 +132,7 @@ class World {
     if (seg.waymark && tag !== 'main') {                                           // the route's Golden Waymark: its pattern replaces whatever the grid put in a window of the branch
       const W = WAYMARKS[seg.waymark], zc = z0 + (end - z0) * 0.45;
       this.items = this.items.filter(it => !(it.tag === tag && it.kind !== 'prop' && it.z > zc - 175 && it.z < zc + W.last + 205));
-      for (const [kind, dz, lane, hh] of W.items) this.items.push({ kind, z: zc + dz, x: LX(lane), h: hh === undefined ? 12 : hh, tag, pat: 'wm' + seg.waymark, seg: id, inst: 0 });
+      for (const [kind, dz, lane, hh] of W.items) if (!(kind === 'over' && TRACK.noOver)) this.items.push({ kind, z: zc + dz, x: LX(lane), h: hh === undefined ? 12 : hh, tag, pat: 'wm' + seg.waymark, seg: id, inst: 0 });
     }
     const base = k => this[k][tag] !== undefined ? this[k][tag] : (this[k].main !== undefined ? this[k].main : -1e9);
     let lastPU = base('lastPU'), lastSh = base('lastShard');
