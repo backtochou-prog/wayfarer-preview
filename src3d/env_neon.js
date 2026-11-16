@@ -228,9 +228,12 @@ window.ENV3D = window.ENV3D || {};
     //   7 screens: floating cyan dots, light-ray towers, a striped boutique, green-line banners, cap signs
     // A landmark (neon ring / spire / billboard / halo / the four pictures on posts: vortex, sphere, rings, spiral) replaces the building on its side of one slot per stretch.
     layout(i, rnd) {
-      { const r = detRel(i) - PIC_N - TUN_N, NA = NEON_CORNER.ART;                                                              // ART CITY (src3d/env_artcity.js), then the short tunnel back to the neon street
-        if (r >= 0 && r < NA && typeof ArtCity !== 'undefined') return ArtCity.layout(r, rnd);
-        if (r >= NA && r < NA + NEON_CORNER.EXIT) { const o = [{ prop: 'neonTunnel' + (r % 6), x: 0, dist: 6, solo: true }]; if (r === NA) o.push({ prop: 'neonTunnelMouth', x: 0, dist: 6, solo: true }); return o; } }
+      { const g = GAME(), det = g && g.detour, C = NEON_CORNER, r = detRel(i) - PIC_N - TUN_N, NA = C.ART, liftM = det && det.up ? C.lift(det, i * 120 + 60) / 10 : 0;   // ART CITY (src3d/env_artcity.js), the glass ramp and
+        if (r >= 0 && r < NA && typeof ArtCity !== 'undefined') {                                                                                                             // the NEON AVENUE (src3d/env_canyon.js), the short tunnel back
+          const o = ArtCity.layout(r, rnd, det, liftM); if (det && det.up && r >= NA - C.UP && typeof NeonAvenue !== 'undefined') o.push({ prop: 'cnGlass', x: 0.001, dist: 6, solo: true }); return o; }
+        let q = r - NA;
+        if (det && det.up && typeof NeonAvenue !== 'undefined') { if (q >= 0 && q < C.CANYON + C.DOWN) return NeonAvenue.layout(q, rnd, liftM); q -= C.CANYON + C.DOWN; }
+        if (q >= 0 && q < C.EXIT) { const o = [{ prop: 'neonTunnel' + (q % 6), x: 0, dist: 6, solo: true }]; if (q === 0) o.push({ prop: 'neonTunnelMouth', x: 0, dist: 6, solo: true }); return o; } }
       const ps = picSlot(i); if (ps >= 0) return [{ prop: 'neonPicSt' + ps, x: 0, dist: 6, solo: true }];      // the picture street: the picture and nothing else
       const j = tunSlot(i); if (j >= 0) { const cut = s => Math.floor(rnd(s, 77) * TUN_CUTS.length), k = cut(i) === cut(i - 1) ? (cut(i) + 1) % TUN_CUTS.length : cut(i);
         const o = [{ prop: 'neonTunnel' + k, x: 0, dist: 6, solo: true }]; if (j === 0) o.push({ prop: 'neonTunnelMouth', x: 0, dist: 6 }, { prop: 'neonPicBack', x: 0, dist: 6 });

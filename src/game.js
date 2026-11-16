@@ -142,7 +142,7 @@ class Game {
     this.bgT = ahead0.t; this.bgTo = ahead0.t > 0 ? ahead0.to : this.world.baseBiome; this.canopy = 0; this.flash = 0; this.overT = 0; this.overDelay = 0.5;
     this.fx = []; this.dustT = 0; this.shake = 0; this.coinPulse = 0; this.jumpBuf = 0;
     this.scene = null; this.fadeIn = 0;                                                 // no cutscene running, no fade
-    this.corner = null; this.detour = null;                                             // the neon corner: no pivot running, not in the picture district (NEON_CORNER)
+    this.corner = null; this.detour = null; if (this.world) this.world.extraLift = null;                                             // the neon corner: no pivot running, not in the picture district (NEON_CORNER)
     this.riding = false; this.vehicle = 'scooter'; this.scooterHint = null; this.surf = false;                // on foot, no indicator, not on the water
     this.carryC = 0; this.lane2 = 0; this.lean = 0; this.kick = null; this.sway = 0; this.prompt = null; this.banner = null;
     if (this.r.onReset) this.r.onReset(this);
@@ -355,7 +355,15 @@ class Game {
       const zJ = NEON_CORNER.junction(w, prevZ + 1);
       if (zJ !== null && prevZ < zJ && p.z >= zJ && p.x - w.playerBand(zJ, p.x).c < -LANE_W * 0.5) { p.z = zJ; this.corner = { t: 0, z0: zJ }; this.emit('corner'); return; }
     }
-    if (this.detour && p.z > this.detour.z1) this.detour = null;                          // out of the tunnel: back on the neon street
+    if (this.detour && !this.detour.decided) {                                              // THE GLASS RAMP near the end of ART CITY: the left lane climbs it (NEON_CORNER.UP), the others go on to the tunnel
+      const C = NEON_CORNER, zD = this.detour.z0 + (C.STREET + C.TUNNEL + C.ART - C.UP) * C.SLOT;
+      if (prevZ < zD && p.z >= zD) {
+        const up = p.x - w.playerBand(zD, p.x).c < -LANE_W * 0.5, d = Object.assign({}, this.detour, { decided: true, up });
+        if (up) { d.z1 = d.z0 + (C.STREET + C.TUNNEL + C.ART + C.CANYON + C.DOWN + C.EXIT) * C.SLOT; w.items = w.items.filter(it => !(OBST[it.kind] && it.z >= zD && it.z <= d.z1)); w.extraLift = z => C.lift(d, z); this.emit('corner'); }
+        this.detour = d;
+      }
+    }
+    if (this.detour && p.z > this.detour.z1) { this.detour = null; w.extraLift = null; }      // out of the tunnel: back on the neon street
     this.steer(dt);
     if (this.jumpBuf > 0) { // jump starts on the ground, cancels a slide; a press just before landing is kept briefly
       this.jumpBuf -= dt;

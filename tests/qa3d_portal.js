@@ -32,7 +32,7 @@ const res = []; const T = (n, ok, i = '') => { res.push(ok); console.log((ok ? '
   const A = await pg.evaluate(() => {
     const out = { seeds: {} };
     for (const s of [0, 1, 7, 99, 12345]) {
-      const w = new World(TRACK); w.seed = s; w.reset(); w.extend(290000); const P = new Portal({}); P.scan(w); const pieces = w.pieces; let gare = 0, inside = 0, missing = 0, fam = 0;
+      const w = new World(TRACK); w.seed = s; w.reset(); w.extend(340000); const P = new Portal({}); P.scan(w); const pieces = w.pieces; let gare = 0, inside = 0, missing = 0, fam = 0;
       for (let i = 0; i + 1 < pieces.length; i++) {
         const a = pieces[i], c = pieces[i + 1]; if (a.type !== 'seg' || c.type !== 'seg') continue;
         const has = P.list.some(q => Math.abs(q.zIn - (c.z0 - 150)) < 1), fa = Portal.fam(TRACK.segments[a.id].biome), fc = Portal.fam(TRACK.segments[c.id].biome);
@@ -95,7 +95,7 @@ const res = []; const T = (n, ok, i = '') => { res.push(ok); console.log((ok ? '
     // the road of a journey has no hazards (taken out when the passage is first seen) and the runner is not invincible: a crate put in its face is lethal inside the journey as well as outside
     const hit = (z, dz) => { g = H.at(z); g.die = Game.prototype.die; g.portal.list.forEach(x => x.hit = true); g.portal.update(g, z - 1); g.world.items.push({ kind: 'crate', z: z + dz, x: 0, h: 12, tag: 'main' }); for (let i = 0; i < 12; i++) g.advance(1 / 60); return { state: g.state }; };
     out.inside = hit(q.zIn + 100, 4); out.inPull = hit(q.zIn - 60, 4); out.outside = hit(q.zIn - Portal.PULL - 60, 4); out.outAfter = hit(q.zOut + Portal.SETTLE + 60, 4);
-    g = __wf; g.start(); g.world.extend(80000); g.portal.scan(g.world); const inSpan = i => g.portal.list.some(x => i.z >= x.zIn - Portal.PULL && i.z <= x.zOut + Portal.SETTLE); out.span = { spans: g.portal.list.length, inSpan: 0, left: 0, outside: 0 };
+    g = __wf; g.start(); g.world.extend(92000); g.portal.scan(g.world); const inSpan = i => g.portal.list.some(x => i.z >= x.zIn - Portal.PULL && i.z <= x.zOut + Portal.SETTLE); out.span = { spans: g.portal.list.length, inSpan: 0, left: 0, outside: 0 };
     for (const i of g.world.items) { if (!OBST[i.kind]) continue; if (inSpan(i)) { out.span.inSpan++; if (!i.taken) out.span.left++; } else if (!i.taken) out.span.outside++; }
     return out;
   });

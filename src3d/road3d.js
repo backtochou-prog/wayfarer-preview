@@ -72,7 +72,7 @@ class Road3D {
   }
 
   // the palette of a road at section z: the tunnel under the sea blends in from the coast by DEPTH (never a cut at its mouths), every other road by its biome blend
-  palBand(w, b, zm) { if (this.art && zm / U3.Z >= this.art[0] && zm / U3.Z < this.art[1]) return this.pal('artcity', 1); return b.to === 'coastAqua' && b.pre ? this.pal('coastAqua', World.seaK(w.seaDepth(zm / U3.Z)), b.pre) : this.pal(b.to, b.t); }
+  palBand(w, b, zm) { if (this.cny && zm / U3.Z >= this.cny[0] && zm / U3.Z < this.cny[1]) return this.pal('canyon', 1); if (this.art && zm / U3.Z >= this.art[0] && zm / U3.Z < this.art[1]) return this.pal('artcity', 1); return b.to === 'coastAqua' && b.pre ? this.pal('coastAqua', World.seaK(w.seaDepth(zm / U3.Z)), b.pre) : this.pal(b.to, b.t); }
 
   update(w, rzm, Lref) {
     const N = this.N, DS = TRACK3D.SECTION, n0 = Math.floor((rzm - TRACK3D.BEHIND) / DS), E = this.edge, OUT = this.OUT, P = this.P, X = U3.X;
@@ -97,7 +97,8 @@ class Road3D {
       P[0] = sz;                                               // doubles travel through P, not through call arguments (avoids boxing)
       if (!bB) {
         E.loA[i] = loA; E.hiA[i] = hiA; E.loB[i] = E.hiB[i] = hiA;
-        P[1] = loA; P[2] = hiA; P[3] = OUT; P[4] = OUT; this.band(0, i, palA, par, dash);
+        P[1] = loA; P[2] = hiA; P[3] = OUT; P[4] = OUT; if (w.extraLift && w.extraLift(zm / U3.Z) > 25) P[3] = P[4] = 0.3;      // (the high road of the glass ramp: no pavement out to the sides, only its kerbs)
+        this.band(0, i, palA, par, dash);
         P[1] = hiA; this.collapse(1, i, palA);
         continue;
       }

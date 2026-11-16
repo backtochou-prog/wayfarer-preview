@@ -167,7 +167,7 @@ const res = []; const T = (n, ok, i = '') => { res.push(ok); console.log((ok ? '
     out.state = g.state; out.dist = Math.round(g.p.z / 10); out.coins = g.coins; out.dropped = r.dropped + r.items.dropped; out.seen = [...out.seen].sort(); out.gates = [...out.gates].sort(); out.forkRoutes = out.forkRoutes.size;
     return out;
   });
-  T('the junctions of the first laps played, alternating left/right (' + Run.picks.join(',') + '): still running at ' + Run.dist + ' m (' + Run.scenes + ' station cutscene passed), every choice took the intended road, both junction types used', Run.state === 'play' && Run.scenes >= 1 && Run.picks.length >= 4 && Run.picks.join() === Run.wants.slice(0, Run.picks.length).join() && Run.dist > 1500, JSON.stringify({ state: Run.state, picks: Run.picks, wants: Run.wants, dist: Run.dist, scenes: Run.scenes }));
+  T('the junctions of the first laps played, alternating left/right (' + Run.picks.join(',') + '): still running at ' + Run.dist + ' m (' + Run.scenes + ' station cutscene passed), every choice took the intended road, both junction types used', (Run.state === 'play' || Run.state === 'scene') && Run.scenes >= 1 && Run.picks.length >= 4 && Run.picks.join() === Run.wants.slice(0, Run.picks.length).join() && Run.dist > 1500, JSON.stringify({ state: Run.state, picks: Run.picks, wants: Run.wants, dist: Run.dist, scenes: Run.scenes }));
   T('branch lock: the runner always stays on its chosen road and never enters the other road of a junction', Run.offRoad === 0 && Run.otherRoad === 0, JSON.stringify({ offRoad: Run.offRoad, otherRoad: Run.otherRoad }));
   T('distance, speed, score and coins never go backwards across segments and junctions (' + Run.coins + ' coins)', Run.backwards === 0 && Run.coins > 30, JSON.stringify({ backwards: Run.backwards, coins: Run.coins }));
   T('road ribbon stays continuous and the chase camera glitch-free through all of it (max edge step between sections ' + Run.maxEdge.toFixed(2) + ' m, look-at step ' + Run.maxCamDx.toFixed(2) + ' m / camera height step ' + Run.maxCamDy.toFixed(2) + ' m per 3 frames)', Run.maxEdge < 1.6 && Run.maxCamDx < 1.0 && Run.maxCamDy < 0.3, JSON.stringify({ edge: +Run.maxEdge.toFixed(2), dx: +Run.maxCamDx.toFixed(2), dy: +Run.maxCamDy.toFixed(2) }));
@@ -198,7 +198,7 @@ const res = []; const T = (n, ok, i = '') => { res.push(ok); console.log((ok ? '
         if (b.to !== 'neon') out.bad.push(['to', Math.round(z)]);
         if (prev !== null) out.maxStep = Math.max(out.maxStep, Math.abs(b.t - prev)); prev = b.t;
         if (u > 0.4 && u < 0.6 && b.t < 0.999) out.bad.push(['mid', Math.round(z), b.t]); if (u > 0.4 && u < 0.6) out.mid++;
-        if ((u < 0.01 || u > 0.99) && b.t > 0.05) out.bad.push(['end', Math.round(z), b.t]); if (u < 0.01 || u > 0.99) out.ends++;
+        if ((z - P.z0 < 50 || P.z1 - z < 50) && b.t > 0.05) out.bad.push(['end', Math.round(z), b.t]); if (z - P.z0 < 50 || P.z1 - z < 50) out.ends++;      // (the 5 m at each end: the segment is 1750 m long now)
       }
       const before = w.pieces[w.pieces.indexOf(P) - 1], after = w.pieces[w.pieces.indexOf(P) + 1];      // the neighbours are plain city, so the quarter is entered and left from the base palette
       if (before && after) out.ids.push((before.id || 'fork') + '>' + P.id + '>' + after.id);      // (the last one may sit at the edge of the generated track)

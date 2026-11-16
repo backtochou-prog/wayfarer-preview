@@ -199,7 +199,7 @@ class World {
   // atmosphere. Gameplay stays flat (the runner is always at height 0); only the drawing follows the slope. dropAt(z) is the fall, in units of run, from the start of the graded pieces held
   // up to z: only differences between two z are meaningful (pieces behind the runner are pruned, which cancels out). gradeAt(z) is the slope at z.
   dropAt(z) {
-    let d = 0;
+    let d = this.extraLift ? -this.extraLift(z) : 0;                               // (a road lifted from outside, the glass ramp of ART CITY: NEON_CORNER.lift, set by the Game)
     for (const P of this.pieces) {
       if (P.type === 'fork') { if (P.fork.tube && P.choice === 'right') d += this.tubeDip(P, z); else if (P.fork.rise && P.choice === P.fork.rise.side) d -= this.riseAt(P, z); continue; }   // the way to the island: a runner who took it dives below the sea (and comes back up); the stairs to the quay: a runner who took them climbs (the whole world sinks)
       if (P.type !== 'seg' || !P.seg.grade || z <= P.z0) continue;
@@ -208,7 +208,7 @@ class World {
     }
     return d;
   }
-  gradeAt(z) { const P = this.pieceAt(z); if (P.type === 'fork') return P.fork.tube && P.choice === 'right' ? (this.tubeDip(P, z + 10) - this.tubeDip(P, z - 10)) / 20 : 0; return P.type === 'seg' && P.seg.grade ? P.seg.grade * this.gradeT(P, z) : 0; }
+  gradeAt(z) { if (this.extraLift) { const l = (this.extraLift(z + 10) - this.extraLift(z - 10)) / 20; if (l) return -l; } const P = this.pieceAt(z); if (P.type === 'fork') return P.fork.tube && P.choice === 'right' ? (this.tubeDip(P, z + 10) - this.tubeDip(P, z - 10)) / 20 : 0; return P.type === 'seg' && P.seg.grade ? P.seg.grade * this.gradeT(P, z) : 0; }
   // how deep the sea is over the road at z (units of run; 0 on the coast and the island): the dive of the aquarium tunnel for a runner who took it. Sea life is only drawn where this is deep enough (ENV3D.coastAqua `under`)
   // the aquarium tunnel (fork piece with `tube`, taken to the right) the runner is in or near: z within `before` units ahead of its mouth and `after` units past its exit (null otherwise)
   tubeFork(z, before = 0, after = 0) { for (const P of this.pieces) if (P.type === 'fork' && P.fork.tube && P.choice === 'right' && z >= P.fe - before && z <= P.fe + P.fork.tube.len + after) return P; return null; }

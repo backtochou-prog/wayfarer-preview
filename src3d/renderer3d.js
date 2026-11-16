@@ -211,6 +211,9 @@ class Renderer3D {
   // ART CITY (NEON_CORNER, src3d/env_artcity.js): its stretch of the track while the runner is in the district [a0, a1) (track units), and how much its look is in (0..1): in over the last
   // 60 m of the tunnel before it, out over its last 60 m (the short tunnel back)
   artRange(g) { if (!g.detour || typeof NEON_CORNER === 'undefined' || !this.envs.artcity) return null; const C = NEON_CORNER, a0 = g.detour.z0 + (C.STREET + C.TUNNEL) * C.SLOT; return [a0, a0 + C.ART * C.SLOT]; }
+  // THE NEON AVENUE (src3d/env_canyon.js): the high road after the glass ramp [c0, c1) and how much of its look is in (in over the ramp, out over the way down)
+  canyonRange(g) { const d = g.detour; if (!d || !d.up || !this.envs.canyon) return null; const C = NEON_CORNER, c0 = d.z0 + (C.STREET + C.TUNNEL + C.ART - C.UP) * C.SLOT; return [c0, c0 + (C.UP + C.CANYON + C.DOWN) * C.SLOT]; }
+  canyonK(g) { const R = this.canyonRange(g); if (!R) return 0; const z = g.p.z, s = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); }; return s((z - R[0]) / 700) * s((R[1] - z) / 700); }
   artK(g) { const R = this.artRange(g); if (!R) return 0; const z = g.p.z, s = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); }; return s((z - (R[0] - 600)) / 600) * s((R[1] + 300 - z) / 600); }
 
   // the neon quarter's layout depends on the game's detour (the picture district, NEON_CORNER): a change clears its cache
@@ -340,7 +343,7 @@ class Renderer3D {
     if (g.state !== 'pause') this.lastT = g.time;
     const rz = p.z * U.Z, Lref = (g.camX + g.camOff) * U.X, SL = SEG_LEN;
     const SC = g.state === 'scene' ? g.scene : null;                                      // the Gare du Midi cutscene, if one is running
-    { const tp = w.tubeFork(g.p.z); if (tp) this.applyAtmosphere('coastAqua', World.seaK(w.seaDepth(g.p.z)), tp.fork.tube.pre); else if (this.artK(g) > 0) this.applyAtmosphere('artcity', this.artK(g)); else this.applyAtmosphere(g.bgTo, g.bgT); }       // in the tunnel under the sea the look follows the DEPTH: from the coast's own light to the deep, and back (never a cut)
+    { const tp = w.tubeFork(g.p.z); if (tp) this.applyAtmosphere('coastAqua', World.seaK(w.seaDepth(g.p.z)), tp.fork.tube.pre); else if (this.canyonK(g) > 0) this.applyAtmosphere('canyon', this.canyonK(g)); else if (this.artK(g) > 0) this.applyAtmosphere('artcity', this.artK(g)); else this.applyAtmosphere(g.bgTo, g.bgT); }       // in the tunnel under the sea the look follows the DEPTH: from the coast's own light to the deep, and back (never a cut)
     // the music's beat (g.sfx.beat(): pulse 1 on each kick, decaying), scaled by how loud the track is at that moment, drives the animation: the sun-side light, the glowing
     // neon parts (one shared material), the PLAY button, the avatar. Stronger in the neon quarter. Without sound (the pulse is a clock at the same tempo) it still moves.
     const bt = g.sfx ? g.sfx.beat() : null, nw = g.bgTo === 'neon' ? g.bgT : 0, pulse = bt ? bt.pulse * (0.4 + 0.6 * bt.energy) : 0;
@@ -355,6 +358,7 @@ class Renderer3D {
     // descent: how far below the runner's level a point z (design units) lies (0 on flat road); the slope of the far ground follows the steepest slope seen from here to 150 m ahead
     const d0 = w.dropAt(p.z), dy = z => -(w.dropAt(z) - d0) * U.Z;
     this.groundPivot.rotation.x = -Math.atan(Math.max(w.gradeAt(p.z), w.gradeAt(p.z + 1500)));
+    { const el = w.extraLift ? w.extraLift(p.z) * U.Z : 0; this.groundPivot.position.y = -0.03 - el; this.groundBack.position.y = -0.03 - el; }      // (on the high road of the glass ramp the ground stays down there)
     { const rf = w.riseFork(p.z); this.groundPivot.position.y = -0.03 - (rf && rf.fork.rise && rf.choice === rf.fork.rise.side ? w.riseAt(rf, p.z) * U.Z : 0); }       // (on the raised road, the upper circuit of Utrecht, the ground is the level of the water: 3.45 m under the runner)
     // under the sea: the coast road beside the tunnel is not seen once the runner is deep (hide = the side of the junction not drawn); the surface of the sea is a plane at the sea's own height over the tunnel, from mouth
     // to mouth, but only visible where the road under it is deep (its alpha follows the depth: the entrance and its surroundings stay dry), seen from above on the way down and up and from below in the deep
@@ -366,7 +370,7 @@ class Renderer3D {
     }
     // THE CANAL BETWEEN THE TWO DOORS of a passage (Portal): from the entry door to the exit door the houses, the road and the ground are not drawn: a tube of pink light joins the two spirals
     let cut = null; if (g.portal && typeof PortalArt !== 'undefined') for (const q of g.portal.list) if (p.z > q.zIn - 1200 && p.z < q.zOut + 100) { cut = [q.zIn * U.Z, q.zOut * U.Z]; break; }
-    this.road.cut = cut; this.cut = cut; this.road.art = this.artRange(g);                    // (ART CITY's road is grey with white lines: Road3D.palBand)
+    this.road.cut = cut; this.cut = cut; this.road.art = this.artRange(g); this.road.cny = this.canyonRange(g);                    // (ART CITY's road is grey with white lines: Road3D.palBand)
     this.groundPivot.visible = this.groundBack.visible = !(cut && rz - 7.5 > cut[0] && rz - 7.5 < cut[1]);
     if (!this.tubeSegs && typeof PortalArt !== 'undefined') { this.tubeSegs = []; for (let k = 0; k < 16; k++) { const geo = new THREE.CylinderGeometry(5.5, 5.5, 5.2, 28, 1, true); geo.rotateX(Math.PI / 2); const m = new THREE.Mesh(geo, PortalArt.tubeMaterial()); m.visible = false; m.frustumCulled = false; this.scene.add(m); this.tubeSegs.push(m); } }
     if (this.tubeSegs) {
