@@ -198,7 +198,7 @@ const res = []; const T = (n, ok, i = '') => { res.push(ok); console.log((ok ? '
     goto('scooter'); frames(3); g.mount(); frames(90);
     const box = () => { rn.group.updateMatrixWorld(true); const bb = new THREE.Box3().setFromObject(rn.group); return { top: +bb.max.y.toFixed(2), bottom: +bb.min.y.toFixed(2) }; };
     out.deck = +rn.pivot.position.y.toFixed(3); out.box = box();
-    const a0 = rn.scooter.userData.wheels.map(w => w.rotation.x); frames(10); out.spin = rn.scooter.userData.wheels.map((w, i) => Math.abs(w.rotation.x - a0[i]) > 0.3);
+    const ang = w => w.userData.mag ? w.rotation.y : w.rotation.x, a0 = rn.scooter.userData.wheels.map(ang); frames(10); out.spin = rn.scooter.userData.wheels.map((w, i) => Math.abs(ang(w) - a0[i]) > 0.3);      // (the magnetic wheels turn about their own axis)
     let lo = 9, hi = -9; for (let i = 0; i < 60; i++) { frames(1); lo = Math.min(lo, rn.pivot.position.y); hi = Math.max(hi, rn.pivot.position.y); } out.bounce = +(hi - lo).toFixed(3);
     g.p.vx = 200; frames(40); out.lean = +rn.scooter.rotation.z.toFixed(3); g.p.vx = 0; g.p.jy = 40; g.p.vy = 100; frames(40); out.nose = +rn.scooter.rotation.x.toFixed(3); g.p.jy = 0; g.p.vy = 0;
     // the zone ends: back on foot (the blend leaves 'tram')
@@ -206,7 +206,7 @@ const res = []; const T = (n, ok, i = '') => { res.push(ok); console.log((ok ? '
     goto('scooter'); frames(3); g.mount(); out.again = g.riding; g.start(); out.restart = !g.riding && g.scooterHint === null;
     out.hit = JSON.stringify({ crate: OBST.crate, barrier: OBST.barrier, over: OBST.over });      /* (the three base hit boxes: Vic's own obstacles were added to OBST later, and are not what a scooter could change) */ out.speed = BASE_SPEED; return out;
   });
-  T('riding: the card stands on the deck (lifted ' + Z.deck + ' m, the runner ' + Z.box.top + ' m tall), the wheels spin, the glide is steady (' + Z.bounce + ' m of bounce), steering leans the scooter (' + Z.lean + ' rad), the jump lifts its nose (' + Z.nose + ' rad)',
+  T('riding: the card stands on the deck (lifted ' + Z.deck + ' m, the runner ' + Z.box.top + ' m tall), the (magnetic) wheels spin, the glide is steady (' + Z.bounce + ' m of bounce), steering leans the scooter (' + Z.lean + ' rad), the jump lifts its nose (' + Z.nose + ' rad)',
     Math.abs(Z.deck - 0.22) < 0.06 && Z.box.top > 1.9 && Z.box.top < 2.3 && Z.box.bottom > -0.05 && Z.box.bottom < 0.1 && Z.spin.every(Boolean) && Z.bounce < 0.03 && Math.abs(Z.lean) > 0.03 && Z.nose > 0.08, JSON.stringify(Z));
   T('getting out of the zone puts the runner back on foot, and so does a restart; the hit boxes and the speed are the same constants',
     Z.leftZone && Z.again && Z.restart && Z.hit === '{"crate":{"hw":0.17,"y0":0,"y1":14},"barrier":{"hw":0.39,"y0":0,"y1":9},"over":{"hw":0.55,"y0":14,"y1":48}}', JSON.stringify({ leftZone: Z.leftZone, again: Z.again, restart: Z.restart, speed: Z.speed }));

@@ -99,16 +99,8 @@ window.ENV3D = window.ENV3D || {};
   const ODD = ['rowB', 'rowD', 'rowF', 'rowH', 'rowJ', 'rowL'], EVEN = ['rowA', 'rowC', 'rowE', 'rowG', 'rowI', 'rowK'];
   const BRICK = [['rowA', 'rowE', 'rowC', 'rowK'], ['rowH', 'rowB']], SHOPS = [['rowE', 'rowG'], ['rowF', 'rowH']], ART = [['rowI', 'rowK'], ['rowJ', 'rowB']];
 
-  // the kick scooter as static parts (same shape as the one the runner rides, RunnerSprite.buildScooter): placed at (x, z), turned by `yaw` (0 = nose toward -z), leaning by `lean` rad sideways
-  function scooterParts(parts, x, z, yaw, lean) {
-    const LIME = '#7ddc3a', DARK = '#23262c', mine = [
-      Kit.box(0.26, 0.05, 0.95, 0, 0.12, 0.02, LIME), Kit.box(0.2, 0.012, 0.8, 0, 0.17, 0.02, DARK), Kit.box(0.14, 0.03, 0.3, 0, 0.3, 0.52, LIME),
-      Kit.cyl(0.025, 0.03, 1.0, 0, 0.15, -0.54, LIME, { rx: 0.14, seg: 6 }), Kit.box(0.54, 0.04, 0.05, 0, 1.12, -0.47, DARK), Kit.box(0.025, 0.3, 0.04, -0.07, 0.1, -0.62, DARK), Kit.box(0.025, 0.3, 0.04, 0.07, 0.1, -0.62, DARK),
-      Kit.box(0.1, 0.07, 0.04, 0, 0.88, -0.555, '#ffd27a', { glow: true }), Kit.box(0.12, 0.05, 0.03, 0, 0.31, 0.68, '#ff3a2a', { glow: true }),
-      Kit.cyl(0.13, 0.13, 0.06, 0, 0.1, -0.62, DARK, { rz: Math.PI / 2, seg: 10 }), Kit.cyl(0.13, 0.13, 0.06, 0, 0.1, 0.56, DARK, { rz: Math.PI / 2, seg: 10 })];
-    const m = new THREE.Matrix4().makeRotationY(yaw).multiply(new THREE.Matrix4().makeRotationZ(lean)).premultiply(new THREE.Matrix4().makeTranslation(x, 0, z));
-    for (const q of mine) { q.geo.applyMatrix4(m); parts.push(q); }
-  }
+  // the scooter as static parts (same shape as the one the runner rides, RunnerSprite.buildScooter: now the user's magnetic scooter): placed at (x, z), turned by `yaw` (0 = nose toward -z), leaning by `lean` rad sideways
+  function scooterParts(parts, x, z, yaw, lean) { for (const q of RunnerSprite.magScooterParts(x, z, yaw, lean)) parts.push(q); }      // (the magnetic scooter, RunnerSprite.magScooterParts)
 
   // the electromagnetic skateboard as static parts (RunnerSprite.boardParts: the same sophisticated board the runner rides), floating `lift` m above its pad, nose toward -z, at (x, z)
   function boardParts(parts, x, z, lift) { for (const q of RunnerSprite.boardParts(x, lift, z, { glow: '#ff1f5a', accent: '#35e6ff' })) parts.push(q); }

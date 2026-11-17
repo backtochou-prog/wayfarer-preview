@@ -80,7 +80,7 @@ class RunnerSprite {
     v.visible = R > 0.02; v.scale.setScalar(Math.min(1, R * 1.4) * RunnerSprite.SC); v.position.y = hover * R;
     if (v.visible) {
       if (surf) { const u = sf.userData, k3 = 1 + 0.08 * Math.sin(T * 5); u.wake.scale.set(1, 1, k3); u.collar.scale.set(1 + 0.1 * Math.sin(T * 6), 1, 1); u.foam.material.opacity = 0.5 + 0.1 * Math.sin(T * 4); }
-      else if (!board) { this.wheelA += dt * s.runRate * 9; for (const w of sc.userData.wheels) w.rotation.x = -this.wheelA; }
+      else if (!board) { this.wheelA += dt * s.runRate * 9; for (const w of sc.userData.wheels) if (w.userData.mag) w.rotation.y = this.wheelA; else w.rotation.x = -this.wheelA; }      // (the magnetic wheels turn about their own axis)
       else {
         const u = bd.userData, bt = s.beat || 0; if (u.rear) u.rear.scale.setScalar(1 + 0.1 * bt);                      // the engine ring swells on the beat
         u.ring.scale.setScalar(1 + 0.12 * Math.sin(T * 4) + 0.25 * bt); u.field.scale.setScalar(1 + 0.05 * Math.sin(T * 3)); u.trail.scale.y = 0.8 + 0.2 * Math.sin(T * 7);   // the magnetic field breathes
@@ -104,18 +104,42 @@ class RunnerSprite {
     return g;
   }
 
-  // the kick scooter: deck, stem, handlebar, two spinning wheels; the runner faces -z. Lime body, dark tyres and grip tape, a glowing headlight and tail light
+  // THE MAGNETIC SCOOTER (the user's sketch, 2026-11-17, "trottinette magnétique": it replaces the lime kick scooter everywhere, and is offered in ART CITY too): no wheels. A clear plank
+  // (the deck) rides on two MAGNETIC WHEELS, drums of coils with glowing magenta and cyan rings, over a dark curved SOLE that floats; at the front a sickle-shaped stem rises from the sole,
+  // curving forward to a spike, with a straight handlebar and two grips. Nose toward -z, the deck's top at RunnerSprite.DECK. magScooterParts: the static parts (also the parked ones,
+  // src3d/env_tram.js and src3d/env_neon.js); buildScooter: the ridden one, its two coil drums spinning (userData.wheels, turned about their own vertical axis).
+  static magScooterParts(x = 0, z = 0, yaw = 0, lean = 0, spinning = false) {
+    const STEEL = '#15121c', DARK = '#0c0a12', GLASS = '#cdeefc', MAG = '#ff2fb4', CY = '#35e6ff', P = [];      // (the user's final view: glossy black, magenta and cyan neon edges, a clear plank)
+    P.push(Kit.box(0.3, 0.04, 1.0, 0, 0.04, 0.02, DARK), Kit.box(0.26, 0.02, 0.9, 0, 0.025, 0.02, MAG, { glow: true }), Kit.box(0.31, 0.012, 0.6, 0, 0.078, 0.1, CY, { glow: true }));      // (a cyan line on the sole's top)                                         // the floating sole and its glow
+    P.push(Kit.box(0.28, 0.035, 0.24, 0, 0.06, -0.58, DARK, { rx: 0.35 }), Kit.box(0.28, 0.035, 0.18, 0, 0.06, 0.6, DARK, { rx: -0.3 }));                     // its curled ends
+    P.push(Kit.box(0.27, 0.03, 0.96, 0, 0.19, 0.04, GLASS), Kit.box(0.27, 0.03, 0.16, 0, 0.2, 0.58, GLASS, { rx: -0.35 }));                                  // the clear plank, its kicked tail
+    P.push(Kit.box(0.012, 0.012, 0.96, -0.13, 0.205, 0.04, CY, { glow: true }), Kit.box(0.012, 0.012, 0.96, 0.13, 0.205, 0.04, CY, { glow: true }));          // the plank's lit edges
+    if (!spinning) for (const [dz, c] of [[-0.24, MAG], [0.26, CY]]) P.push(...RunnerSprite.coilParts(0, dz, c));
+    P.push(Kit.box(0.05, 0.05, 0.12, 0, 0.12, -0.02, STEEL));                                                                                                     // the coupling between the drums
+    const stem = [[0, 0.06, -0.46], [0, 0.3, -0.5], [0, 0.56, -0.5], [0, 0.8, -0.46], [0, 1.02, -0.4], [0, 1.16, -0.33]];                                  // the sickle: up from the sole, bowing back
+    for (let k = 0; k < stem.length - 1; k++) { const [, y0, z0] = stem[k], [, y1, z1] = stem[k + 1], len = Math.hypot(y1 - y0, z1 - z0), w = 0.07 - k * 0.008;
+      P.push(Kit.box(0.05, len + 0.02, w, 0, (y0 + y1) / 2 - (len + 0.02) / 2, (z0 + z1) / 2, STEEL, { rx: Math.atan2(z1 - z0, y1 - y0) })); }
+    for (let k = 0; k < stem.length - 1; k++) { const [, y0, z0] = stem[k], [, y1, z1] = stem[k + 1], len = Math.hypot(y1 - y0, z1 - z0), w = 0.07 - k * 0.008;              // the magenta neon down the stem's back
+      P.push(Kit.box(0.054, len + 0.02, 0.012, 0, (y0 + y1) / 2 - (len + 0.02) / 2, (z0 + z1) / 2 + w / 2, MAG, { glow: true, rx: Math.atan2(z1 - z0, y1 - y0) })); }
+    P.push(Kit.cone(0.04, 0.26, 0, 1.12, -0.31, STEEL, { rx: 0.75 }), Kit.box(0.01, 0.2, 0.01, 0.02, 1.13, -0.3, CY, { glow: true, rx: 0.75 }));                   // the black spike, a cyan edge                                                                                              // the spike on top
+    P.push(Kit.box(0.56, 0.035, 0.035, 0, 1.02, -0.4, STEEL), Kit.box(0.4, 0.008, 0.038, 0, 1.054, -0.4, MAG, { glow: true }), Kit.box(0.12, 0.045, 0.045, -0.25, 1.015, -0.4, DARK), Kit.box(0.12, 0.045, 0.045, 0.25, 1.015, -0.4, DARK),
+      Kit.box(0.1, 0.012, 0.03, -0.24, 1.0, -0.45, '#c9ccd6', { rx: 0.5 }), Kit.box(0.1, 0.012, 0.03, 0.24, 1.0, -0.45, '#c9ccd6', { rx: 0.5 }), Kit.box(0.04, 0.012, 0.02, 0.07, 1.04, -0.42, CY, { glow: true }));   // pink neon, silver brake levers, a cyan button   // handlebar and grips
+    P.push(Kit.box(0.06, 0.04, 0.02, 0, 0.82, -0.47, '#e8fbff', { glow: true }), Kit.box(0.1, 0.03, 0.02, 0, 0.13, 0.62, MAG, { glow: true }));                 // a headlight on the stem, a tail light
+    if (yaw || lean || x || z) { const m = new THREE.Matrix4().makeRotationY(yaw).multiply(new THREE.Matrix4().makeRotationZ(lean)).premultiply(new THREE.Matrix4().makeTranslation(x, 0, z)); for (const q of P) q.geo.applyMatrix4(m); }
+    return P;
+  }
+  // one magnetic wheel at (x, z): a drum of coils (steel bands) between the plank and the sole, a glowing ring round its middle, a lit cap
+  static coilParts(x, z, col) {
+    const STEEL = '#c0607e', P = [Kit.cyl(0.1, 0.11, 0.12, x, 0.065, z, '#2a1c28', { seg: 14 })];                                                              // (copper-pink coils on a dark drum, the user's final view)
+    for (let k = 0; k < 5; k++) P.push(Kit.cyl(0.108, 0.108, 0.01, x, 0.072 + k * 0.022, z, STEEL, { seg: 14 }));
+    P.push(Kit.cyl(0.125, 0.125, 0.014, x, 0.1, z, col, { seg: 16, glow: true }), Kit.cyl(0.06, 0.06, 0.01, x, 0.18, z, col, { seg: 12, glow: true }));
+    return P;
+  }
   static buildScooter() {
-    const LIME = '#7ddc3a', DARK = '#23262c', PALE = '#e9f7a8', g = new THREE.Group();
-    g.add(Kit.mesh(Kit.merge([
-      Kit.box(0.26, 0.05, 0.95, 0, 0.12, 0.02, LIME), Kit.box(0.2, 0.012, 0.8, 0, 0.17, 0.02, DARK),                                 // deck and grip tape
-      Kit.box(0.14, 0.03, 0.3, 0, 0.3, 0.52, LIME),                                                                                   // rear fender
-      Kit.cyl(0.025, 0.03, 1.0, 0, 0.15, -0.54, LIME, { rx: 0.14, seg: 6 }), Kit.box(0.54, 0.04, 0.05, 0, 1.12, -0.47, DARK),           // stem and handlebar
-      Kit.box(0.025, 0.3, 0.04, -0.07, 0.1, -0.62, DARK), Kit.box(0.025, 0.3, 0.04, 0.07, 0.1, -0.62, DARK),                         // fork
-      Kit.box(0.1, 0.07, 0.04, 0, 0.88, -0.555, '#ffd27a', { glow: true }), Kit.box(0.12, 0.05, 0.03, 0, 0.31, 0.68, '#ff3a2a', { glow: true })])));
-    const wheel = z => { const w = Kit.mesh(Kit.merge([Kit.cyl(0.13, 0.13, 0.06, 0, -0.03, 0, DARK, { rz: Math.PI / 2, seg: 12 }), Kit.cyl(0.075, 0.075, 0.07, 0, -0.035, 0, LIME, { rz: Math.PI / 2, seg: 8 }),
-      Kit.box(0.075, 0.22, 0.025, 0, -0.11, 0, PALE), Kit.box(0.075, 0.22, 0.025, 0, -0.11, 0, PALE, { rx: Math.PI / 2 })])); w.position.set(0, 0.13, z); g.add(w); return w; };   // (the pale spokes make the spin visible)
-    g.userData.wheels = [wheel(-0.62), wheel(0.56)];
+    const g = new THREE.Group();
+    g.add(Kit.mesh(Kit.merge(RunnerSprite.magScooterParts(0, 0, 0, 0, true))));
+    const wheel = (z, c) => { const w = Kit.mesh(Kit.merge(RunnerSprite.coilParts(0, 0, c).concat([Kit.box(0.2, 0.012, 0.02, 0, 0.1, 0, '#ffffff', { glow: true })]))); w.position.set(0, 0, z); w.userData.mag = true; g.add(w); return w; };
+    g.userData.wheels = [wheel(-0.24, '#ff3ad8'), wheel(0.26, '#35e6ff')];
     return g;
   }
 
