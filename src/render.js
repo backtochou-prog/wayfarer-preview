@@ -438,6 +438,18 @@ class Renderer {
     }
   }
 
+  // the comic speech bubble of the scooter indicator (drawScooterHint): a white disc of radius R at (bx, by) with a dark outline and its tail down, the scooter's picture inside
+  drawBubble(bx, by, R, pop, a) {
+    const c = this.ctx;
+    c.save(); c.globalAlpha = 0.95 * a; c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
+        const tail = () => { c.beginPath(); c.moveTo(bx - 6 * pop, by + R - 3); c.lineTo(bx - 2, by + R + 11 * pop); c.lineTo(bx + 5 * pop, by + R - 4); c.closePath(); };
+        c.fillStyle = C.ink; c.beginPath(); c.arc(bx, by, R + 2, 0, 6.2832); c.fill(); c.lineWidth = 4; c.strokeStyle = C.ink; tail(); c.stroke();          // the dark outline
+        c.fillStyle = '#ffffff'; tail(); c.fill(); c.beginPath(); c.arc(bx, by, R, 0, 6.2832); c.fill();                                                    // the white bubble and its tail
+        c.fillStyle = '#ffe6fa'; c.beginPath(); c.arc(bx - R * 0.35, by - R * 0.4, R * 0.22, 0, 6.2832); c.fill();                                       // a highlight, like a comic
+        const im = this.scooterImg; if (im.complete && im.naturalWidth) { const s2 = (R * 1.75) / Math.max(SCOOTER_ART.w, SCOOTER_ART.h), w2 = SCOOTER_ART.w * s2, h2 = SCOOTER_ART.h * s2; c.drawImage(im, bx - w2 / 2, by - h2 / 2, w2, h2); }
+        c.restore();
+  }
+
   // the indicator for a parked scooter, skateboard or station (g.scooterHint, placed by Renderer3D): not a sign, a translucent DISC on the ground right under it, made from the user's green swirl
   // picture (RING_ART, reshaped into a round disc), squashed into the ground's perspective ellipse, turning slowly and breathing a little. It is big enough to see from far away, and it says what it
   // is for: a floating pixel drawing of the vehicle above it (lime scooter / cyan skateboard) and, below, the key (E, or TAP) and RIDE SCOOTER / RIDE SKATEBOARD. Pressing E or tapping / clicking
@@ -445,7 +457,7 @@ class Renderer {
   // (or without it) the disc is drawn with ellipses.
   drawScooterHint(g) {
     const h = g.scooterHint; if (!h || g.riding) return;
-    const c = this.ctx, a = Math.max(0.5, Math.min(1, 1.35 - Math.abs(h.ahead) / (h.ahead < 0 ? 90 : 150))), board = h.kind === 'board', label = g.touch ? 'TAP' : 'E', what = board ? 'RIDE SKATEBOARD' : 'RIDE SCOOTER';
+    const c = this.ctx, a = Math.max(0.5, Math.min(1, 1.35 - Math.abs(h.ahead) / (h.ahead < 0 ? 90 : 150))), board = h.kind === 'board', label = g.touch ? 'TAP' : 'E', what = board ? 'RIDE SKATEBOARD' : 'RIDE MAGNETIC SCOOTER';
     if (!this.ringImg && typeof RING_ART !== 'undefined') { this.ringImg = new Image(); this.ringImg.src = RING_ART.a; }
     const art = this.ringImg && this.ringImg.complete && this.ringImg.naturalWidth;
     const rx = 14 + Math.min(36, h.rx * 1.4), ry = Math.max(h.ry * 1.25, rx * 0.42), k = 1 + 0.05 * Math.sin(g.time * 3);        // the disc's half axes on the ground (never small)
@@ -457,11 +469,21 @@ class Renderer {
       c.save(); c.beginPath(); c.ellipse(h.x, h.y, rx, ry, 0, 0, 6.2832); c.fillStyle = '#7ddc3a'; c.globalAlpha = 0.22 * a; c.fill();
       c.lineWidth = 1; c.strokeStyle = '#b6ff7a'; c.globalAlpha = 0.75 * a; c.beginPath(); c.ellipse(h.x, h.y, rx, ry, 0, 0, 6.2832); c.stroke(); c.restore();
     }
-    // the vehicle floating above the disc, bobbing, in its own colour with a dark edge (translucent, no plate)
-    const bob = Math.round(Math.sin(g.time * 4) * 2), gx = Math.round(h.x - 14), gy = Math.round(h.y - ry - 28) + bob, col = board ? '#35e6ff' : '#8ff04a';
-    c.globalAlpha = 0.55 * a; this.vehicleGlyph(h.kind, gx + 1, gy + 1, C.ink); c.globalAlpha = 0.92 * a; this.vehicleGlyph(h.kind, gx, gy, col);
+    // the vehicle above the disc. THE SCOOTER (the user, 2026-11-17): a comic SPEECH BUBBLE that pops up (round, white, a dark outline, its tail pointing down at the scooter) with the user's
+    // picture of the magnetic scooter inside, as it is (SCOOTER_ART). The skateboard keeps its pixel drawing.
+    const bob = Math.round(Math.sin(g.time * 4) * 2);
+    if (!board && typeof SCOOTER_ART !== 'undefined') {
+      if (!this.scooterImg) { this.scooterImg = SCOOTER_ART.img || new Image(); if (!SCOOTER_ART.img) this.scooterImg.src = SCOOTER_ART.src; }
+      if (h.key !== this.bubbleKey) { this.bubbleKey = h.key; this.bubbleT = g.time; }                                     // a new scooter: the bubble pops again
+      const t = g.time - this.bubbleT, pop = t < 0.35 ? Math.sin(Math.min(1, t / 0.28) * Math.PI / 2) * (1 + 0.18 * Math.sin(Math.min(1, t / 0.35) * Math.PI)) : 1;   // springs out, overshoots a little
+      const R = 24 * pop, bx = Math.round(h.x), by = Math.round(h.y - ry - 30) + bob;
+      if (R > 1) this.drawBubble(bx, by, R, pop, a);
+    } else {
+      const gx = Math.round(h.x - 14), gy = Math.round(h.y - ry - 28) + bob, col = board ? '#35e6ff' : '#8ff04a';
+      c.globalAlpha = 0.55 * a; this.vehicleGlyph(h.kind, gx + 1, gy + 1, C.ink); c.globalAlpha = 0.92 * a; this.vehicleGlyph(h.kind, gx, gy, col);
+    }
     // what to press, and for what: text only (no plate, like the rest of the indicator), at the left edge under the counters, out of the road's way; the disc and the vehicle above it stay on the spot
-    const px = 5, py = 62, tcol = board ? '#9ff4ff' : '#d8ffb0';
+    const px = 5, py = 62, tcol = board ? '#9ff4ff' : '#ffb0ee';
     c.globalAlpha = 0.6 * a; this.txt(label, px + 1, py + 1, C.ink, 2); this.txt(what, px + 1, py + 14, C.ink, 1);
     c.globalAlpha = 0.98 * a; this.txt(label, px, py, '#d8ffb0', 2);
     c.globalAlpha = 0.95 * a; this.txt(what, px, py + 13, tcol, 1);
