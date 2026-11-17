@@ -535,6 +535,13 @@ class Renderer3D {
     const ahead = this.axisLat(w, p.z + TRACK3D.LOOK_AHEAD, Lref);
     this.lookX += (ahead * 0.8 - this.lookX) * (1 - Math.exp(-4 * dt));
     this.look.set(this.lookX + ((relX - 1.0) - this.lookX) * mm, 0.8 + 0.3 * mm, -20 * (1 - mm));
+    // THE CLOSE-UP OF THE MAGNETIC SCOOTER (the user: now and then the camera comes close to the scooter, to show the action): while riding it, every 22 s, for 3.5 s, the camera eases
+    // down to a low three-quarter view beside the runner (the scooter, its coils and its balance in full view), then eases back to the chase view. Not in VR, not in the menu.
+    if (this.riding(g) && g.vehicle !== 'board' && !g.surf && g.state === 'play' && !(this.xr && this.xr.presenting)) {
+      if (this.cineT0 === undefined || this.cineT0 === null) this.cineT0 = g.time;
+      const u = (g.time - this.cineT0) % 22 - 14, e = t => t * t * (3 - 2 * t), k = u < 0 || u > 3.5 ? 0 : e(Math.min(1, u / 0.8)) * e(Math.min(1, (3.5 - u) / 0.8)), side = Math.floor((g.time - this.cineT0) / 22) % 2 ? -1 : 1;
+      if (k > 0) { this.cam.x += (relX + side * 2.2 - this.cam.x) * k; this.cam.y += (1.15 - this.cam.y) * k; this.cam.z += (2.4 - this.cam.z) * k; this.look.x += (relX - this.look.x) * k; this.look.y += (0.9 - this.look.y) * k; this.look.z += (-0.6 - this.look.z) * k; }
+    } else this.cineT0 = null;
     const XRP = !!(this.xr && this.xr.presenting);                                       // VR (src3d/xr3d.js): no shake, no cutscene camera move, the pose goes to the rig
     if (cornerA) {                                                                       // THE NEON CORNER (NEON_CORNER): the camera turns 90 degrees left round the runner (the runner turned with it above), in NEON_CORNER.T seconds
       const ca = Math.cos(cornerA), sa = Math.sin(cornerA);

@@ -74,7 +74,7 @@ class RunnerSprite {
     const k = 1 - Math.exp(-(s.sliding ? 60 : 15) * dt);       // the slide pose is near-instant: the game counts a slide from the first frame
     for (const key in c) c[key] += (t[key] - c[key]) * k;
     if (view !== this.view) { this.cards.back.visible = view === 'back'; this.cards.side.visible = view === 'side'; this.view = view; }
-    const surf = this.vehicle === 'surf', hover = board ? 0.02 * Math.sin(T * 3) : surf ? 0.03 * Math.sin(T * 2.4) + 0.02 * (s.beat || 0) : 0;      // the board floats, with a gentle bob (the surfboard rides the swell)
+    const surf = this.vehicle === 'surf', mag = !board && !surf, hover = board ? 0.02 * Math.sin(T * 3) : surf ? 0.03 * Math.sin(T * 2.4) + 0.02 * (s.beat || 0) : 0.045 + 0.018 * Math.sin(T * 2.3) + 0.008 * Math.sin(T * 5.1);      // (the magnetic scooter floats: never still)      // the board floats, with a gentle bob (the surfboard rides the swell)
     this.pivot.position.y = c.y + (surf ? RunnerSprite.SURF_DECK : board ? RunnerSprite.BOARD_DECK : RunnerSprite.DECK) * Math.min(1, R * 1.5) + hover * R;   // the feet stand on the deck
     const sc = this.scooter, bd = this.board, sf = this.surfB, v = surf ? sf : board ? bd : sc; for (const o of [sc, bd, sf]) if (o !== v) o.visible = false;
     v.visible = R > 0.02; v.scale.setScalar(Math.min(1, R * 1.4) * RunnerSprite.SC); v.position.y = hover * R;
@@ -85,7 +85,13 @@ class RunnerSprite {
         const u = bd.userData, bt = s.beat || 0; if (u.rear) u.rear.scale.setScalar(1 + 0.1 * bt);                      // the engine ring swells on the beat
         u.ring.scale.setScalar(1 + 0.12 * Math.sin(T * 4) + 0.25 * bt); u.field.scale.setScalar(1 + 0.05 * Math.sin(T * 3)); u.trail.scale.y = 0.8 + 0.2 * Math.sin(T * 7);   // the magnetic field breathes
       }
-      const k2 = 1 - Math.exp(-10 * dt); v.rotation.z += (-s.lean * 0.1 - v.rotation.z) * k2; v.rotation.x += ((s.airborne ? 0.14 : 0) - v.rotation.x) * k2;     // leans into the steering, nose up in the air
+      if (mag) {                                                                                                   // THE MAGNETIC SCOOTER SEEKS ITS BALANCE (the user: a magnetic vehicle is never fixed like a car on its wheels):
+        const W = this.wob || (this.wob = { z: 0, vz: 0, x: 0, vx: 0, air: false }), h = Math.min(dt, 1 / 30);   // a spring on its roll and its pitch, lightly damped, so it overshoots and rocks back;
+        if (W.air && !s.airborne) { W.vx -= 1.6; try { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(25); } catch (e) {} } W.air = !!s.airborne;      // (the phone buzzes a little at the landing)                                                // a landing makes it bounce on its magnetic cushion; a slow restless sway on top
+        const tz = -s.lean * 0.14 + 0.035 * Math.sin(T * 1.7) + 0.015 * Math.sin(T * 4.3), tx = (s.airborne ? 0.16 : 0) + 0.025 * Math.sin(T * 1.3 + 1) + 0.01 * Math.sin(T * 3.7);
+        W.vz += ((tz - W.z) * 70 - W.vz * 5) * h; W.z += W.vz * h; W.vx += ((tx - W.x) * 60 - W.vx * 5) * h; W.x += W.vx * h;
+        v.rotation.z = W.z; v.rotation.x = W.x;
+      } else { const k2 = 1 - Math.exp(-10 * dt); v.rotation.z += (-s.lean * 0.1 - v.rotation.z) * k2; v.rotation.x += ((s.airborne ? 0.14 : 0) - v.rotation.x) * k2; }     // leans into the steering, nose up in the air
     }
     this.pivot.rotation.set(c.rx, -this.group.rotation.y + face + spin, c.rz, 'YXZ');   // cancel the renderer's yaw: the card always faces the camera (plus the showcase spin)
     this.pivot.scale.set(c.sx, c.sy, 1);

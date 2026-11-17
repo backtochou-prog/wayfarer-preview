@@ -20,6 +20,17 @@ const TOUCH = [
   { id: 'pause', x: 145, y: 2,   w: 30, h: 18 },
   { id: 'scooter', x: 132, y: 154, w: 56, h: 20 },       // 'hop off' (only while riding the scooter); getting on is a tap on the indicator over a parked scooter
 ];
+// THE MAGNETIC SCOOTER'S CONTROLLER (the user, 2026-11-17: "when the user takes this scooter, the control buttons change to this sophisticated controller"): while riding it, the four
+// steering buttons move to the right of the screen as the controller's four keys (left, right, down, up) in a cross, beside the handlebar's LCD (MAG_PAD_ART, drawn at `lcd`)
+const TOUCH_MAG = [
+  { id: 'jump',  x: 206, y: 112, w: 28, h: 24, mag: true },
+  { id: 'slide', x: 206, y: 154, w: 28, h: 24, mag: true },
+  { id: 'left',  x: 177, y: 133, w: 28, h: 24, mag: true },
+  { id: 'right', x: 235, y: 133, w: 28, h: 24, mag: true },
+  { id: 'pause', x: 145, y: 2,   w: 30, h: 18 },
+  { id: 'scooter', x: 132, y: 154, w: 56, h: 20 },
+];
+TOUCH_MAG.lcd = { x: 265, y: 108, w: 70, h: 59 };
 const TOUCH_OUT = 15;      // the smooth buttons may stand this many canvas pixels outside the screen canvas, on each side (the user wanted them nearer the edges of the phone): the touch layer and the pointer listeners cover that margin
 const GRAV = 900, JUMP_V = 268, SLIDE_T = 0.55, P_HW = 0.12;   // P_HW: runner half-width (0.43 m in the 3D build)
 
@@ -51,7 +62,7 @@ class Game {
     cv.addEventListener('pointermove', at);
     cv.addEventListener('pointerleave', () => { this.mouse.x = this.mouse.y = -1; this.mouse.down = false; });
     cv.addEventListener('contextmenu', e => e.preventDefault());
-    const zone = () => TOUCH.find(c => (c.id !== 'scooter' || this.riding) && this.mouse.x >= c.x && this.mouse.x <= c.x + c.w && this.mouse.y >= c.y && this.mouse.y <= c.y + c.h);
+    const zone = () => this.touchSet().find(c => (c.id !== 'scooter' || this.riding) && this.mouse.x >= c.x && this.mouse.x <= c.x + c.w && this.mouse.y >= c.y && this.mouse.y <= c.y + c.h);
     const overHint = () => { const h = this.scooterHint, m = this.mouse; return !!h && !this.riding && Math.abs(m.x - h.x) <= 14 + Math.min(36, h.rx * 1.4) + 24 && m.y >= h.y - 80 && m.y <= h.y + h.ry * 1.6 + 36; };      // the ring under a parked scooter and the scooter above it, with a very generous touch area (it passes at running speed)
     addEventListener('pointerdown', e => {
       if (e.target !== cv && !((this.state === 'play' || this.state === 'race') && e.pointerType === 'touch')) return;      // (the touch buttons stand partly outside the screen canvas: in the race too, or the accelerator's outer edge did nothing)
@@ -200,6 +211,7 @@ class Game {
   }
   // THE RACE'S PEDALS: accelerate = the up key (Z / W / arrow) or the jump button held (touch, or the VR controllers through the same touch channel); brake = the down key or the slide button held
   pedal(id) { return id === 'jump' ? !!(this.keys.up || Object.values(this.held).includes('jump')) : !!(this.keys.down || Object.values(this.held).includes('slide')); }
+  touchSet() { return this.riding && this.vehicle !== 'board' && typeof MAG_PAD_ART !== 'undefined' ? TOUCH_MAG : TOUCH; }      // (the magnetic scooter's controller while riding it)
   syncTouch() { const h = Object.values(this.held); this.tleft = h.includes('left'); this.tright = h.includes('right'); }
   releaseTouch() { this.held = {}; this.syncTouch(); }
   goFullscreen() { // hides the browser bars and asks for landscape (Android Chrome); silently ignored elsewhere

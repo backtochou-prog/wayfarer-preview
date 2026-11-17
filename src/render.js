@@ -339,6 +339,33 @@ class Renderer {
     }
     return this._tl;
   }
+  // one key of the magnetic scooter's controller (the user's picture: glossy black keys in a violet bezel, a white chevron): a rounded dark key, a violet rim that lights cyan when held,
+  // the arrow of its direction. On the smooth layer (k: its scale; the canvas transform is set here) or, k = 0, on the pixel overlay.
+  // THE CONTROLLER SHAKES with the scooter (the user: "at every jolt of the scooter the controller vibrates a little"): the scooter's balance spring (RunnerSprite.wob: its roll and
+  // pitch speeds) gives a small jitter, up to 2 px, to the LCD and the keys
+  padShake(g) { const W = g.r && g.r.runner && g.r.runner.wob; if (!W) return [0, 0]; const m = Math.min(2, (Math.abs(W.vz) + Math.abs(W.vx)) * 1.1); if (m < 0.25) return [0, 0];
+    const t = g.time * 47; return [Math.round(Math.sin(t) * m * 2) / 2, Math.round(Math.cos(t * 1.37) * m * 2) / 2]; }
+  padLcd(c, im, L) { c.save(); c.beginPath(); if (c.roundRect) c.roundRect(L.x + 2, L.y + 2, L.w - 4, L.h - 6, 7); else c.rect(L.x + 2, L.y + 2, L.w - 4, L.h - 6); c.clip(); c.drawImage(im, L.x, L.y, L.w, L.h); c.restore(); }      // (rounded like its bezel: the picture's background corners are cut off)
+  padKmh(g) { return Math.round(g.p.speed * 0.36 * (g.pk ? g.pk.speedMul : 1)); }                       // (10 track units a metre: units/s x 0.36 = km/h)
+  padState(g) { const s = this.padShake(g); return this.padKmh(g) + ',' + s[0] + ',' + s[1]; }
+  // THE LIVE SPEEDOMETER on the LCD (the user): the picture's own number (125) is covered by a dark patch and the real speed in km/h is written there, in the screen's neon green
+  padSpeed(c, g, L, fade) {
+    const x = L.x + L.w * 0.19, y = L.y + L.h * 0.33, w = L.w * 0.17, h = L.h * 0.15;
+    c.save(); c.globalAlpha = 0.96 * fade; c.fillStyle = '#071226'; c.beginPath(); if (c.roundRect) c.roundRect(x, y, w, h, 1.5); else c.rect(x, y, w, h); c.fill();
+    c.font = 'bold ' + (h * 0.95).toFixed(1) + 'px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.shadowColor = '#39ff14'; c.shadowBlur = 3; c.fillStyle = '#d8ffcf';
+    c.fillText(String(this.padKmh(g)), x + w / 2, y + h * 0.55); c.restore();
+  }
+  magButton(c, t, p, fade, k) {
+    if (k) c.setTransform(k, 0, 0, k, TOUCH_OUT * k, 0);
+    const x = t.x, y = t.y, w = t.w, h = t.h, cx = x + w / 2, cy = y + h / 2, rr = (X, Y, W, H, R) => { c.beginPath(); if (c.roundRect) c.roundRect(X, Y, W, H, R); else c.rect(X, Y, W, H); };
+    c.save(); c.globalAlpha = (p > 0.5 ? 0.85 : 0.55) * fade;      // (the user: the keys a little see-through)
+    rr(x - 1, y - 1, w + 2, h + 2, 6); c.fillStyle = p > 0.5 ? '#35e6ff' : '#7a3fd0'; c.fill();                                          // the rim: violet, cyan when held
+    rr(x + 1, y + 1, w - 2, h - 2, 5); c.fillStyle = p > 0.5 ? '#2a1d44' : '#0d0b16'; c.fill();                                          // the glossy black key
+    c.globalAlpha = 0.22 * fade; rr(x + 3, y + 2, w - 6, h * 0.35, 3); c.fillStyle = '#ffffff'; c.fill(); c.globalAlpha = 0.9 * fade;          // its shine (and the arrow stays clear)
+    const a = { left: [[4, -5], [-3, 0], [4, 5]], right: [[-4, -5], [3, 0], [-4, 5]], jump: [[-6, 3], [0, -4], [6, 3]], slide: [[-6, -3], [0, 4], [6, -3]] }[t.id];
+    c.strokeStyle = p > 0.5 ? '#ffffff' : '#e8e2ff'; c.lineWidth = 2; c.lineCap = 'round'; c.lineJoin = 'round'; c.beginPath(); a.forEach(([dx, dy], i) => i ? c.lineTo(cx + dx, cy + dy) : c.moveTo(cx + dx, cy + dy)); c.stroke();
+    c.restore(); c.globalAlpha = 1;
+  }
   smoothButton(L, g, t, p, fade) {
     const c = L.ctx, k = L.cv.width / (VW + 2 * TOUCH_OUT), cx = t.x + (t.w >> 1), cy = t.y + (t.h >> 1), f = t.id === 'pause' ? 22 : 42, s = f * (1 + 0.1 * p);
     c.setTransform(k, 0, 0, k, TOUCH_OUT * k, 0); c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
@@ -364,20 +391,27 @@ class Renderer {
       const dt = sm.t === null ? 1 : Math.max(0, Math.min(0.1, g.time - sm.t)); sm.t = g.time; this._fade = 1 - (g.fadeIn > 0 ? Math.min(1, g.fadeIn * g.fadeIn) : 0);
       for (const id of ['left', 'right', 'slide', 'jump', 'pause']) { const target = Object.values(g.held).includes(id) ? 1 : 0, p = sm.press[id] || 0; sm.press[id] = p + (target - p) * (1 - Math.exp(-18 * dt)); }
       // PERFORMANCE: the layer is cleared and redrawn only when something on it changed (a button easing in or out, the fade, a resize), not on every frame: a still layer costs nothing
-      const sig = ['left', 'right', 'slide', 'jump', 'pause'].map(id => (sm.press[id] || 0).toFixed(2)).join() + '|' + this._fade.toFixed(2) + '|' + sm.cv.width + 'x' + sm.cv.height;
+      const set = g.touchSet ? g.touchSet() : TOUCH, sig = ['left', 'right', 'slide', 'jump', 'pause'].map(id => (sm.press[id] || 0).toFixed(2)).join() + '|' + this._fade.toFixed(2) + '|' + sm.cv.width + 'x' + sm.cv.height + '|' + (set === TOUCH ? 'ring' : 'mag' + this.padState(g));
       sm.redraw = sig !== sm.sig; sm.sig = sig;
       if (sm.redraw) { sm.ctx.setTransform(1, 0, 0, 1, 0, 0); sm.ctx.clearRect(0, 0, sm.cv.width, sm.cv.height); sm.dirty = true; sm.draws = (sm.draws || 0) + 1; }
     }
     const c = this.ctx, on = new Set(Object.values(g.held));
     if (!this.touchImg && typeof TOUCH_ART !== 'undefined') { this.touchImg = new Image(); this.touchImg.src = TOUCH_ART.src; }
     const art = this.touchImg && this.touchImg.complete && this.touchImg.naturalWidth ? this.touchImg : null;
-    for (const t of TOUCH) {
+    const set = g.touchSet ? g.touchSet() : TOUCH;
+    if (set.lcd) {                                                                // THE MAGNETIC SCOOTER: the handlebar's LCD, smooth when the layer is there
+      const im = MAG_PAD_ART.img, sh = this.padShake(g), L2 = { x: set.lcd.x + sh[0], y: set.lcd.y + sh[1], w: set.lcd.w, h: set.lcd.h };
+      if (im && im.complete && im.naturalWidth) { if (sm) { if (sm.redraw) { const k = sm.cv.width / (VW + 2 * TOUCH_OUT); sm.ctx.setTransform(k, 0, 0, k, TOUCH_OUT * k, 0); sm.ctx.imageSmoothingEnabled = true; sm.ctx.imageSmoothingQuality = 'high'; sm.ctx.globalAlpha = 0.95 * this._fade; this.padLcd(sm.ctx, im, L2); this.padSpeed(sm.ctx, g, L2, this._fade); sm.ctx.globalAlpha = 1; } }
+        else { c.globalAlpha = 0.95; this.padLcd(c, im, L2); this.padSpeed(c, g, L2, 1); c.globalAlpha = 1; } }
+    }
+    for (const t of set) {
       if (t.id === 'scooter') {                                                  // 'hop off': only while riding
         if (!g.riding) continue;
         c.globalAlpha = 0.85; c.fillStyle = C.ink; c.fillRect(t.x - 1, t.y - 1, t.w + 2, t.h + 2); c.fillStyle = on.has('scooter') ? C.burgD : C.plum; c.fillRect(t.x, t.y, t.w, t.h);
         c.fillStyle = C.amberD; c.fillRect(t.x, t.y, t.w, 1); c.fillRect(t.x, t.y + t.h - 1, t.w, 1); c.globalAlpha = 1;
         this.scooterGlyph(t.x + 4, t.y + 5, C.bone); this.txt('HOP OFF', t.x + 20, t.y + 8, C.bone, 1); continue;
       }
+      if (t.mag) { const sh = this.padShake(g), t2 = Object.assign({}, t, { x: t.x + sh[0], y: t.y + sh[1] }); if (sm) { if (sm.redraw) this.magButton(sm.ctx, t2, sm.press[t.id] || 0, this._fade, sm.cv.width / (VW + 2 * TOUCH_OUT)); } else this.magButton(c, t2, on.has(t.id) ? 1 : 0, 1, 0); continue; }
       if (sm) { if (sm.redraw) this.smoothButton(sm, g, t, sm.press[t.id] || 0, this._fade); continue; }
       const hot = on.has(t.id), cx = t.x + (t.w >> 1), cy = t.y + (t.h >> 1);
       if (art) {
