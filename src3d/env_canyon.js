@@ -55,7 +55,10 @@ const NeonAvenue = {
     const parts = [], sk = [];
     for (let a = 0; a < m; a++) { const f0 = a / m, f1 = (a + 1) / m, z0 = L / 2 - f0 * L, z1 = L / 2 - f1 * L, y0 = hy(f0), y1 = hy(f1), len = Math.hypot(z1 - z0, y1 - y0), rx = Math.atan2(y1 - y0, z0 - z1);
       for (const s of [-1, 1]) { parts.push(Kit.box(0.12, 0.12, len, s * (X + 0.1), (y0 + y1) / 2 - 0.02, (z0 + z1) / 2, C.pink, { glow: true, rx }), Kit.box(0.2, 0.6, len, s * (X + 0.2), (y0 + y1) / 2 - 0.3, (z0 + z1) / 2, '#2a2f6a', { rx }));
-        sk.push(NeonAvenue.plain([s * X, y0, z0], [s * X, y1, z1], [s * X, y1 - 2.5, z1], [s * X, y0 - 2.5, z0])); } }
+        sk.push(NeonAvenue.plain([s * X, y0, z0], [s * X, y1, z1], [s * X, y1 - 2.5, z1], [s * X, y0 - 2.5, z0])); }
+      sk.push(NeonAvenue.plain([-X, y0 - 0.02, z0], [X, y0 - 0.02, z0], [X, y1 - 0.02, z1], [-X, y1 - 0.02, z1]));                                                    // THE GLASS DECK (the user: the runner rides on the transparent ramp)
+      if (a % 2 === 0) parts.push(Kit.box(0.1, 0.03, len * 0.6, 0, (y0 + y1) / 2, (z0 + z1) / 2, C.cyan, { glow: true, rx }));                                       // a dashed line of light down the middle
+      parts.push(Kit.box(2 * X, 0.04, 0.06, 0, y0 - 0.01, z0, '#9ff4ff', { glow: true })); }                                                                          // the glass panes' joints
     return tex(parts, sk, () => NeonAvenue.glassMaterial()); }
   { const UN = typeof NEON_CORNER !== 'undefined' ? NEON_CORNER.UP : 6, DN = typeof NEON_CORNER !== 'undefined' ? NEON_CORNER.DOWN : 6;
     for (let k = 0; k < UN; k++) props['cnGlassU' + k] = () => rampSides(k, UN, 1);

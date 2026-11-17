@@ -98,7 +98,8 @@ class Road3D {
       if (!bB) {
         E.loA[i] = loA; E.hiA[i] = hiA; E.loB[i] = E.hiB[i] = hiA;
         P[1] = loA; P[2] = hiA; P[3] = OUT; P[4] = OUT;
-        if (w.extraLift) { const ex = w.extraLift(zm / U3.Z); if (ex > 1) { P[3] = P[4] = 0.3; if (ex < NEON_CORNER.H - 1) { const c = (loA + hiA) / 2, h = Math.min((hiA - loA) / 2, 1.5 + (hiA - loA) / 2 * (ex / NEON_CORNER.H) ** 6); P[1] = c - h; P[2] = c + h; } } }      // (the glass ramps: one lane wide, only their kerbs; the high road widens back)
+        if (w.extraLift) { const ex = w.extraLift(zm / U3.Z); if (ex > 1 && ex < NEON_CORNER.H - 1) { E.loA[i] = loA; E.hiA[i] = E.loB[i] = E.hiB[i] = hiA; P[1] = loA; this.collapse(0, i, palA); this.collapse(1, i, palA); continue; }      // (the glass ramps: no asphalt, the runner rides the glass deck, NeonAvenue rampSides)
+          if (ex > 1) { P[3] = P[4] = 0.3; if (ex < NEON_CORNER.H - 1) { const c = (loA + hiA) / 2, h = Math.min((hiA - loA) / 2, 1.5 + (hiA - loA) / 2 * (ex / NEON_CORNER.H) ** 6); P[1] = c - h; P[2] = c + h; } } }      // (the glass ramps: one lane wide, only their kerbs; the high road widens back)
         this.band(0, i, palA, par, dash);
         P[1] = hiA; this.collapse(1, i, palA);
         continue;

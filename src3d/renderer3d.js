@@ -213,7 +213,10 @@ class Renderer3D {
   artRange(g) { if (!g.detour || typeof NEON_CORNER === 'undefined' || !this.envs.artcity) return null; const C = NEON_CORNER, a0 = g.detour.z0 + (C.STREET + C.TUNNEL) * C.SLOT; return [a0, a0 + C.ART * C.SLOT]; }
   // THE NEON AVENUE (src3d/env_canyon.js): the high road after the glass ramp [c0, c1) and how much of its look is in (in over the ramp, out over the way down)
   canyonRange(g) { const d = g.detour; if (!d || !d.up || !this.envs.canyon) return null; const C = NEON_CORNER, c0 = d.z0 + (C.STREET + C.TUNNEL + C.ART - C.UP) * C.SLOT; return [c0, c0 + (C.UP + C.CANYON + C.DOWN) * C.SLOT]; }
-  canyonK(g) { const R = this.canyonRange(g); if (!R) return 0; const z = g.p.z, s = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); }; return s((z - R[0]) / 700) * s((R[1] - z) / 700); }
+  canyonK(g) { const d = g.detour; if (!d || !this.envs.canyon || typeof NEON_CORNER === 'undefined') return 0; const C = NEON_CORNER, c0 = d.z0 + (C.STREET + C.TUNNEL + C.ART - C.UP) * C.SLOT, z = g.p.z, s = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
+    const inK = s((z - (c0 - 1100)) / 900);                                                                                       // (the user: the next stage's sky opens from the end of ART CITY, where the wall was)
+    if (d.down) return inK * s((c0 + C.UP * C.SLOT + 500 - z) / 500);                                                            // (into the underground tunnel: out again)
+    if (d.up) return inK * s((c0 + (C.UP + C.CANYON + C.DOWN) * C.SLOT - z) / 700); return inK; }
   artK(g) { const R = this.artRange(g); if (!R) return 0; const z = g.p.z, s = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); }; return s((z - (R[0] - 600)) / 600) * s((R[1] + 300 - z) / 600); }
 
   // the neon quarter's layout depends on the game's detour (the picture district, NEON_CORNER): a change clears its cache

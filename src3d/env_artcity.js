@@ -108,8 +108,9 @@ const ArtCity = {
     if (r === 10) out.push({ prop: 'artBeanbag', x: 5.6, dist: 5 });
     if (r === 20) out.push({ prop: 'artRound', x: -10, dist: 6 });
     const U = typeof NEON_CORNER !== 'undefined' ? NEON_CORNER.UP : 6, up = !!(det && det.up);
-    if (r === N - 1) out.push({ prop: up ? 'artSpiralUp' : 'artSpiral', x: 0.001, dist: 0, dy: up ? -liftM : 0 }, { prop: 'artBridge', x: 0.001, dist: 2.5, dy: -liftM });   // THE BRIDGE over the tunnel, under the spiral
-    if (!up && r >= N - U) out.push({ prop: 'artGlassRamp' + (r - (N - U)), x: 0.001, dist: 6 });                                                                  // THE GLASS RAMP on the left (the choice: the left lane)
+    if (r === N - 1) out.push({ prop: 'artBridge', x: 0.001, dist: 2.5, dy: -liftM });      // THE BRIDGE over the tunnel (the user removed the lavender wall and the green spiral: the next stage's sky opens there)   // THE BRIDGE over the tunnel, under the spiral
+    if (!up && r >= N - U) out.push({ prop: 'artGlassRamp' + (r - (N - U)), x: 0.001, dist: 6 });
+    if (!up && r >= N - U - 2) for (const o of out) if (o.x < -4 && !/^art(Floor|GlassRamp)/.test(o.prop)) o.x -= NeonAvenue.D + 6;      // (the user: the buildings on the left step aside to give the ramp room)                                                                  // THE GLASS RAMP on the left (the choice: the left lane)
     if (up && r >= N - U) {                                                                                     // ON THE RAMP: what stands on the ground stays there, and the circuit parts to the right (NeonAvenue.shift)
       const k = r - (N - U), sh = d => NeonAvenue.shift((k + d / 12.2) / U), keep = out.filter(o => o.prop !== 'artRail');
       for (const o of keep) { if (o.dy === undefined) o.dy = -liftM; o.x += sh(o.dist); }
