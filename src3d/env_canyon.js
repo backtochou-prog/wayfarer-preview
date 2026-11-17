@@ -66,6 +66,9 @@ const NeonAvenue = {
   function glassSides(X) { const L = 12.25, parts = [];
       for (const s of [-1, 1]) parts.push(Kit.box(0.12, 0.12, L, s * (X + 0.1), 0.05, 0, C.pink, { glow: true }), Kit.box(0.1, 0.1, L, s * (X + 0.05), -2.4, 0, C.cyan, { glow: true }), Kit.box(0.2, 0.7, L, s * (X + 0.2), 0.05, 0, '#2a2f6a'));
       const sk = [-1, 1].map(s => NeonAvenue.plain([s * X, 0, L / 2], [s * X, 0, -L / 2], [s * X, -2.5, -L / 2], [s * X, -2.5, L / 2]));
+      sk.push(NeonAvenue.plain([-X, -0.02, L / 2], [X, -0.02, L / 2], [X, -0.02, -L / 2], [-X, -0.02, -L / 2]));                                                       // THE GLASS DECK of the high road too (the user: like the first ramp)
+      for (const z of [-L / 4, L / 4]) parts.push(Kit.box(2 * X, 0.04, 0.06, 0, -0.01, z, '#9ff4ff', { glow: true }));                                                  // the panes' joints
+      for (const lx of [-X / 3, X / 3]) for (const z of [-3, 3]) parts.push(Kit.box(0.1, 0.03, 2.4, lx, 0, z, C.cyan, { glow: true }));                                  // dashed lines of light between the lanes
       return tex(parts, sk, () => NeonAvenue.glassMaterial()); }
   Object.assign(props, {
     // its FOUNDATIONS: two dark pillars down to the ground (40 m: the ground hides the rest), neon rings round them
@@ -90,14 +93,15 @@ const NeonAvenue = {
   // Before the choice it is drawn here as glass beside the road (artGlassRamp0..UP-1); a runner who takes it rides it as THE road (World.extraLift) and the circuit is then drawn as
   // `cnMainRoad`, parting to the right and staying down.
   const UPN = typeof NEON_CORNER !== 'undefined' ? NEON_CORNER.UP : 6, HM = typeof NEON_CORNER !== 'undefined' ? NEON_CORNER.H / 10 : 14, e = t => t * t * (3 - 2 * t);
-  NeonAvenue.D = 17; NeonAvenue.shift = t => NeonAvenue.D * e(Math.max(0, Math.min(1, t))); NeonAvenue.height = t => HM * e(Math.max(0, Math.min(1, t)));
+  NeonAvenue.D = typeof NEON_CORNER !== 'undefined' ? NEON_CORNER.SHIFT_M : 17; NeonAvenue.shift = t => NeonAvenue.D * e(Math.max(0, Math.min(1, t))); NeonAvenue.height = t => HM * e(Math.max(0, Math.min(1, t)));
   for (let k = 0; k < UPN; k++) props['artGlassRamp' + k] = (() => { const L = 12.25, n = 8, W = 2.4,      // (the user: the ramp may be narrower than the circuit)
     pos = [], uv = [], idx = [], parts = [];
-    for (let a = 0; a <= n; a++) { const f = a / n, t = (k + f) / UPN, xc = -NeonAvenue.shift(t), y = NeonAvenue.height(t), z = L / 2 - f * L;
-      pos.push(xc - W, y, z, xc + W, y, z); uv.push(0, f, 1, f); if (a) { const o = (a - 1) * 2; idx.push(o, o + 2, o + 1, o + 1, o + 2, o + 3); } }
+    for (let a = 0; a < n; a++) { const f0 = a / n, f1 = (a + 1) / n, P = f => { const t = (k + f) / UPN; return [-NeonAvenue.shift(t), NeonAvenue.height(t), L / 2 - f * L]; }, [xa, ya, za] = P(f0), [xb, yb, zb] = P(f1);
+      if (xa + W > -3.6 || xb + W > -3.6) continue;                                                                   // (the user: no glass over the circuit's asphalt: the deck starts where the ramp has left the road)
+      const o = pos.length / 3; pos.push(xa - W, ya, za, xa + W, ya, za, xb - W, yb, zb, xb + W, yb, zb); uv.push(0, f0, 1, f0, 0, f1, 1, f1); idx.push(o, o + 2, o + 1, o + 1, o + 2, o + 3); }
     for (let a = 0; a < n; a++) { const f0 = a / n, f1 = (a + 1) / n, t0 = (k + f0) / UPN, t1 = (k + f1) / UPN, x0 = -NeonAvenue.shift(t0), x1 = -NeonAvenue.shift(t1), y0 = NeonAvenue.height(t0), y1 = NeonAvenue.height(t1), z0 = L / 2 - f0 * L, z1 = L / 2 - f1 * L;
       const len = Math.hypot(x1 - x0, y1 - y0, z1 - z0), rx = Math.atan2(y1 - y0, z0 - z1), ry = Math.atan2(x0 - x1, z0 - z1);
-      for (const [dx, col] of [[-W, C.pink], [W, C.cyan]]) if (y0 > 0.3 || dx < 0) parts.push(Kit.box(0.14, 0.14, len, (x0 + x1) / 2 + dx, (y0 + y1) / 2 - 0.07, (z0 + z1) / 2, col, { glow: true, rx, ry }));
+      for (const [dx, col] of [[-W, C.pink], [W, C.cyan]]) if (y0 > 0.3 || dx < 0 || x0 + W < -3.6) parts.push(Kit.box(0.14, y0 > 0.3 ? 0.14 : 0.03, len, (x0 + x1) / 2 + dx, (y0 + y1) / 2 - 0.07, (z0 + z1) / 2, col, { glow: true, rx, ry }));
       if (a === n / 2 && y0 > 2) parts.push(Kit.box(1.0, y0, 1.0, (x0 + x1) / 2, 0, (z0 + z1) / 2, C.pillar)); }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
     return () => tex(parts, [g], () => NeonAvenue.glassMaterial()); })();

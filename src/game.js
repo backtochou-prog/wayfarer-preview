@@ -142,7 +142,7 @@ class Game {
     this.bgT = ahead0.t; this.bgTo = ahead0.t > 0 ? ahead0.to : this.world.baseBiome; this.canopy = 0; this.flash = 0; this.overT = 0; this.overDelay = 0.5;
     this.fx = []; this.dustT = 0; this.shake = 0; this.coinPulse = 0; this.jumpBuf = 0;
     this.scene = null; this.fadeIn = 0;                                                 // no cutscene running, no fade
-    this.corner = null; this.detour = null; if (this.world) this.world.extraLift = null;                                             // the neon corner: no pivot running, not in the picture district (NEON_CORNER)
+    this.corner = null; this.detour = null; if (this.world) { this.world.extraLift = null; this.world.extraOff = null; }                                             // the neon corner: no pivot running, not in the picture district (NEON_CORNER)
     this.riding = false; this.vehicle = 'scooter'; this.scooterHint = null; this.surf = false;                // on foot, no indicator, not on the water
     this.carryC = 0; this.lane2 = 0; this.lean = 0; this.kick = null; this.sway = 0; this.prompt = null; this.banner = null;
     if (this.r.onReset) this.r.onReset(this);
@@ -362,12 +362,12 @@ class Game {
         if (up) { d.z1 = d.z0 + (C.STREET + C.TUNNEL + C.ART + C.CANYON + C.DOWN + C.EXIT) * C.SLOT; const rampL = (a, b) => { const c = w.playerBand(a, 0).c; return it => it.z >= a && it.z <= b && Math.abs(it.x - c) > 0.2; };
           const onUp = rampL(zD, zD + C.UP * C.SLOT), onDown = rampL(zD + (C.UP + C.CANYON) * C.SLOT, zD + (C.UP + C.CANYON + C.DOWN) * C.SLOT);
           w.items = w.items.filter(it => !(OBST[it.kind] && it.z >= zD && it.z <= d.z1) && !(it.kind === 'coin' && (onUp(it) || onDown(it))));      // (the ramps have one lane: only the coins of the middle stay)
-          w.extraLift = z => C.lift(d, z); this.emit('corner'); }
+          w.extraLift = z => C.lift(d, z); w.extraOff = z => C.off(d, z); w.ver++; this.emit('corner'); }
         else { d.down = true; d.z1 = d.z0 + (C.STREET + C.TUNNEL + C.ART + C.DIVE + C.UNDER + C.RISE + C.EXIT) * C.SLOT; w.items = w.items.filter(it => !(OBST[it.kind] && it.z >= zD + C.UP * C.SLOT && it.z <= d.z1)); w.extraLift = z => C.lift(d, z); }      // no ramp: the underground tunnel
         this.detour = d;
       }
     }
-    if (this.detour && p.z > this.detour.z1) { this.detour = null; w.extraLift = null; }      // out of the tunnel: back on the neon street
+    if (this.detour && p.z > this.detour.z1) { this.detour = null; w.extraLift = null; if (w.extraOff) { w.extraOff = null; w.ver++; } }      // out of the tunnel: back on the neon street
     this.steer(dt);
     if (this.jumpBuf > 0) { // jump starts on the ground, cancels a slide; a press just before landing is kept briefly
       this.jumpBuf -= dt;

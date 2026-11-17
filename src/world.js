@@ -258,7 +258,7 @@ class World {
         t = clamp(1 - (z - pv.be) / (pv.fork.merge + 250), 0, 1);
       }
       const kn = z0 => z0.type === 'seg' && z0.seg.hw ? z0.seg.hw : z0.type === 'fork' && z0.fork.mergeHw ? z0.fork.mergeHw : 0.9, from = pv ? kn(pv) : 0.9, ws = (s.hw || 0.9), wk = ease(clamp((z - P.z0) / 400, 0, 1)), hwS = from === ws ? ws : from + (ws - from) * wk;      // (a narrow street opens and closes over its first 400 units: no jump of the road's width)
-      const b = { lo: -hwS, hi: hwS, side: 0, route: P.id, off: s.curve * bump((z - P.z0) / (P.z1 - P.z0)), to, t, chosen: true };
+      const b = { lo: -hwS, hi: hwS, side: 0, route: P.id, off: s.curve * bump((z - P.z0) / (P.z1 - P.z0)) + (this.extraOff ? this.extraOff(z) : 0), to, t, chosen: true };      // (extraOff: the glass ramp of ART CITY bends the road to the left, NEON_CORNER.off)
       b.eL = b.eR = { to, t };
       const F = this.pieces[this.pieces.indexOf(P) + 1];
       if (F && F.type === 'fork' && !F.fork.hold && z > F.z0 - APPROACH) { // edges lean toward the branch biomes (not at a `hold` junction: it keeps the look of this piece)

@@ -116,6 +116,14 @@ const NEON_CORNER = {
   // THE UNDERGROUND TUNNEL (the user): a runner who does not take the glass ramp goes on into the tunnel under the spiral, which goes DOWN (DIVE slots, DEPTH units of run under the street),
   // runs underground (UNDER slots: the place of the tunnel's own scenario, to come) and comes back UP (RISE slots) to the short tunnel out to the neon street.
   DIVE: 6, UNDER: 20, RISE: 6, DEPTH: 120,
+  // THE RAMP BENDS LEFT (the user: seen from below it curves away, so riding it must curve the same way): the lateral offset of the road (lateral units) on the glass ramp, up and down:
+  // SHIFT_M metres to the left by the top (the circuit stays where it is, to the right), back by the end of the way down. Lateral units are U3.X = 2.2 / 0.62 metres.
+  SHIFT_M: 17,
+  off(d, z) {
+    if (!d || !d.up) return 0;
+    const S = this.SLOT, z0 = d.z0 + (this.STREET + this.TUNNEL + this.ART - this.UP) * S, zA = z0 + this.UP * S, zB = zA + this.CANYON * S, zC = zB + this.DOWN * S, e = t => t * t * (3 - 2 * t), D = this.SHIFT_M / (2.2 / 0.62);
+    return z <= z0 || z >= zC ? 0 : -D * (z < zA ? e((z - z0) / (zA - z0)) : z < zB ? 1 : 1 - e((z - zB) / (zC - zB)));
+  },
   // the height of the road (units of run) at z for a detour that took the glass ramp (positive), or the underground tunnel (negative)
   lift(d, z) {
     if (d && d.down) { const S = this.SLOT, z0 = d.z0 + (this.STREET + this.TUNNEL + this.ART) * S, zA = z0 + this.DIVE * S, zB = zA + this.UNDER * S, zC = zB + this.RISE * S, e = t => t * t * (3 - 2 * t);
