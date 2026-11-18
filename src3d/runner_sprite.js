@@ -77,7 +77,7 @@ class RunnerSprite {
     const surf = this.vehicle === 'surf', mag = !board && !surf, hover = board ? 0.02 * Math.sin(T * 3) : surf ? 0.03 * Math.sin(T * 2.4) + 0.02 * (s.beat || 0) : 0.045 + 0.018 * Math.sin(T * 2.3) + 0.008 * Math.sin(T * 5.1);      // (the magnetic scooter floats: never still)      // the board floats, with a gentle bob (the surfboard rides the swell)
     this.pivot.position.y = c.y + (surf ? RunnerSprite.SURF_DECK : board ? RunnerSprite.BOARD_DECK : RunnerSprite.DECK) * Math.min(1, R * 1.5) + hover * R;   // the feet stand on the deck
     const sc = this.scooter, bd = this.board, sf = this.surfB, v = surf ? sf : board ? bd : sc; for (const o of [sc, bd, sf]) if (o !== v) o.visible = false;
-    v.visible = R > 0.02; v.scale.setScalar(Math.min(1, R * 1.4) * RunnerSprite.SC); v.position.y = hover * R;
+    v.visible = R > 0.02; v.scale.setScalar(Math.min(1, R * 1.4) * RunnerSprite.SC); v.position.y = hover * R + (s.flip ? 0.15 * (1 - Math.cos(s.flip)) : 0);      // (in a FLIP the vehicle turns about its deck, not under the ground)
     if (v.visible) {
       if (surf) { const u = sf.userData, k3 = 1 + 0.08 * Math.sin(T * 5); u.wake.scale.set(1, 1, k3); u.collar.scale.set(1 + 0.1 * Math.sin(T * 6), 1, 1); u.foam.material.opacity = 0.5 + 0.1 * Math.sin(T * 4); }
       else if (!board) { RunnerSprite.lcdSpeed(sc.userData.lcd, s.kmh || 0); this.wheelA += dt * s.runRate * 9; for (const w of sc.userData.wheels) if (w.userData.mag) w.rotation.y = this.wheelA; else w.rotation.x = -this.wheelA; }      // (the magnetic wheels turn about their own axis)
@@ -90,8 +90,8 @@ class RunnerSprite {
         if (W.air && !s.airborne) { W.vx -= 1.6; try { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(25); } catch (e) {} } W.air = !!s.airborne;      // (the phone buzzes a little at the landing)                                                // a landing makes it bounce on its magnetic cushion; a slow restless sway on top
         const tz = -s.lean * 0.14 + 0.035 * Math.sin(T * 1.7) + 0.015 * Math.sin(T * 4.3), tx = (s.airborne ? 0.16 : 0) + 0.025 * Math.sin(T * 1.3 + 1) + 0.01 * Math.sin(T * 3.7);
         W.vz += ((tz - W.z) * 70 - W.vz * 5) * h; W.z += W.vz * h; W.vx += ((tx - W.x) * 60 - W.vx * 5) * h; W.x += W.vx * h;
-        v.rotation.z = W.z; v.rotation.x = W.x;
-      } else { const k2 = 1 - Math.exp(-10 * dt); v.rotation.z += (-s.lean * 0.1 - v.rotation.z) * k2; v.rotation.x += ((s.airborne ? 0.14 : 0) - v.rotation.x) * k2; }     // leans into the steering, nose up in the air
+        v.rotation.z = W.z + (s.flip || 0); v.rotation.x = W.x + 0.45 * (s.pop || 0);      // (+ the OLLIE: the nose pops up and levels)      // (+ the FLIP stunt: a full turn about its length)
+      } else { const k2 = 1 - Math.exp(-10 * dt); v.rotation.z += (-s.lean * 0.1 - v.rotation.z) * k2; if (s.flip) v.rotation.z = -s.lean * 0.1 + s.flip; if (s.pop) v.rotation.x = 0.45 * s.pop; v.rotation.x += ((s.airborne ? 0.14 : 0) - v.rotation.x) * k2; }     // leans into the steering, nose up in the air
     }
     this.pivot.rotation.set(c.rx, -this.group.rotation.y + face + spin, c.rz, 'YXZ');   // cancel the renderer's yaw: the card always faces the camera (plus the showcase spin)
     this.pivot.scale.set(c.sx, c.sy, 1);

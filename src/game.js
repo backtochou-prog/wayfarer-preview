@@ -23,16 +23,23 @@ const TOUCH = [
 ];
 // THE MAGNETIC SCOOTER'S CONTROLLER (the user, 2026-11-17: "when the user takes this scooter, the control buttons change to this sophisticated controller"): while riding it, the four
 // steering buttons move to the right of the screen as the controller's four keys (left, right, down, up) in a cross, beside the handlebar's LCD (MAG_PAD_ART, drawn at `lcd`)
-const TOUCH_MAG = [
-  { id: 'jump',  x: 206, y: 112, w: 28, h: 24, mag: true },
-  { id: 'slide', x: 206, y: 154, w: 28, h: 24, mag: true },
-  { id: 'left',  x: 177, y: 133, w: 28, h: 24, mag: true },
-  { id: 'right', x: 235, y: 133, w: 28, h: 24, mag: true },
+// THE VEHICLE LAYOUT (the user, 2026-11-18): on a vehicle, left and right are apart at the bottom left, with the STUNT keys (spin, flip) just over them, and up / down on the right; on the
+// magnetic scooter its handlebar LCD (MAG_PAD_ART) stands at the right edge, except in the rider's-eyes camera (the LCD is on the handlebar then): up / down take its place
+const rideKeys = (ux) => [
+  { id: 'left',  x: -6, y: 148, w: 30, h: 26, mag: true },
+  { id: 'right', x: 28, y: 148, w: 30, h: 26, mag: true },
+  { id: 'ollie', x: 11, y: 92, w: 30, h: 22, mag: true },
+  { id: 'spin',  x: -6, y: 118, w: 30, h: 24, mag: true },
+  { id: 'flip',  x: 28, y: 118, w: 30, h: 24, mag: true },
+  { id: 'jump',  x: ux, y: 112, w: 30, h: 26, mag: true },
+  { id: 'slide', x: ux, y: 146, w: 30, h: 26, mag: true },
   { id: 'pause', x: 145, y: 2,   w: 30, h: 18 },
   { id: 'cam', x: 132, y: 132, w: 56, h: 18 },
   { id: 'scooter', x: 132, y: 154, w: 56, h: 20 },
 ];
+const TOUCH_MAG = rideKeys(230);
 TOUCH_MAG.lcd = { x: 265, y: 108, w: 70, h: 59 };
+const TOUCH_RIDE = rideKeys(296);
 const TOUCH_OUT = 15;      // the smooth buttons may stand this many canvas pixels outside the screen canvas, on each side (the user wanted them nearer the edges of the phone): the touch layer and the pointer listeners cover that margin
 const GRAV = 900, JUMP_V = 268, SLIDE_T = 0.55, P_HW = 0.12;   // P_HW: runner half-width (0.43 m in the 3D build)
 
@@ -64,7 +71,7 @@ class Game {
     cv.addEventListener('pointermove', at);
     cv.addEventListener('pointerleave', () => { this.mouse.x = this.mouse.y = -1; this.mouse.down = false; });
     cv.addEventListener('contextmenu', e => e.preventDefault());
-    const zone = () => this.touchSet().find(c => ((c.id !== 'scooter' && c.id !== 'cam') || this.riding) && this.mouse.x >= c.x && this.mouse.x <= c.x + c.w && this.mouse.y >= c.y && this.mouse.y <= c.y + c.h);
+    const zone = () => this.touchSet().find(c => ((c.id !== 'scooter' && c.id !== 'cam' && c.id !== 'spin' && c.id !== 'flip' && c.id !== 'ollie') || this.riding) && this.mouse.x >= c.x && this.mouse.x <= c.x + c.w && this.mouse.y >= c.y && this.mouse.y <= c.y + c.h);
     const overHint = () => { const h = this.scooterHint, m = this.mouse; return !!h && !this.riding && Math.abs(m.x - h.x) <= 14 + Math.min(36, h.rx * 1.4) + 24 && m.y >= h.y - 80 && m.y <= h.y + h.ry * 1.6 + 36; };      // the ring under a parked scooter and the scooter above it, with a very generous touch area (it passes at running speed)
     addEventListener('pointerdown', e => {
       if (e.target !== cv && !((this.state === 'play' || this.state === 'race') && e.pointerType === 'touch')) return;      // (the touch buttons stand partly outside the screen canvas: in the race too, or the accelerator's outer edge did nothing)
@@ -156,7 +163,7 @@ class Game {
     this.fx = []; this.dustT = 0; this.shake = 0; this.coinPulse = 0; this.jumpBuf = 0;
     this.scene = null; this.fadeIn = 0;                                                 // no cutscene running, no fade
     this.corner = null; this.detour = null; if (this.world) { this.world.extraLift = null; this.world.extraOff = null; }                                             // the neon corner: no pivot running, not in the picture district (NEON_CORNER)
-    this.camFP = false; this.riding = false; this.vehicle = 'scooter'; this.scooterHint = null; this.surf = false;                // on foot, no indicator, not on the water
+    this.trick = null; this.olliePop = null; this.ollieDone = false; this.combo = 0; this.stuntPts = 0; this.camFP = false; this.riding = false; this.vehicle = 'scooter'; this.scooterHint = null; this.surf = false;                // on foot, no indicator, not on the water
     this.carryC = 0; this.lane2 = 0; this.lean = 0; this.kick = null; this.sway = 0; this.prompt = null; this.banner = null;
     if (this.r.onReset) this.r.onReset(this);
   }
@@ -198,7 +205,7 @@ class Game {
     if (p.x < -0.25) return 'left';
     return 'right';
   }
-  score() { return Math.floor(this.p.z / 10) + this.coins * 10 + (this.pk ? this.pk.bonus : 0); }
+  score() { return Math.floor(this.p.z / 10) + this.coins * 10 + (this.pk ? this.pk.bonus : 0) + (this.stuntPts || 0) * 10; }
 
   jump() { this.jumpBuf = 0.12; } // buffered: a press just before landing still jumps
   // down: fast-fall in the air; on the ground start a slide (a slide already under way is not restarted, so taps can't chain)
@@ -209,11 +216,27 @@ class Game {
     if (id === null) delete this.held[pid]; else this.held[pid] = id;
     this.syncTouch();
     if (!fresh || this.state !== 'play') return;
-    if (id === 'jump') this.jump(); else if (id === 'slide') this.slideKey(); else if (id === 'scooter') this.dismount(); else if (id === 'cam') this.camFP = !this.camFP; else if (id === 'pause') { this.state = 'pause'; this.releaseTouch(); }
+    if (id === 'jump') this.jump(); else if (id === 'slide') this.slideKey(); else if (id === 'scooter') this.dismount(); else if (id === 'cam') this.camFP = !this.camFP; else if (id === 'spin' || id === 'flip' || id === 'ollie') this.stunt(id); else if (id === 'pause') { this.state = 'pause'; this.releaseTouch(); }
   }
   // THE RACE'S PEDALS: accelerate = the up key (Z / W / arrow) or the jump button held (touch, or the VR controllers through the same touch channel); brake = the down key or the slide button held
   pedal(id) { return id === 'jump' ? !!(this.keys.up || Object.values(this.held).includes('jump')) : !!(this.keys.down || Object.values(this.held).includes('slide')); }
-  touchSet() { return this.riding && this.vehicle !== 'board' && typeof MAG_PAD_ART !== 'undefined' ? TOUCH_MAG : TOUCH; }      // (the magnetic scooter's controller while riding it)
+  // THE STUNTS (the user, 2026-11-18): on a vehicle, in the air (after a jump), SPIN turns the rider and the vehicle a full turn, FLIP turns the vehicle under the feet; landing with it done
+  // earns its points (and a growing combo for stunts in a row), landing before it is done is a BAD LANDING (a jolt, the combo lost; the run goes on). Drawn by Renderer3D / RunnerSprite.
+  // OLLIE (the user: 'olé'): the skater's own jump, from the ground: a higher jump than the plain one, the vehicle's nose popped up then levelled; it counts as a stunt at the landing,
+  // so an ollie can be followed by a spin or a flip in the air
+  stunt(kind) { const p = this.p; if (this.state !== 'play' || !this.riding || this.trick) return;
+    if (kind === 'ollie') { if (p.jy > 0) return; p.slide = 0; p.vy = JUMP_V * 1.15; p.jy = 0.01; this.olliePop = { t: 0 }; this.trick = null; this.ollieDone = true; this.emit('jump'); return; }
+    if (p.jy <= 0) return; this.trick = { kind, t: 0, dur: kind === 'spin' ? 0.45 : 0.4 }; this.emit('jump'); }
+  landTrick() {
+    let olliePts = 0;
+    if (this.ollieDone) { this.ollieDone = false; this.combo = (this.combo || 0) + 1; olliePts = 3 * this.combo; this.stuntPts = (this.stuntPts || 0) + olliePts;      // the ollie counts first (then the stunt done in its air, if any)
+      if (!this.trick) { this.banner = { t: 1.2, text: 'OLLIE! +' + olliePts + (this.combo > 1 ? ' X' + this.combo : '') }; this.emit('coin'); return; } }
+    const T = this.trick; if (!T) return; this.trick = null;
+    if (olliePts && T.t >= T.dur) { this.combo++; const pts = (T.kind === 'flip' ? 8 : 5) * this.combo; this.stuntPts += pts; this.banner = { t: 1.6, text: 'OLLIE + ' + (T.kind === 'flip' ? 'FLIP' : 'SPIN') + '! +' + (olliePts + pts) + ' X' + this.combo }; this.emit('coin'); return; }
+    if (T.t >= T.dur) { this.combo = (this.combo || 0) + 1; const pts = (T.kind === 'flip' ? 8 : 5) * this.combo; this.stuntPts = (this.stuntPts || 0) + pts; this.banner = { t: 1.4, text: (T.kind === 'flip' ? 'FLIP!' : 'SPIN!') + ' +' + pts + (this.combo > 1 ? ' X' + this.combo : '') }; this.emit('coin'); }
+    else { this.combo = 0; this.banner = { t: 1.2, text: 'BAD LANDING' }; this.shake = 0.25; }
+  }
+  touchSet() { return !this.riding ? TOUCH : this.vehicle !== 'board' && !this.camFP && typeof MAG_PAD_ART !== 'undefined' ? TOUCH_MAG : TOUCH_RIDE; }      // (on foot / the scooter with its LCD / any vehicle without, or in the rider's eyes)      // (the magnetic scooter's controller while riding it)
   syncTouch() { const h = Object.values(this.held); this.tleft = h.includes('left'); this.tright = h.includes('right'); }
   releaseTouch() { this.held = {}; this.syncTouch(); }
   goFullscreen() { // hides the browser bars and asks for landscape (Android Chrome); silently ignored elsewhere
@@ -246,7 +269,8 @@ class Game {
       if (c === 'Space' || U) this.jump();
       else if (D) this.slideKey();
       else if (c === 'KeyE' || k === 'e') { if (this.riding) this.dismount(); else this.mount(); }
-      else if (c === 'KeyV' || k === 'v') { if (this.riding) this.camFP = !this.camFP; }          // V: on a vehicle, the second camera (the rider's own eyes) on / off          // E: get on the scooter that has an indicator / get off
+      else if (c === 'KeyV' || k === 'v') { if (this.riding) this.camFP = !this.camFP; }
+      else if (c === 'KeyQ' || k === 'q') this.stunt('spin'); else if (c === 'KeyF' || k === 'f') this.stunt('flip'); else if (c === 'KeyO' || k === 'o') this.stunt('ollie');          // the stunts on a vehicle (in the air)          // V: on a vehicle, the second camera (the rider's own eyes) on / off          // E: get on the scooter that has an indicator / get off
       else if (c === 'KeyP' || c === 'Escape') this.state = 'pause';
     } else if (s === 'pause' && (c === 'KeyP' || c === 'Escape')) this.state = 'play';
   }
@@ -388,7 +412,8 @@ class Game {
       this.jumpBuf -= dt;
       if (p.jy === 0) { p.slide = 0; p.vy = JUMP_V; p.jy = 0.01; this.jumpBuf = 0; this.emit('jump'); }
     }
-    if (p.jy > 0) { p.vy -= GRAV * dt; p.jy += p.vy * dt; if (p.jy <= 0) { p.jy = 0; p.vy = 0; this.emit('land'); } }
+    if (p.jy > 0) { p.vy -= GRAV * dt; p.jy += p.vy * dt; if (p.jy <= 0) { p.jy = 0; p.vy = 0; this.emit('land'); this.landTrick(); } }
+    if (this.trick) this.trick.t += dt; if (this.olliePop) { this.olliePop.t += dt; if (this.olliePop.t > 0.5) this.olliePop = null; }
     if (p.slide > 0) p.slide = Math.max(0, p.slide - dt);
     this.dust(dt);
     w.extend(p.z);

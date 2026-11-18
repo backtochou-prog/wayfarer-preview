@@ -523,10 +523,11 @@ class Renderer3D {
     const c1 = w.playerBand(p.z + 50, p.x), c0 = w.playerBand(p.z - 50, p.x);
     const slope = ((c1.c + c1.off) - (c0.c + c0.off)) * U.X / (100 * U.Z);
     this.heading += (-Math.atan(slope) - this.heading) * (1 - Math.exp(-10 * dt));
+    const trk = g.trick, trkA = trk ? Math.min(1, trk.t / trk.dur) : 0, ease = x => x * x * (3 - 2 * x);      // THE STUNTS (Game.stunt): SPIN turns the rider and the vehicle a full turn (here), FLIP turns the vehicle (RunnerSprite)
     let cornerA = 0; if (g.corner && !(this.xr && this.xr.presenting)) { const k = Math.min(1, g.corner.t / NEON_CORNER.T); cornerA = Math.PI / 2 * k * k * (3 - 2 * k); }   // THE NEON CORNER's pivot angle
-    this.runner.group.rotation.y = Math.PI * mm + this.heading * (1 - mm) + cornerA;
+    this.runner.group.rotation.y = Math.PI * mm + this.heading * (1 - mm) + cornerA + (trk && trk.kind === 'spin' ? Math.PI * 2 * ease(trkA) : 0);
     this.runner.update(dt, { beat: pulse, faceYaw: Math.atan2(this.cam.x - relX, this.cam.z) + cornerA, time: g.time, runRate: 2.3 + p.speed / 340 * 1.1, airborne: p.jy > 0, vy: p.vy, sliding: p.slide > 0,
-                             absorb: absK, absorbSpin: absSpin, lean: Math.max(-1, Math.min(1, p.vx / STEER)), state: g.state, scooter: this.riding(g) || !!g.surf, vehicle: g.surf ? 'surf' : g.vehicle || 'scooter', kmh: Math.round(p.speed * 0.36 * (g.pk ? g.pk.speedMul : 1)) });
+                             absorb: absK, absorbSpin: absSpin, lean: Math.max(-1, Math.min(1, p.vx / STEER)), state: g.state, scooter: this.riding(g) || !!g.surf, vehicle: g.surf ? 'surf' : g.vehicle || 'scooter', kmh: Math.round(p.speed * 0.36 * (g.pk ? g.pk.speedMul : 1)), flip: trk && trk.kind === 'flip' ? Math.PI * 2 * ease(trkA) : 0, pop: g.olliePop ? Math.sin(Math.min(1, g.olliePop.t / 0.45) * Math.PI) : 0 });
     if (absK && !(this.runner instanceof RunnerSprite)) this.runner.group.rotation.y += absSpin;      // (the 3D-model avatar has no card to turn: its group turns)
 
     // ---- camera: chase (behind and above, centred on the 2D camera) blended with the menu showcase orbit; looks down the active route

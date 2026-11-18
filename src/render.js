@@ -362,6 +362,18 @@ class Renderer {
     rr(x - 1, y - 1, w + 2, h + 2, 6); c.fillStyle = p > 0.5 ? '#35e6ff' : '#7a3fd0'; c.fill();                                          // the rim: violet, cyan when held
     rr(x + 1, y + 1, w - 2, h - 2, 5); c.fillStyle = p > 0.5 ? '#2a1d44' : '#0d0b16'; c.fill();                                          // the glossy black key
     c.globalAlpha = 0.22 * fade; rr(x + 3, y + 2, w - 6, h * 0.35, 3); c.fillStyle = '#ffffff'; c.fill(); c.globalAlpha = 0.9 * fade;          // its shine (and the arrow stays clear)
+    if (t.id === 'ollie') {                                                     // OLLIE: a board popping up (a tilted line, a little arc over it) and its name
+      c.strokeStyle = p > 0.5 ? '#ffffff' : '#9ff4ff'; c.lineWidth = 1.8; c.lineCap = 'round'; c.beginPath(); c.moveTo(cx - 7, cy + 1); c.lineTo(cx + 5, cy - 4); c.stroke();
+      c.beginPath(); c.arc(cx - 1, cy + 1, 7, 3.6, 5.8); c.stroke(); c.fillStyle = c.strokeStyle; c.font = 'bold 5px sans-serif'; c.textAlign = 'center'; c.fillText('OLLIE', cx, y + h - 2);
+      c.restore(); c.globalAlpha = 1; return;
+    }
+    if (t.id === 'spin' || t.id === 'flip') {                                    // the stunt keys: a round arrow (SPIN: flat, a full turn) or a tall loop (FLIP), and their name; lit while a stunt is in the air
+      c.strokeStyle = p > 0.5 ? '#ffffff' : '#ffb0ee'; c.lineWidth = 1.8; c.lineCap = 'round'; c.beginPath();
+      if (t.id === 'spin') c.ellipse(cx, cy - 2, 8, 4, 0, 0.4, 5.6); else c.ellipse(cx, cy - 2, 4, 7, 0, 0.4, 5.6); c.stroke();
+      c.fillStyle = c.strokeStyle; c.beginPath(); if (t.id === 'spin') { c.moveTo(cx + 8, cy - 4); c.lineTo(cx + 5, cy - 6); c.lineTo(cx + 9, cy - 8); } else { c.moveTo(cx + 4, cy - 6); c.lineTo(cx + 1, cy - 9); c.lineTo(cx + 6, cy - 10); } c.fill();
+      c.font = 'bold 5px sans-serif'; c.textAlign = 'center'; c.fillText(t.id.toUpperCase(), cx, y + h - 3);
+      c.restore(); c.globalAlpha = 1; return;
+    }
     const a = { left: [[4, -5], [-3, 0], [4, 5]], right: [[-4, -5], [3, 0], [-4, 5]], jump: [[-6, 3], [0, -4], [6, 3]], slide: [[-6, -3], [0, 4], [6, -3]] }[t.id];
     c.strokeStyle = p > 0.5 ? '#ffffff' : '#e8e2ff'; c.lineWidth = 2; c.lineCap = 'round'; c.lineJoin = 'round'; c.beginPath(); a.forEach(([dx, dy], i) => i ? c.lineTo(cx + dx, cy + dy) : c.moveTo(cx + dx, cy + dy)); c.stroke();
     c.restore(); c.globalAlpha = 1;
@@ -389,9 +401,9 @@ class Renderer {
     if (sm) {
       const now = performance.now(); if (now - sm.syncT > 500 && g.fitTouch) { g.fitTouch(); sm.syncT = now; }                // (keeps the layer on the screen canvas, whatever the layout does)
       const dt = sm.t === null ? 1 : Math.max(0, Math.min(0.1, g.time - sm.t)); sm.t = g.time; this._fade = 1 - (g.fadeIn > 0 ? Math.min(1, g.fadeIn * g.fadeIn) : 0);
-      for (const id of ['left', 'right', 'slide', 'jump', 'pause']) { const target = Object.values(g.held).includes(id) ? 1 : 0, p = sm.press[id] || 0; sm.press[id] = p + (target - p) * (1 - Math.exp(-18 * dt)); }
+      for (const id of ['left', 'right', 'slide', 'jump', 'pause', 'spin', 'flip', 'ollie']) { const target = Object.values(g.held).includes(id) ? 1 : 0, p = sm.press[id] || 0; sm.press[id] = p + (target - p) * (1 - Math.exp(-18 * dt)); }
       // PERFORMANCE: the layer is cleared and redrawn only when something on it changed (a button easing in or out, the fade, a resize), not on every frame: a still layer costs nothing
-      const set = g.touchSet ? g.touchSet() : TOUCH, sig = ['left', 'right', 'slide', 'jump', 'pause'].map(id => (sm.press[id] || 0).toFixed(2)).join() + '|' + this._fade.toFixed(2) + '|' + sm.cv.width + 'x' + sm.cv.height + '|' + (set === TOUCH ? 'ring' : 'mag' + this.padState(g));
+      const set = g.touchSet ? g.touchSet() : TOUCH, sig = ['left', 'right', 'slide', 'jump', 'pause', 'spin', 'flip', 'ollie'].map(id => (sm.press[id] || 0).toFixed(2)).join() + '|' + this._fade.toFixed(2) + '|' + sm.cv.width + 'x' + sm.cv.height + '|' + (set === TOUCH ? 'ring' : 'mag' + this.padState(g) + (set.lcd ? 'L' : '') + (g.trick ? 'T' : ''));
       sm.redraw = sig !== sm.sig; sm.sig = sig;
       if (sm.redraw) { sm.ctx.setTransform(1, 0, 0, 1, 0, 0); sm.ctx.clearRect(0, 0, sm.cv.width, sm.cv.height); sm.dirty = true; sm.draws = (sm.draws || 0) + 1; }
     }
