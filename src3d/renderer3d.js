@@ -550,9 +550,13 @@ class Renderer3D {
     // down to a low three-quarter view beside the runner (the scooter, its coils and its balance in full view), then eases back to the chase view. Not in VR, not in the menu.
     if (!fpOn && this.riding(g) && g.vehicle !== 'board' && !g.surf && g.state === 'play' && !(this.xr && this.xr.presenting)) {
       if (this.cineT0 === undefined || this.cineT0 === null) this.cineT0 = g.time;
-      const u = (g.time - this.cineT0) % 22 - 14, e = t => t * t * (3 - 2 * t), k = u < 0 || u > 3.5 ? 0 : e(Math.min(1, u / 0.8)) * e(Math.min(1, (3.5 - u) / 0.8)), side = Math.floor((g.time - this.cineT0) / 22) % 2 ? -1 : 1;
+      const u = (g.time - this.cineT0) % 22 - 14, e = t => t * t * (3 - 2 * t), side = Math.floor((g.time - this.cineT0) / 22) % 2 ? -1 : 1;
+      // (the user: no close-up when obstacles are near: an obstacle 90 m ahead or closer holds it off, or eases it out at once; it comes back with the next one)
+      const near = g.world.items.some(it => OBST[it.kind] && !it.taken && it.z > g.p.z - 20 && it.z < g.p.z + 900);
+      const want = u < 0 || u > 3.5 || near ? 0 : e(Math.min(1, u / 0.8)) * e(Math.min(1, (3.5 - u) / 0.8));
+      this.cineK = (this.cineK || 0) + (want - (this.cineK || 0)) * (1 - Math.exp(-(want < (this.cineK || 0) ? 9 : 6) * dt)); const k = this.cineK;
       if (k > 0) { this.cam.x += (relX + side * 2.2 - this.cam.x) * k; this.cam.y += (1.15 - this.cam.y) * k; this.cam.z += (2.4 - this.cam.z) * k; this.look.x += (relX - this.look.x) * k; this.look.y += (0.9 - this.look.y) * k; this.look.z += (-0.6 - this.look.z) * k; }
-    } else this.cineT0 = null;
+    } else { this.cineT0 = null; this.cineK = 0; }
     const XRP = !!(this.xr && this.xr.presenting);                                       // VR (src3d/xr3d.js): no shake, no cutscene camera move, the pose goes to the rig
     if (cornerA) {                                                                       // THE NEON CORNER (NEON_CORNER): the camera turns 90 degrees left round the runner (the runner turned with it above), in NEON_CORNER.T seconds
       const ca = Math.cos(cornerA), sa = Math.sin(cornerA);
