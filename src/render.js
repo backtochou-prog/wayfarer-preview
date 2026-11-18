@@ -524,7 +524,7 @@ class Renderer {
     // the vehicle above the disc. THE SCOOTER (the user, 2026-11-17): a comic SPEECH BUBBLE that pops up (round, white, a dark outline, its tail pointing down at the scooter) with the user's
     // picture of the magnetic scooter inside, as it is (SCOOTER_ART). The skateboard keeps its pixel drawing.
     const bob = Math.round(Math.sin(g.time * 4) * 2);
-    if (!board && typeof SCOOTER_ART !== 'undefined') {
+    if (h.pinned) {} else if (!board && typeof SCOOTER_ART !== 'undefined') {      // (pinned low at the side once passed: no bubble, so it does not hide the road)
       this.bubbleArt = h.kind === 'bike' && typeof BIKE_ART !== 'undefined' ? BIKE_ART : SCOOTER_ART;
       this.scooterImg = this.bubbleArt.img || this.scooterImg;
       if (h.key !== this.bubbleKey) { this.bubbleKey = h.key; this.bubbleT = g.time; }                                     // a new scooter: the bubble pops again

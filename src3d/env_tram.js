@@ -225,7 +225,7 @@ window.ENV3D = window.ENV3D || {};
           case 6:                                                                                            // market corner: canopies, hedges, steps, signs, scooters, a crossing
             house(pick(), FRONT_X + 1.0 + r(1) * 0.5, (r(2) - 0.5) * 0.6); out.push({ prop: 'lantern', x: side * 3.95, dist: 8 });
             { const e = r(9); if (e < 0.4) out.push({ prop: 'tent', x: side * 5.6, dist: 5 + r(10) * 2 }); else if (e < 0.7) out.push({ prop: 'hedge', x: side * 5.0, dist: 6 }); else out.push({ prop: 'steps', x: side * 4.6, dist: 6 }); }
-            if (r(11) < 0.5) out.push({ prop: 'streetSign', x: side * 3.8, dist: 2.5 }); if (r(29) < 0.05) out.push({ prop: 'bikeSport', x: side * 4.4, dist: 10 }); else if (r(13) < 0.4) out.push({ prop: 'scooter', x: side * 4.3, dist: 10 }); else if (r(15) < 0.35) out.push({ prop: 'scooterDock', x: side * 4.6, dist: 6 });
+            if (r(11) < 0.5) out.push({ prop: 'streetSign', x: side * 3.8, dist: 2.5 }); if (r(29) < 0.05) out.push({ prop: 'bikeSport', x: side * 4.4, dist: 10 }); else if (r(13) < 0.15) out.push({ prop: 'scooter', x: side * 4.3, dist: 10 });      /* (fewer: the user) */ else if (r(15) < 0.35) out.push({ prop: 'scooterDock', x: side * 4.6, dist: 6 });
             if (side > 0 && mod(i, 3) === 0) out.push({ prop: 'zebra', x: 0.01, dist: 6 }); break;
           default:
             if (par === 0) house(pick(), FRONT_X + 4.5, (r(2) - 0.5) * 1.2);

@@ -252,7 +252,7 @@ class Renderer3D {
     else if (ev.t === 'expire') this.perk.ring(ev.kind, lat, 0.15, z, t, 2.2);
     else if (ev.t === 'mission' || ev.t === 'combo') this.perk.celebrate(lat, y, z, t);
   }
-  onReset() { for (const k in this.layouts) this.layouts[k].clear(); this.fx.clear(); this.perk.clear(); this.heading = 0; this.lastT = 0; this.usedSpots.clear(); this.armedSpot = null; }
+  onReset() { this.hintRest = 0; for (const k in this.layouts) this.layouts[k].clear(); this.fx.clear(); this.perk.clear(); this.heading = 0; this.lastT = 0; this.usedSpots.clear(); this.armedSpot = null; }
 
   // does the runner ride the kick scooter? The player decides (Game.riding: tap the indicator over a parked scooter or a station, or press E; again to get off); ?scooter=1 rides
   // everywhere and always, ?scooter=0 never (for testing)
@@ -272,10 +272,13 @@ class Renderer3D {
     if (g.state !== 'play' || this.riding(g) || g.surf) { this.armedSpot = null; return; }
     const U = U3, rz = g.p.z * U.Z, Lref = (g.camX + g.camOff) * U.X, w = g.world, d0 = w.dropAt(g.p.z);
     let sp = null;
-    const kept = this.armedSpot && !this.usedSpots.has(this.armedSpot.key) && this.armedSpot.zAbs - rz >= -60 ? this.armedSpot : null;     // the scooter already offered stays offered until it is 60 m behind (a newer one nearer ahead does not take over: no chasing a moving target)
+    // (the user: the indicators got in the way of the view: one is offered from 70 m ahead only, it goes once it is 30 m behind (pinned low at the side meanwhile, without its bubble), and once one has gone by, the next is not offered for 20 s)
+    if (this.armedSpot && !this.usedSpots.has(this.armedSpot.key) && this.armedSpot.zAbs - rz < -30) { this.hintRest = g.time + 20; this.armedSpot = null; }
+    if (this.hintRest && g.time < this.hintRest) return;
+    const kept = this.armedSpot && !this.usedSpots.has(this.armedSpot.key) && this.armedSpot.zAbs - rz >= -30 ? this.armedSpot : null;     // the scooter already offered stays offered until it is 60 m behind (a newer one nearer ahead does not take over: no chasing a moving target)
     if (kept) { const ahead = kept.zAbs - rz; sp = { key: kept.key, dock: kept.dock, kind: kept.kind, ahead, x: kept.xAbs - Lref, y: WALK_Y - (w.dropAt(kept.zAbs / U.Z) - d0) * U.Z, z: -ahead }; }
     else {
-      sp = this.spots.filter(q => q.ahead >= -20 && q.ahead <= 140 && !this.usedSpots.has(q.key)).sort((p, q) => (p.ahead < 0 ? 1000 - p.ahead : p.ahead) - (q.ahead < 0 ? 1000 - q.ahead : q.ahead))[0];          // else the nearest one ahead (or, if none, the one just passed)
+      sp = this.spots.filter(q => q.ahead >= 0 && q.ahead <= 70 && !this.usedSpots.has(q.key)).sort((p, q) => (p.ahead < 0 ? 1000 - p.ahead : p.ahead) - (q.ahead < 0 ? 1000 - q.ahead : q.ahead))[0];          // else the nearest one ahead (or, if none, the one just passed)
       if (!sp) { this.armedSpot = null; return; }
       this.armedSpot = { key: sp.key, dock: sp.dock, kind: sp.kind, xAbs: sp.x + Lref, zAbs: rz + sp.ahead };                       // remembered by its absolute place: the street scenery is only built ~25 m behind the runner
     }

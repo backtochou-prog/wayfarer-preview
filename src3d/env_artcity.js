@@ -111,8 +111,9 @@ const ArtCity = {
     if (r === 10) out.push({ prop: 'artBeanbag', x: 5.6, dist: 5 });
     if (r === 20) out.push({ prop: 'artRound', x: -10, dist: 6 });
     const U = typeof NEON_CORNER !== 'undefined' ? NEON_CORNER.UP : 6, up = !!(det && det.up);
-    if (r % 8 === 7 && r < N - U - 3) out.push({ prop: 'bikeSport', x: r % 16 === 7 ? -4.9 : 4.9, dist: 5 });
-    if (r % 8 === 3 && r < N - U - 3) out.push({ prop: 'scooterMag', x: r % 16 === 3 ? 4.9 : -4.9, dist: 7 });                     // a magnetic scooter to ride, now and then, on either side
+    if (r === 1) out.push({ prop: 'bikeSport', x: 4.6, dist: 4 });                                                  // THE E-BIKE at the entrance of ART CITY (the user), just out of the tunnel on the right
+    if (r % 12 === 9 && r < N - U - 3) out.push({ prop: 'bikeSport', x: r % 24 === 9 ? -4.9 : 4.9, dist: 5 });
+    if (r % 20 === 15 && r < N - U - 3) out.push({ prop: 'scooterMag', x: r % 40 === 15 ? 4.9 : -4.9, dist: 7 });                     // a magnetic scooter to ride, now and then, on either side
     if (r === N - 1) out.push({ prop: 'artBridge', x: 0.001, dist: 2.5, dy: -liftM });      // THE BRIDGE over the tunnel (the user removed the lavender wall and the green spiral: the next stage's sky opens there)   // THE BRIDGE over the tunnel, under the spiral
     if (!up && r >= N - U) out.push({ prop: 'artGlassRamp' + (r - (N - U)), x: 0.001, dist: 6 });
     if (!up && r >= N - U && r < N - U + 3) for (let n = out.length - 1; n >= 0; n--) if (out[n].prop === 'artRail' && out[n].x < 0) out.splice(n, 1);      // (the exit: the left rail opens where the ramp leaves the circuit)
