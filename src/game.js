@@ -225,15 +225,16 @@ class Game {
   // OLLIE (the user: 'olé'): the skater's own jump, from the ground: a higher jump than the plain one, the vehicle's nose popped up then levelled; it counts as a stunt at the landing,
   // so an ollie can be followed by a spin or a flip in the air
   stunt(kind) { const p = this.p; if (this.state !== 'play' || !this.riding || this.trick) return;
-    if (kind === 'ollie') { if (p.jy > 0) return; p.slide = 0; p.vy = JUMP_V * 1.15; p.jy = 0.01; this.olliePop = { t: 0 }; this.trick = null; this.ollieDone = true; this.emit('jump'); return; }
-    if (p.jy <= 0) return; this.trick = { kind, t: 0, dur: kind === 'spin' ? 0.45 : 0.4 }; this.emit('jump'); }
+    if (kind === 'ollie') { if (p.jy > 0) return; p.slide = 0; p.vy = JUMP_V * (this.vehicle === 'bike' ? 1.05 : 1.15); p.jy = 0.01; this.olliePop = { t: 0 }; this.trick = null; this.ollieDone = true; this.emit('jump'); return; }
+    if (p.jy <= 0) return; const bk = this.vehicle === 'bike'; this.trick = { kind, t: 0, dur: kind === 'spin' ? (bk ? 0.55 : 0.45) : (bk ? 0.5 : 0.4) }; this.emit('jump'); }      // (THE E-BIKE, a heavy bike on wheels: a slower 360, a TAILWHIP for the flip)
+  stuntName(k) { return this.vehicle === 'bike' ? { spin: '360', flip: 'TAILWHIP', ollie: 'BUNNY HOP' }[k] : { spin: 'SPIN', flip: 'FLIP', ollie: 'OLLIE' }[k]; }
   landTrick() {
     let olliePts = 0;
-    if (this.ollieDone) { this.ollieDone = false; this.combo = (this.combo || 0) + 1; olliePts = 3 * this.combo; this.stuntPts = (this.stuntPts || 0) + olliePts;      // the ollie counts first (then the stunt done in its air, if any)
-      if (!this.trick) { this.banner = { t: 1.2, text: 'OLLIE! +' + olliePts + (this.combo > 1 ? ' X' + this.combo : '') }; this.emit('coin'); return; } }
+    if (this.ollieDone) { this.ollieDone = false; this.combo = (this.combo || 0) + 1; olliePts = (this.vehicle === 'bike' ? 4 : 3) * this.combo; this.stuntPts = (this.stuntPts || 0) + olliePts;      // the ollie counts first (then the stunt done in its air, if any)
+      if (!this.trick) { this.banner = { t: 1.2, text: this.stuntName('ollie') + '! +' + olliePts + (this.combo > 1 ? ' X' + this.combo : '') }; this.emit('coin'); return; } }
     const T = this.trick; if (!T) return; this.trick = null;
-    if (olliePts && T.t >= T.dur) { this.combo++; const pts = (T.kind === 'flip' ? 8 : 5) * this.combo; this.stuntPts += pts; this.banner = { t: 1.6, text: 'OLLIE + ' + (T.kind === 'flip' ? 'FLIP' : 'SPIN') + '! +' + (olliePts + pts) + ' X' + this.combo }; this.emit('coin'); return; }
-    if (T.t >= T.dur) { this.combo = (this.combo || 0) + 1; const pts = (T.kind === 'flip' ? 8 : 5) * this.combo; this.stuntPts = (this.stuntPts || 0) + pts; this.banner = { t: 1.4, text: (T.kind === 'flip' ? 'FLIP!' : 'SPIN!') + ' +' + pts + (this.combo > 1 ? ' X' + this.combo : '') }; this.emit('coin'); }
+    if (olliePts && T.t >= T.dur) { this.combo++; const pts = (T.kind === 'flip' ? (this.vehicle === 'bike' ? 10 : 8) : (this.vehicle === 'bike' ? 6 : 5)) * this.combo; this.stuntPts += pts; this.banner = { t: 1.6, text: this.stuntName('ollie') + ' + ' + this.stuntName(T.kind) + '! +' + (olliePts + pts) + ' X' + this.combo }; this.emit('coin'); return; }
+    if (T.t >= T.dur) { this.combo = (this.combo || 0) + 1; const pts = (T.kind === 'flip' ? (this.vehicle === 'bike' ? 10 : 8) : (this.vehicle === 'bike' ? 6 : 5)) * this.combo; this.stuntPts = (this.stuntPts || 0) + pts; this.banner = { t: 1.4, text: this.stuntName(T.kind) + '! +' + pts + (this.combo > 1 ? ' X' + this.combo : '') }; this.emit('coin'); }
     else { this.combo = 0; this.banner = { t: 1.2, text: 'BAD LANDING' }; this.shake = 0.25; }
   }
   touchSet() { return !this.riding ? TOUCH : this.vehicle !== 'board' && !this.camFP && typeof MAG_PAD_ART !== 'undefined' ? TOUCH_MAG : TOUCH_RIDE; }      // (on foot / the scooter with its LCD / any vehicle without, or in the rider's eyes)      // (the magnetic scooter's controller while riding it)
@@ -389,7 +390,7 @@ class Game {
     const w = this.world, p = this.p, prevZ = p.z, pk = this.pk;
     p.speed = Math.min(MAX_SPEED, p.speed + ACCEL * dt);
     if (pk) pk.update(dt);                                                         // power-up timers, mission distance, toasts: only ever advance here, so a pause or a cutscene freezes them
-    p.z += p.speed * (pk ? pk.speedMul : 1) * dt;                                  // the dash: a forward boost on top of the run's own speed ramp
+    p.z += p.speed * (pk ? pk.speedMul : 1) * (this.riding && this.vehicle === 'bike' ? 1.12 : 1) * dt;      // (the sport e-bike is 12 % faster)                                  // the dash: a forward boost on top of the run's own speed ramp
     if (typeof NEON_CORNER !== 'undefined' && NEON_CORNER.on && !this.detour) {          // THE NEON CORNER: reaching the junction in the left lane turns into the picture district
       const zJ = NEON_CORNER.junction(w, prevZ + 1);
       if (zJ !== null && prevZ < zJ && p.z >= zJ && p.x - w.playerBand(zJ, p.x).c < -LANE_W * 0.5) { p.z = zJ; this.corner = { t: 0, z0: zJ }; this.emit('corner'); return; }
@@ -410,7 +411,7 @@ class Game {
     this.steer(dt);
     if (this.jumpBuf > 0) { // jump starts on the ground, cancels a slide; a press just before landing is kept briefly
       this.jumpBuf -= dt;
-      if (p.jy === 0) { p.slide = 0; p.vy = JUMP_V; p.jy = 0.01; this.jumpBuf = 0; this.emit('jump'); }
+      if (p.jy === 0) { p.slide = 0; p.vy = JUMP_V * (this.riding && this.vehicle === 'bike' ? 0.92 : 1); p.jy = 0.01; this.jumpBuf = 0; this.emit('jump'); }      // (the e-bike is heavier: a lower jump)
     }
     if (p.jy > 0) { p.vy -= GRAV * dt; p.jy += p.vy * dt; if (p.jy <= 0) { p.jy = 0; p.vy = 0; this.emit('land'); this.landTrick(); } }
     if (this.trick) this.trick.t += dt; if (this.olliePop) { this.olliePop.t += dt; if (this.olliePop.t > 0.5) this.olliePop = null; }

@@ -383,7 +383,7 @@ window.ENV3D = window.ENV3D || {};
       if (mod(i, 3) === (side > 0 ? 1 : 0)) out.push({ prop: 'neonPole', x: side * 4.1, dist: 3 });
       if (rnd(k, 75) < 0.22) out.push({ prop: 'neonPuddle', x: side * (0.9 + rnd(k, 76) * 1.4), dist: 2 + rnd(k, 77) * 8 });
       if (out.some(q => LMX.test(q.prop) && Math.sign(q.x) === side)) continue;
-      if (e < 0.07) out.push({ prop: 'neonHoverDock', x: side * 4.9, dist: 6 }); else if (e < 0.21) out.push({ prop: 'neonHover', x: side * 5.3, dist: 9.5 }); else if (e < 0.33) out.push({ prop: LAMPS[Math.floor(rnd(k, 71) * LAMPS.length)], x: side * 5.1, dist: 4.5 + rnd(k, 72) * 2 });      // a lamp of the fourth set
+      if (e < 0.07) out.push({ prop: 'neonHoverDock', x: side * 4.9, dist: 6 }); else if (e < 0.13) out.push({ prop: 'neonHover', x: side * 5.3, dist: 9.5 }); else if (e < 0.25) out.push({ prop: 'bikeSport', x: side * 4.6, dist: 7 });      // (the sport e-bike: the quarter's main vehicle) else if (e < 0.33) out.push({ prop: LAMPS[Math.floor(rnd(k, 71) * LAMPS.length)], x: side * 5.1, dist: 4.5 + rnd(k, 72) * 2 });      // a lamp of the fourth set
     }
     const cr = cornerRel(i);                                                                                                    // THE CORNER: a square opening in the left row (27 m), the district seen through it
     if (cr !== null && cr >= -2 && cr <= 1) { const keep = out.filter(q => q.x > 0.5); if (cr === 0) keep.push({ prop: 'neonPicSide', x: 0, dist: 0 }, { prop: 'neonPicSideBack', x: 0, dist: 0 }, { prop: 'neonPicSideTube', x: 0, dist: 0 }); return keep; }

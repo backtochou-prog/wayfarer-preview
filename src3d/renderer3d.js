@@ -438,10 +438,10 @@ class Renderer3D {
             if (this.tubeCut && /^aqua/.test(pl.prop) && (zs < this.tubeCut[0] || zs + SL > this.tubeCut[1])) continue;        // (the ribs and their dark lines of a slot that sticks out of a mouth are not drawn: the ring is the mouth)
             if (pl.under !== undefined && w.seaDepth((zs + pl.dist) / U.Z) * U.Z < pl.under) continue;                    // sea life only where the sea is deep enough over the road (never in the air)
             const t = pl.dist / SL, cx = c0 + (c1 - c0) * t;
-            if (/^(scooter|board|neonHover)/.test(pl.prop)) {                    // a parked scooter or a scooter station: offered to the player (an indicator above it), unless it was already taken
+            if (/^(scooter|board|neonHover|bike)/.test(pl.prop)) {                    // a parked scooter or a scooter station: offered to the player (an indicator above it), unless it was already taken
               const key = i + ':' + pl.prop + ':' + pl.x.toFixed(2);
               if (this.usedSpots.has(key)) continue;
-              this.spots.push({ key, dock: /Dock$/.test(pl.prop), kind: /^(board|neonHover)/.test(pl.prop) ? 'board' : 'scooter', x: cx + pl.x, y: WALK_Y + dyb((zs + pl.dist) / U.Z), z: rz - zs - pl.dist, ahead: zs + pl.dist - rz });
+              this.spots.push({ key, dock: /Dock$/.test(pl.prop), kind: /^bike/.test(pl.prop) ? 'bike' : /^(board|neonHover)/.test(pl.prop) ? 'board' : 'scooter', x: cx + pl.x, y: WALK_Y + dyb((zs + pl.dist) / U.Z), z: rz - zs - pl.dist, ahead: zs + pl.dist - rz });
             }
             let py = WALK_Y + dyb((zs + pl.dist) / U.Z) + (pl.dy || 0), pz = rz - zs - pl.dist;
             if (pl.live) { py += Math.sin(g.time * 0.8 + i * 1.7 + pl.x) * 0.45; pz += Math.sin(g.time * 0.35 + i) * 2.2; }                    // a creature of the aquarium drifts a little (up and down, along the road)
@@ -527,7 +527,7 @@ class Renderer3D {
     let cornerA = 0; if (g.corner && !(this.xr && this.xr.presenting)) { const k = Math.min(1, g.corner.t / NEON_CORNER.T); cornerA = Math.PI / 2 * k * k * (3 - 2 * k); }   // THE NEON CORNER's pivot angle
     this.runner.group.rotation.y = Math.PI * mm + this.heading * (1 - mm) + cornerA + (trk && trk.kind === 'spin' ? Math.PI * 2 * ease(trkA) : 0);
     this.runner.update(dt, { beat: pulse, faceYaw: Math.atan2(this.cam.x - relX, this.cam.z) + cornerA, time: g.time, runRate: 2.3 + p.speed / 340 * 1.1, airborne: p.jy > 0, vy: p.vy, sliding: p.slide > 0,
-                             absorb: absK, absorbSpin: absSpin, lean: Math.max(-1, Math.min(1, p.vx / STEER)), state: g.state, scooter: this.riding(g) || !!g.surf, vehicle: g.surf ? 'surf' : g.vehicle || 'scooter', kmh: Math.round(p.speed * 0.36 * (g.pk ? g.pk.speedMul : 1)), flip: trk && trk.kind === 'flip' ? Math.PI * 2 * ease(trkA) : 0, pop: g.olliePop ? Math.sin(Math.min(1, g.olliePop.t / 0.45) * Math.PI) : 0 });
+                             absorb: absK, absorbSpin: absSpin, lean: Math.max(-1, Math.min(1, p.vx / STEER)), state: g.state, scooter: this.riding(g) || !!g.surf, vehicle: g.surf ? 'surf' : g.vehicle || 'scooter', kmh: Math.round(p.speed * 0.36 * (g.pk ? g.pk.speedMul : 1)), flip: trk && trk.kind === 'flip' ? Math.PI * 2 * ease(trkA) : 0, pop: g.olliePop ? Math.sin(Math.min(1, g.olliePop.t / 0.45) * Math.PI) : 0 });      // (on the e-bike the flip is a tailwhip: RunnerSprite turns its frame about the vertical)
     if (absK && !(this.runner instanceof RunnerSprite)) this.runner.group.rotation.y += absSpin;      // (the 3D-model avatar has no card to turn: its group turns)
 
     // ---- camera: chase (behind and above, centred on the 2D camera) blended with the menu showcase orbit; looks down the active route
@@ -542,7 +542,7 @@ class Renderer3D {
     this.fpK = (this.fpK || 0) + ((fpOn ? 1 : 0) - (this.fpK || 0)) * (1 - Math.exp(-8 * dt));
     if (this.fpK > 0.01) { const k = this.fpK, eyeY = 1.72 + p.jy * U.Y + lift; this.cam.x += (relX - this.cam.x) * k; this.cam.y += (eyeY - this.cam.y) * k; this.cam.z += (0.3 - this.cam.z) * k;
       this.look.x += (this.lookX - this.look.x) * k; this.look.y += (1.0 - this.look.y) * k; this.look.z += (-18 - this.look.z) * k; }
-    if (this.runner.pivot) this.runner.pivot.visible = this.fpK < 0.6; { const tp = this.runner.scooter && this.runner.scooter.userData.top; if (tp) tp.visible = this.fpK < 0.6; }
+    if (this.runner.pivot) this.runner.pivot.visible = this.fpK < 0.6; for (const vh of [this.runner.scooter, this.runner.bike]) { const tp = vh && vh.userData.top; if (tp) tp.visible = this.fpK < 0.6; }
     // THE CLOSE-UP OF THE MAGNETIC SCOOTER (the user: now and then the camera comes close to the scooter, to show the action): while riding it, every 22 s, for 3.5 s, the camera eases
     // down to a low three-quarter view beside the runner (the scooter, its coils and its balance in full view), then eases back to the chase view. Not in VR, not in the menu.
     if (!fpOn && this.riding(g) && g.vehicle !== 'board' && !g.surf && g.state === 'play' && !(this.xr && this.xr.presenting)) {

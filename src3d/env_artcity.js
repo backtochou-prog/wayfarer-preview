@@ -71,6 +71,7 @@ const ArtCity = {
     artArch: () => Kit.merge([Kit.box(1.4, 9, 2.4, -9.6, 0, 0, A.green), Kit.box(1.4, 9, 2.4, 0.4, 0, 0, A.green), Kit.box(11.4, 2.2, 2.4, -4.6, 9, 0, A.green), Kit.box(11.6, 0.15, 2.5, -4.6, 8.95, 0, '#7cff6a', { glow: true })]),
     // THE MAGNETIC SCOOTER parked on ART CITY's painted floor (the user: offered there too; the game offers any prop named scooter*: Renderer3D spots)
     scooterMag: () => Kit.merge(RunnerSprite.magScooterParts(0, 0, 0.35, 0)),
+    bikeSport: () => typeof BIKE_ART !== 'undefined' ? RunnerSprite.bikeCardProp() : RunnerSprite.bikeStatic(0.25),      // THE SPORT E-BIKE (the user: the main vehicle of ART CITY and the neon quarter), parked
     artBeanbag: () => Kit.merge([Kit.ico(1.6, 0, 1.1, 0, A.red), Kit.ico(1.2, 0.5, 1.9, 0.6, A.red), Kit.ico(1.1, -0.6, 0.8, -0.8, A.redD)]),
     // THE GREEN SPIRAL at the end of the district, high on a lavender wall across the road, over the tunnel back to the neon street
     artSpiralUp: () => props.artSpiral(true),
@@ -110,6 +111,7 @@ const ArtCity = {
     if (r === 10) out.push({ prop: 'artBeanbag', x: 5.6, dist: 5 });
     if (r === 20) out.push({ prop: 'artRound', x: -10, dist: 6 });
     const U = typeof NEON_CORNER !== 'undefined' ? NEON_CORNER.UP : 6, up = !!(det && det.up);
+    if (r % 8 === 7 && r < N - U - 3) out.push({ prop: 'bikeSport', x: r % 16 === 7 ? -4.9 : 4.9, dist: 5 });
     if (r % 8 === 3 && r < N - U - 3) out.push({ prop: 'scooterMag', x: r % 16 === 3 ? 4.9 : -4.9, dist: 7 });                     // a magnetic scooter to ride, now and then, on either side
     if (r === N - 1) out.push({ prop: 'artBridge', x: 0.001, dist: 2.5, dy: -liftM });      // THE BRIDGE over the tunnel (the user removed the lavender wall and the green spiral: the next stage's sky opens there)   // THE BRIDGE over the tunnel, under the spiral
     if (!up && r >= N - U) out.push({ prop: 'artGlassRamp' + (r - (N - U)), x: 0.001, dist: 6 });

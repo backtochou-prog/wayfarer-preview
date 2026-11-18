@@ -177,7 +177,8 @@ window.ENV3D = window.ENV3D || {};
         for (const [x, z] of [[-1.2, -1.2], [1.2, -1.2], [-1.2, 1.2], [1.2, 1.2]]) p.push(Kit.cyl(0.04, 0.04, 2.5, x, 0, z, '#9aa0a6', { seg: 5 }));
         [['#c0392b', -0.4, -0.7], ['#5a9a3c', 0.3, -0.2], ['#e08a1e', -0.3, 0.4], ['#c0392b', 0.4, 0.8]].forEach(([c, x, z]) => p.push(Kit.box(0.5, 0.25, 0.45, x, 0.8, z, c)));
         return Kit.merge(p); },
-      scooter: () => { const p = []; scooterParts(p, 0, 0, 0, 0.1); return Kit.merge(p); },        // a lime kick scooter parked on the pavement (leaning a little); the game offers a ride on it
+      scooter: () => { const p = []; scooterParts(p, 0, 0, 0, 0.1); return Kit.merge(p); },
+      bikeSport: () => typeof BIKE_ART !== 'undefined' ? RunnerSprite.bikeCardProp() : RunnerSprite.bikeStatic(0.25),      // the sport e-bike, rare here (the user: main in the neon quarter and ART CITY, a rare find elsewhere)        // a lime kick scooter parked on the pavement (leaning a little); the game offers a ride on it
       scooterDock: () => { const p = [Kit.box(1.5, 0.08, 6.2, 0.75, 0, 0, '#5a5560'), Kit.box(0.14, 1.5, 0.5, 1.45, 0.08, -3.4, '#2c3d34'), Kit.box(0.1, 0.1, 0.34, 1.4, 1.2, -3.4, '#3dff72', { glow: true })];   // a scooter station: a platform with a charging post and four scooters in a row
         for (let k = 0; k < 4; k++) scooterParts(p, 0.75, -2.1 + k * 1.4, Math.PI / 2, 0); return Kit.merge(p); },
       board: () => { const p = [Kit.cyl(0.5, 0.55, 0.04, 0, 0, 0, '#2a2a34', { seg: 12 }), Kit.cyl(0.42, 0.42, 0.012, 0, 0.04, 0, '#ff1f5a', { seg: 12, glow: true })]; boardParts(p, 0, 0, 0.1);      // an electromagnetic skateboard floating over a glowing pad
@@ -224,7 +225,7 @@ window.ENV3D = window.ENV3D || {};
           case 6:                                                                                            // market corner: canopies, hedges, steps, signs, scooters, a crossing
             house(pick(), FRONT_X + 1.0 + r(1) * 0.5, (r(2) - 0.5) * 0.6); out.push({ prop: 'lantern', x: side * 3.95, dist: 8 });
             { const e = r(9); if (e < 0.4) out.push({ prop: 'tent', x: side * 5.6, dist: 5 + r(10) * 2 }); else if (e < 0.7) out.push({ prop: 'hedge', x: side * 5.0, dist: 6 }); else out.push({ prop: 'steps', x: side * 4.6, dist: 6 }); }
-            if (r(11) < 0.5) out.push({ prop: 'streetSign', x: side * 3.8, dist: 2.5 }); if (r(13) < 0.4) out.push({ prop: 'scooter', x: side * 4.3, dist: 10 }); else if (r(15) < 0.35) out.push({ prop: 'scooterDock', x: side * 4.6, dist: 6 });
+            if (r(11) < 0.5) out.push({ prop: 'streetSign', x: side * 3.8, dist: 2.5 }); if (r(29) < 0.05) out.push({ prop: 'bikeSport', x: side * 4.4, dist: 10 }); else if (r(13) < 0.4) out.push({ prop: 'scooter', x: side * 4.3, dist: 10 }); else if (r(15) < 0.35) out.push({ prop: 'scooterDock', x: side * 4.6, dist: 6 });
             if (side > 0 && mod(i, 3) === 0) out.push({ prop: 'zebra', x: 0.01, dist: 6 }); break;
           default:
             if (par === 0) house(pick(), FRONT_X + 4.5, (r(2) - 0.5) * 1.2);

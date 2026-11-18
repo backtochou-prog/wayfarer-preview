@@ -364,14 +364,14 @@ class Renderer {
     c.globalAlpha = 0.22 * fade; rr(x + 3, y + 2, w - 6, h * 0.35, 3); c.fillStyle = '#ffffff'; c.fill(); c.globalAlpha = 0.9 * fade;          // its shine (and the arrow stays clear)
     if (t.id === 'ollie') {                                                     // OLLIE: a board popping up (a tilted line, a little arc over it) and its name
       c.strokeStyle = p > 0.5 ? '#ffffff' : '#9ff4ff'; c.lineWidth = 1.8; c.lineCap = 'round'; c.beginPath(); c.moveTo(cx - 7, cy + 1); c.lineTo(cx + 5, cy - 4); c.stroke();
-      c.beginPath(); c.arc(cx - 1, cy + 1, 7, 3.6, 5.8); c.stroke(); c.fillStyle = c.strokeStyle; c.font = 'bold 5px sans-serif'; c.textAlign = 'center'; c.fillText('OLLIE', cx, y + h - 2);
+      c.beginPath(); c.arc(cx - 1, cy + 1, 7, 3.6, 5.8); c.stroke(); c.fillStyle = c.strokeStyle; c.font = 'bold 5px sans-serif'; c.textAlign = 'center'; c.fillText(t.label || 'OLLIE', cx, y + h - 2);
       c.restore(); c.globalAlpha = 1; return;
     }
     if (t.id === 'spin' || t.id === 'flip') {                                    // the stunt keys: a round arrow (SPIN: flat, a full turn) or a tall loop (FLIP), and their name; lit while a stunt is in the air
       c.strokeStyle = p > 0.5 ? '#ffffff' : '#ffb0ee'; c.lineWidth = 1.8; c.lineCap = 'round'; c.beginPath();
       if (t.id === 'spin') c.ellipse(cx, cy - 2, 8, 4, 0, 0.4, 5.6); else c.ellipse(cx, cy - 2, 4, 7, 0, 0.4, 5.6); c.stroke();
       c.fillStyle = c.strokeStyle; c.beginPath(); if (t.id === 'spin') { c.moveTo(cx + 8, cy - 4); c.lineTo(cx + 5, cy - 6); c.lineTo(cx + 9, cy - 8); } else { c.moveTo(cx + 4, cy - 6); c.lineTo(cx + 1, cy - 9); c.lineTo(cx + 6, cy - 10); } c.fill();
-      c.font = 'bold 5px sans-serif'; c.textAlign = 'center'; c.fillText(t.id.toUpperCase(), cx, y + h - 3);
+      c.font = 'bold 5px sans-serif'; c.textAlign = 'center'; c.fillText(t.label || t.id.toUpperCase(), cx, y + h - 3);
       c.restore(); c.globalAlpha = 1; return;
     }
     const a = { left: [[4, -5], [-3, 0], [4, 5]], right: [[-4, -5], [3, 0], [-4, 5]], jump: [[-6, 3], [0, -4], [6, 3]], slide: [[-6, -3], [0, 4], [6, -3]] }[t.id];
@@ -403,7 +403,7 @@ class Renderer {
       const dt = sm.t === null ? 1 : Math.max(0, Math.min(0.1, g.time - sm.t)); sm.t = g.time; this._fade = 1 - (g.fadeIn > 0 ? Math.min(1, g.fadeIn * g.fadeIn) : 0);
       for (const id of ['left', 'right', 'slide', 'jump', 'pause', 'spin', 'flip', 'ollie']) { const target = Object.values(g.held).includes(id) ? 1 : 0, p = sm.press[id] || 0; sm.press[id] = p + (target - p) * (1 - Math.exp(-18 * dt)); }
       // PERFORMANCE: the layer is cleared and redrawn only when something on it changed (a button easing in or out, the fade, a resize), not on every frame: a still layer costs nothing
-      const set = g.touchSet ? g.touchSet() : TOUCH, sig = ['left', 'right', 'slide', 'jump', 'pause', 'spin', 'flip', 'ollie'].map(id => (sm.press[id] || 0).toFixed(2)).join() + '|' + this._fade.toFixed(2) + '|' + sm.cv.width + 'x' + sm.cv.height + '|' + (set === TOUCH ? 'ring' : 'mag' + this.padState(g) + (set.lcd ? 'L' : '') + (g.trick ? 'T' : ''));
+      const set = g.touchSet ? g.touchSet() : TOUCH, sig = ['left', 'right', 'slide', 'jump', 'pause', 'spin', 'flip', 'ollie'].map(id => (sm.press[id] || 0).toFixed(2)).join() + '|' + this._fade.toFixed(2) + '|' + sm.cv.width + 'x' + sm.cv.height + '|' + (set === TOUCH ? 'ring' : 'mag' + this.padState(g) + (set.lcd ? 'L' : '') + (g.trick ? 'T' : '') + (g.vehicle || ''));
       sm.redraw = sig !== sm.sig; sm.sig = sig;
       if (sm.redraw) { sm.ctx.setTransform(1, 0, 0, 1, 0, 0); sm.ctx.clearRect(0, 0, sm.cv.width, sm.cv.height); sm.dirty = true; sm.draws = (sm.draws || 0) + 1; }
     }
@@ -429,7 +429,7 @@ class Renderer {
         c.fillStyle = C.amberD; c.fillRect(t.x, t.y, t.w, 1); c.fillRect(t.x, t.y + t.h - 1, t.w, 1); c.globalAlpha = 1;
         this.scooterGlyph(t.x + 4, t.y + 5, C.bone); this.txt('HOP OFF', t.x + 20, t.y + 8, C.bone, 1); continue;
       }
-      if (t.mag) { const sh = this.padShake(g), t2 = Object.assign({}, t, { x: t.x + sh[0], y: t.y + sh[1] }); if (sm) { if (sm.redraw) this.magButton(sm.ctx, t2, sm.press[t.id] || 0, this._fade, sm.cv.width / (VW + 2 * TOUCH_OUT)); } else this.magButton(c, t2, on.has(t.id) ? 1 : 0, 1, 0); continue; }
+      if (t.mag) { const sh = this.padShake(g), t2 = Object.assign({}, t, { x: t.x + sh[0], y: t.y + sh[1], label: g.vehicle === 'bike' ? { spin: '360', flip: 'WHIP', ollie: 'HOP' }[t.id] : null }); if (sm) { if (sm.redraw) this.magButton(sm.ctx, t2, sm.press[t.id] || 0, this._fade, sm.cv.width / (VW + 2 * TOUCH_OUT)); } else this.magButton(c, t2, on.has(t.id) ? 1 : 0, 1, 0); continue; }
       if (sm) { if (sm.redraw) this.smoothButton(sm, g, t, sm.press[t.id] || 0, this._fade); continue; }
       const hot = on.has(t.id), cx = t.x + (t.w >> 1), cy = t.y + (t.h >> 1);
       if (art) {
@@ -498,7 +498,7 @@ class Renderer {
         c.fillStyle = C.ink; c.beginPath(); c.arc(bx, by, R + 2, 0, 6.2832); c.fill(); c.lineWidth = 4; c.strokeStyle = C.ink; tail(); c.stroke();          // the dark outline
         c.fillStyle = '#ffffff'; tail(); c.fill(); c.beginPath(); c.arc(bx, by, R, 0, 6.2832); c.fill();                                                    // the white bubble and its tail
         c.fillStyle = '#ffe6fa'; c.beginPath(); c.arc(bx - R * 0.35, by - R * 0.4, R * 0.22, 0, 6.2832); c.fill();                                       // a highlight, like a comic
-        const im = this.scooterImg; if (im.complete && im.naturalWidth) { const s2 = (R * 1.75) / Math.max(SCOOTER_ART.w, SCOOTER_ART.h), w2 = SCOOTER_ART.w * s2, h2 = SCOOTER_ART.h * s2; c.drawImage(im, bx - w2 / 2, by - h2 / 2, w2, h2); }
+        const A2 = this.bubbleArt || SCOOTER_ART, im = this.scooterImg; if (im && im.complete && im.naturalWidth) { const s2 = (R * 1.75) / Math.max(A2.w, A2.h), w2 = A2.w * s2, h2 = A2.h * s2; c.drawImage(im, bx - w2 / 2, by - h2 / 2, w2, h2); }
         c.restore();
   }
 
@@ -509,7 +509,7 @@ class Renderer {
   // (or without it) the disc is drawn with ellipses.
   drawScooterHint(g) {
     const h = g.scooterHint; if (!h || g.riding) return;
-    const c = this.ctx, a = Math.max(0.5, Math.min(1, 1.35 - Math.abs(h.ahead) / (h.ahead < 0 ? 90 : 150))), board = h.kind === 'board', label = g.touch ? 'TAP' : 'E', what = board ? 'RIDE SKATEBOARD' : 'RIDE MAGNETIC SCOOTER';
+    const c = this.ctx, a = Math.max(0.5, Math.min(1, 1.35 - Math.abs(h.ahead) / (h.ahead < 0 ? 90 : 150))), board = h.kind === 'board', label = g.touch ? 'TAP' : 'E', what = board ? 'RIDE SKATEBOARD' : h.kind === 'bike' ? 'RIDE SPORT E-BIKE' : 'RIDE MAGNETIC SCOOTER';
     if (!this.ringImg && typeof RING_ART !== 'undefined') { this.ringImg = new Image(); this.ringImg.src = RING_ART.a; }
     const art = this.ringImg && this.ringImg.complete && this.ringImg.naturalWidth;
     const rx = 14 + Math.min(36, h.rx * 1.4), ry = Math.max(h.ry * 1.25, rx * 0.42), k = 1 + 0.05 * Math.sin(g.time * 3);        // the disc's half axes on the ground (never small)
@@ -525,7 +525,8 @@ class Renderer {
     // picture of the magnetic scooter inside, as it is (SCOOTER_ART). The skateboard keeps its pixel drawing.
     const bob = Math.round(Math.sin(g.time * 4) * 2);
     if (!board && typeof SCOOTER_ART !== 'undefined') {
-      if (!this.scooterImg) { this.scooterImg = SCOOTER_ART.img || new Image(); if (!SCOOTER_ART.img) this.scooterImg.src = SCOOTER_ART.src; }
+      this.bubbleArt = h.kind === 'bike' && typeof BIKE_ART !== 'undefined' ? BIKE_ART : SCOOTER_ART;
+      this.scooterImg = this.bubbleArt.img || this.scooterImg;
       if (h.key !== this.bubbleKey) { this.bubbleKey = h.key; this.bubbleT = g.time; }                                     // a new scooter: the bubble pops again
       const t = g.time - this.bubbleT, pop = t < 0.35 ? Math.sin(Math.min(1, t / 0.28) * Math.PI / 2) * (1 + 0.18 * Math.sin(Math.min(1, t / 0.35) * Math.PI)) : 1;   // springs out, overshoots a little
       const R = 24 * pop, bx = Math.round(h.x), by = Math.round(h.y - ry - 30) + bob;

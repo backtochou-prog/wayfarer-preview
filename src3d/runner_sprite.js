@@ -31,6 +31,7 @@ class RunnerSprite {
     // the soft contact shadow lives in the scene (the renderer places it under the runner and shrinks it with jump height)
     this.shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3, depthWrite: false }));
     this.shadow.renderOrder = 1; this.shadow.scale.set(0.5, 1, 0.42);
+    this.bike = RunnerSprite.buildBike(); this.bike.visible = false; this.group.add(this.bike);      // the sport e-bike
     this.scooter = RunnerSprite.buildScooter(); this.scooter.visible = false; this.group.add(this.scooter);   // the kick scooter (shown while riding)
     this.board = RunnerSprite.buildBoard(); this.board.visible = false; this.group.add(this.board);                    // the electromagnetic skateboard (the other vehicle)
     this.surfB = RunnerSprite.buildSurf(); this.surfB.visible = false; this.group.add(this.surfB);                    // the surfboard of the canals of Utrecht (Game.surf)
@@ -74,12 +75,13 @@ class RunnerSprite {
     const k = 1 - Math.exp(-(s.sliding ? 60 : 15) * dt);       // the slide pose is near-instant: the game counts a slide from the first frame
     for (const key in c) c[key] += (t[key] - c[key]) * k;
     if (view !== this.view) { this.cards.back.visible = view === 'back'; this.cards.side.visible = view === 'side'; this.view = view; }
-    const surf = this.vehicle === 'surf', mag = !board && !surf, hover = board ? 0.02 * Math.sin(T * 3) : surf ? 0.03 * Math.sin(T * 2.4) + 0.02 * (s.beat || 0) : 0.045 + 0.018 * Math.sin(T * 2.3) + 0.008 * Math.sin(T * 5.1);      // (the magnetic scooter floats: never still)      // the board floats, with a gentle bob (the surfboard rides the swell)
-    this.pivot.position.y = c.y + (surf ? RunnerSprite.SURF_DECK : board ? RunnerSprite.BOARD_DECK : RunnerSprite.DECK) * Math.min(1, R * 1.5) + hover * R;   // the feet stand on the deck
-    const sc = this.scooter, bd = this.board, sf = this.surfB, v = surf ? sf : board ? bd : sc; for (const o of [sc, bd, sf]) if (o !== v) o.visible = false;
-    v.visible = R > 0.02; v.scale.setScalar(Math.min(1, R * 1.4) * RunnerSprite.SC); v.position.y = hover * R + (s.flip ? 0.15 * (1 - Math.cos(s.flip)) : 0);      // (in a FLIP the vehicle turns about its deck, not under the ground)
+    const bike = this.vehicle === 'bike', surf = this.vehicle === 'surf', mag = !board && !surf && !bike, hover = bike ? 0 : board ? 0.02 * Math.sin(T * 3) : surf ? 0.03 * Math.sin(T * 2.4) + 0.02 * (s.beat || 0) : 0.045 + 0.018 * Math.sin(T * 2.3) + 0.008 * Math.sin(T * 5.1);      // (the magnetic scooter floats: never still)      // the board floats, with a gentle bob (the surfboard rides the swell)
+    this.pivot.position.y = c.y + (bike ? RunnerSprite.BIKE_DECK : surf ? RunnerSprite.SURF_DECK : board ? RunnerSprite.BOARD_DECK : RunnerSprite.DECK) * Math.min(1, R * 1.5) + hover * R;   // the feet stand on the deck
+    const sc = this.scooter, bd = this.board, sf = this.surfB, bk = this.bike, v = bike ? bk : surf ? sf : board ? bd : sc; for (const o of [sc, bd, sf, bk]) if (o && o !== v) o.visible = false;
+    v.visible = R > 0.02; v.scale.setScalar(Math.min(1, R * 1.4) * (bike ? 1 : RunnerSprite.SC)); v.position.y = hover * R + (s.flip ? 0.15 * (1 - Math.cos(s.flip)) : 0);      // (in a FLIP the vehicle turns about its deck, not under the ground)
     if (v.visible) {
       if (surf) { const u = sf.userData, k3 = 1 + 0.08 * Math.sin(T * 5); u.wake.scale.set(1, 1, k3); u.collar.scale.set(1 + 0.1 * Math.sin(T * 6), 1, 1); u.foam.material.opacity = 0.5 + 0.1 * Math.sin(T * 4); }
+      else if (bike) { RunnerSprite.lcdSpeed(bk.userData.lcd, s.kmh || 0); this.wheelA += dt * s.runRate * 7; for (const w of bk.userData.wheels) w.rotation.x = -this.wheelA; }
       else if (!board) { RunnerSprite.lcdSpeed(sc.userData.lcd, s.kmh || 0); this.wheelA += dt * s.runRate * 9; for (const w of sc.userData.wheels) if (w.userData.mag) w.rotation.y = this.wheelA; else w.rotation.x = -this.wheelA; }      // (the magnetic wheels turn about their own axis)
       else {
         const u = bd.userData, bt = s.beat || 0; if (u.rear) u.rear.scale.setScalar(1 + 0.1 * bt);                      // the engine ring swells on the beat
@@ -91,6 +93,7 @@ class RunnerSprite {
         const tz = -s.lean * 0.14 + 0.035 * Math.sin(T * 1.7) + 0.015 * Math.sin(T * 4.3), tx = (s.airborne ? 0.16 : 0) + 0.025 * Math.sin(T * 1.3 + 1) + 0.01 * Math.sin(T * 3.7);
         W.vz += ((tz - W.z) * 70 - W.vz * 5) * h; W.z += W.vz * h; W.vx += ((tx - W.x) * 60 - W.vx * 5) * h; W.x += W.vx * h;
         v.rotation.z = W.z + (s.flip || 0); v.rotation.x = W.x + 0.45 * (s.pop || 0);      // (+ the OLLIE: the nose pops up and levels)      // (+ the FLIP stunt: a full turn about its length)
+      } else if (bike) { const k2 = 1 - Math.exp(-8 * dt); v.rotation.z += (-s.lean * 0.22 - v.rotation.z) * k2; v.rotation.y = s.flip || 0; v.rotation.x += ((s.airborne ? 0.08 : 0) + 0.12 * (s.pop || 0) - v.rotation.x) * k2;      // THE E-BIKE: leans deeper into the turns; TAILWHIP: the frame turns about the steerer; BUNNY HOP: lifted nearly level
       } else { const k2 = 1 - Math.exp(-10 * dt); v.rotation.z += (-s.lean * 0.1 - v.rotation.z) * k2; if (s.flip) v.rotation.z = -s.lean * 0.1 + s.flip; if (s.pop) v.rotation.x = 0.45 * s.pop; v.rotation.x += ((s.airborne ? 0.14 : 0) - v.rotation.x) * k2; }     // leans into the steering, nose up in the air
     }
     this.pivot.rotation.set(c.rx, -this.group.rotation.y + face + spin, c.rz, 'YXZ');   // cancel the renderer's yaw: the card always faces the camera (plus the showcase spin)
@@ -135,6 +138,65 @@ class RunnerSprite {
     return P;
   }
   // one magnetic wheel at (x, z): a drum of coils (steel bands) between the plank and the sole, a glowing ring round its middle, a lit cap
+  // THE SPORT E-BIKE (the user's sketches and final view, 2026-11-18): a glossy black carbon frame in a triangle with magenta and cyan neon down its tubes, a long top tube that meets the
+  // handlebar in a T with the same sickle spike as the scooter, a battery in the frame, a black saddle, pedals; two thin wheels that are clear glass discs ringed with light, each turned
+  // by a copper-coil hub motor. Real size (1.75 m long, wheels 0.68 m), nose toward -z, drawn at scale 1 (not RunnerSprite.SC). userData: wheels (spinning), top (the spike: hidden in
+  // the rider's-eyes camera), lcd (the screen on the stem, the live speed).
+  static bikeParts() {
+    const BLK = '#121018', MAG = '#ff2fb4', CY = '#35e6ff', P = [], TOP = [];
+    const seg = (y0, z0, y1, z1, w, col, o = {}) => { const len = Math.hypot(y1 - y0, z1 - z0); return Kit.box(o.wx || w, len, w, o.x || 0, (y0 + y1) / 2 - len / 2, (z0 + z1) / 2, col, Object.assign({ rx: Math.atan2(z1 - z0, y1 - y0) }, o.glow ? { glow: true } : {})); };
+    const HEAD = [0.88, -0.46], BB = [0.3, 0.02], SEAT = [0.86, 0.2], RH = [0.34, 0.62], FH = [0.34, -0.62];
+    P.push(seg(...HEAD, ...BB, 0.07, BLK), seg(0.94, -0.48, ...SEAT, 0.06, BLK), seg(...BB, ...SEAT, 0.06, BLK), seg(...BB, ...RH, 0.045, BLK), seg(...SEAT, ...RH, 0.04, BLK));      // the triangle and the stays
+    P.push(seg(...HEAD, ...FH, 0.06, BLK, { x: 0.06 }), seg(...HEAD, ...FH, 0.06, BLK, { x: -0.06 }));                                                                    // the fork's two blades
+    P.push(seg(HEAD[0] - 0.02, HEAD[1], BB[0] + 0.02, BB[1], 0.012, MAG, { glow: true, x: 0.04 }), seg(0.96, -0.48, SEAT[0] + 0.02, SEAT[1], 0.012, CY, { glow: true, x: 0.035 }), seg(BB[0], BB[1], RH[0], RH[1], 0.01, MAG, { glow: true, x: 0.03 }));   // the neon down the tubes
+    P.push(seg(0.88, -0.47, 1.04, -0.5, 0.07, BLK), Kit.box(0.62, 0.035, 0.035, 0, 1.03, -0.5, BLK), Kit.box(0.4, 0.008, 0.038, 0, 1.065, -0.5, MAG, { glow: true }),
+      Kit.box(0.12, 0.045, 0.045, -0.27, 1.025, -0.5, '#2a2633'), Kit.box(0.12, 0.045, 0.045, 0.27, 1.025, -0.5, '#2a2633'), Kit.box(0.1, 0.012, 0.03, -0.24, 1.0, -0.55, '#c9ccd6', { rx: 0.5 }), Kit.box(0.1, 0.012, 0.03, 0.24, 1.0, -0.55, '#c9ccd6', { rx: 0.5 }));   // stem, bar, grips, levers
+    TOP.push(Kit.cone(0.045, 0.3, 0, 1.06, -0.45, BLK, { rx: 0.65 }), Kit.box(0.01, 0.24, 0.01, 0.025, 1.08, -0.44, CY, { glow: true, rx: 0.65 }));                       // the sickle spike
+    P.push(seg(0.86, 0.2, 0.94, 0.22, 0.035, BLK), Kit.box(0.14, 0.05, 0.28, 0, 0.94, 0.24, '#0c0a10'), Kit.box(0.15, 0.012, 0.1, 0, 0.96, 0.33, CY, { glow: true }));        // seat post, saddle
+    P.push(Kit.box(0.09, 0.26, 0.08, 0, 0.42, 0.1, '#1d1a26'), Kit.box(0.095, 0.2, 0.012, 0, 0.45, 0.06, CY, { glow: true }), Kit.box(0.02, 0.2, 0.084, 0.046, 0.45, 0.1, MAG, { glow: true }));   // the battery
+    P.push(Kit.cyl(0.07, 0.07, 0.04, 0.06, 0.3, 0.02, '#2a2633', { rz: Math.PI / 2, seg: 12 }), seg(0.3, 0.02, 0.16, 0.12, 0.025, '#3a3644', { x: 0.1 }), seg(0.3, 0.02, 0.44, -0.08, 0.025, '#3a3644', { x: -0.1 }),
+      Kit.box(0.1, 0.02, 0.07, 0.15, 0.15, 0.13, BLK), Kit.box(0.1, 0.02, 0.07, -0.15, 0.43, -0.09, BLK), seg(0.32, 0.04, 0.34, 0.6, 0.008, '#5a5566', { x: 0.07 }));   // crank, pedals, chain
+    const wheelParts = () => [...Array.from({ length: 24 }, (_, k) => { const a = k / 24 * Math.PI * 2, b = (k + 1) / 24 * Math.PI * 2, r = 0.33, len = r * (b - a) * 1.08;
+        return Kit.box(0.035, len, 0.035, 0, Math.cos((a + b) / 2) * r - len / 2, Math.sin((a + b) / 2) * r, BLK, { rx: (a + b) / 2 + Math.PI / 2 }); }),
+        ...Array.from({ length: 24 }, (_, k) => { const a = k / 24 * Math.PI * 2, b = (k + 1) / 24 * Math.PI * 2, r = 0.305, len = r * (b - a) * 1.08;
+        return Kit.box(0.04, len, 0.012, 0, Math.cos((a + b) / 2) * r - len / 2, Math.sin((a + b) / 2) * r, k % 2 ? CY : MAG, { glow: true, rx: (a + b) / 2 + Math.PI / 2 }); }),
+        Kit.cyl(0.1, 0.1, 0.14, 0.03, -0.0, 0, '#2a1c28', { rz: Math.PI / 2, seg: 14 }), ...[0, 1, 2, 3, 4].map(k => Kit.cyl(0.108, 0.108, 0.01, -0.03 + k * 0.026, 0, 0, '#c0607e', { rz: Math.PI / 2, seg: 14 })),
+        Kit.cyl(0.05, 0.05, 0.012, 0.1, 0, 0, MAG, { rz: Math.PI / 2, seg: 12, glow: true })];
+    return { P, TOP, wheelParts };
+  }
+  // the bike parked (a prop: one merged geometry), standing on its wheels, turned by yaw
+  static bikeStatic(yaw = 0) {
+    const B = RunnerSprite.bikeParts(), all = [...B.P, ...B.TOP];
+    for (const z of [-0.62, 0.62]) for (const q of B.wheelParts()) { q.geo.translate(0, 0.34, z); all.push(q); }
+    if (yaw) for (const q of all) q.geo.applyMatrix4(new THREE.Matrix4().makeRotationY(yaw));
+    return Kit.merge(all);
+  }
+  // the PARKED e-bike is the user's picture itself (the user: "photocopy" it): their final 3/4 front view (BIKE_ART, cut out) standing upright beside the road, 1.3 m tall, facing the runner
+  // who comes toward it (a prop { merged, sprite, material }: two-sided, alpha-tested)
+  static bikeCardProp() {
+    const H = 1.5, W = H * BIKE_ART.w / BIKE_ART.h, g = new THREE.PlaneGeometry(W, H); g.translate(0, H / 2, 0); g.computeBoundingSphere(); g.computeBoundingBox();
+    if (!RunnerSprite._bikeMat) { const tex = new THREE.Texture(BIKE_ART.img); tex.colorSpace = THREE.SRGBColorSpace; const m = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.35, side: THREE.DoubleSide });
+      const up = () => { tex.needsUpdate = true; m.visible = true; }; if (BIKE_ART.img.complete && BIKE_ART.img.naturalWidth) up(); else { m.visible = false; BIKE_ART.img.addEventListener('load', up); } RunnerSprite._bikeMat = m; }
+    return { merged: Kit.merge([Kit.box(0.05, 0.02, 0.05, 0, 0, 0, '#121018')]), sprite: g, material: () => RunnerSprite._bikeMat };
+  }
+  static buildBike() {
+    const g = new THREE.Group(), B = RunnerSprite.bikeParts();
+    g.add(Kit.mesh(Kit.merge(B.P))); const top = Kit.mesh(Kit.merge(B.TOP)); g.add(top);
+    const glass = new THREE.MeshBasicMaterial({ color: '#bfefff', transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false });
+    const wheel = (z) => { const w = new THREE.Group(); w.position.set(0, 0.34, z);
+      w.add(Kit.mesh(Kit.merge(B.wheelParts())));
+      const disc = new THREE.Mesh(new THREE.CircleGeometry(0.31, 32), glass); disc.rotation.y = Math.PI / 2; w.add(disc);                               // the clear glass disc
+      g.add(w); return w; };
+    g.userData.wheels = [wheel(-0.62), wheel(0.62)]; g.userData.top = top;
+    if (typeof MAG_PAD_ART !== 'undefined') {
+      const cv = document.createElement('canvas'); cv.width = 256; cv.height = 216; const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+      const lcd = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.135), new THREE.MeshBasicMaterial({ map: tex, transparent: true })); lcd.position.set(0, 1.0, -0.4); lcd.rotation.x = -0.9; g.add(lcd);
+      g.userData.lcd = { cv, ctx: cv.getContext('2d'), tex, kmh: -1 };
+    }
+    return g;
+  }
+  static get BIKE_DECK() { return 0.36; }                     // standing on the pedals
+
   // the handlebar LCD's picture with the live speed (km/h), redrawn only when the number changes
   static lcdSpeed(L, kmh) {
     const im = MAG_PAD_ART.img; if (!L || !im || !im.complete || !im.naturalWidth || kmh === L.kmh) return; L.kmh = kmh;
