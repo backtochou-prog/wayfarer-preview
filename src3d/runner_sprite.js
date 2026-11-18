@@ -80,7 +80,7 @@ class RunnerSprite {
     v.visible = R > 0.02; v.scale.setScalar(Math.min(1, R * 1.4) * RunnerSprite.SC); v.position.y = hover * R;
     if (v.visible) {
       if (surf) { const u = sf.userData, k3 = 1 + 0.08 * Math.sin(T * 5); u.wake.scale.set(1, 1, k3); u.collar.scale.set(1 + 0.1 * Math.sin(T * 6), 1, 1); u.foam.material.opacity = 0.5 + 0.1 * Math.sin(T * 4); }
-      else if (!board) { this.wheelA += dt * s.runRate * 9; for (const w of sc.userData.wheels) if (w.userData.mag) w.rotation.y = this.wheelA; else w.rotation.x = -this.wheelA; }      // (the magnetic wheels turn about their own axis)
+      else if (!board) { RunnerSprite.lcdSpeed(sc.userData.lcd, s.kmh || 0); this.wheelA += dt * s.runRate * 9; for (const w of sc.userData.wheels) if (w.userData.mag) w.rotation.y = this.wheelA; else w.rotation.x = -this.wheelA; }      // (the magnetic wheels turn about their own axis)
       else {
         const u = bd.userData, bt = s.beat || 0; if (u.rear) u.rear.scale.setScalar(1 + 0.1 * bt);                      // the engine ring swells on the beat
         u.ring.scale.setScalar(1 + 0.12 * Math.sin(T * 4) + 0.25 * bt); u.field.scale.setScalar(1 + 0.05 * Math.sin(T * 3)); u.trail.scale.y = 0.8 + 0.2 * Math.sin(T * 7);   // the magnetic field breathes
@@ -126,7 +126,7 @@ class RunnerSprite {
     for (let k = 0; k < stem.length - 1; k++) { const [, y0, z0] = stem[k], [, y1, z1] = stem[k + 1], len = Math.hypot(y1 - y0, z1 - z0), w = 0.07 - k * 0.008;
       P.push(Kit.box(0.05, len + 0.02, w, 0, (y0 + y1) / 2 - (len + 0.02) / 2, (z0 + z1) / 2, STEEL, { rx: Math.atan2(z1 - z0, y1 - y0) })); }
     for (let k = 0; k < stem.length - 1; k++) { const [, y0, z0] = stem[k], [, y1, z1] = stem[k + 1], len = Math.hypot(y1 - y0, z1 - z0), w = 0.07 - k * 0.008;              // the magenta neon down the stem's back
-      P.push(Kit.box(0.054, len + 0.02, 0.012, 0, (y0 + y1) / 2 - (len + 0.02) / 2, (z0 + z1) / 2 + w / 2, MAG, { glow: true, rx: Math.atan2(z1 - z0, y1 - y0) })); }
+      const nq = Kit.box(0.054, len + 0.02, 0.012, 0, (y0 + y1) / 2 - (len + 0.02) / 2, (z0 + z1) / 2 + w / 2, MAG, { glow: true, rx: Math.atan2(z1 - z0, y1 - y0) }); nq.fpHide = true; P.push(nq); }
     P.push(Kit.cone(0.04, 0.26, 0, 1.12, -0.31, STEEL, { rx: 0.75 }), Kit.box(0.01, 0.2, 0.01, 0.02, 1.13, -0.3, CY, { glow: true, rx: 0.75 }));                   // the black spike, a cyan edge                                                                                              // the spike on top
     P.push(Kit.box(0.56, 0.035, 0.035, 0, 1.02, -0.4, STEEL), Kit.box(0.4, 0.008, 0.038, 0, 1.054, -0.4, MAG, { glow: true }), Kit.box(0.12, 0.045, 0.045, -0.25, 1.015, -0.4, DARK), Kit.box(0.12, 0.045, 0.045, 0.25, 1.015, -0.4, DARK),
       Kit.box(0.1, 0.012, 0.03, -0.24, 1.0, -0.45, '#c9ccd6', { rx: 0.5 }), Kit.box(0.1, 0.012, 0.03, 0.24, 1.0, -0.45, '#c9ccd6', { rx: 0.5 }), Kit.box(0.04, 0.012, 0.02, 0.07, 1.04, -0.42, CY, { glow: true }));   // pink neon, silver brake levers, a cyan button   // handlebar and grips
@@ -135,6 +135,15 @@ class RunnerSprite {
     return P;
   }
   // one magnetic wheel at (x, z): a drum of coils (steel bands) between the plank and the sole, a glowing ring round its middle, a lit cap
+  // the handlebar LCD's picture with the live speed (km/h), redrawn only when the number changes
+  static lcdSpeed(L, kmh) {
+    const im = MAG_PAD_ART.img; if (!L || !im || !im.complete || !im.naturalWidth || kmh === L.kmh) return; L.kmh = kmh;
+    const c = L.ctx, W = L.cv.width, H = L.cv.height; c.clearRect(0, 0, W, H);
+    c.save(); c.beginPath(); if (c.roundRect) c.roundRect(4, 4, W - 8, H - 12, 22); else c.rect(4, 4, W - 8, H - 12); c.clip(); c.drawImage(im, 0, 0, W, H); c.restore();
+    const x = W * 0.19, y = H * 0.33, w = W * 0.17, h = H * 0.15; c.fillStyle = '#071226'; c.fillRect(x, y, w, h);
+    c.font = 'bold ' + Math.round(h * 0.95) + 'px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.shadowColor = '#39ff14'; c.shadowBlur = 8; c.fillStyle = '#d8ffcf'; c.fillText(String(kmh), x + w / 2, y + h * 0.55); c.shadowBlur = 0;
+    L.tex.needsUpdate = true;
+  }
   static coilParts(x, z, col) {
     const STEEL = '#c0607e', P = [Kit.cyl(0.1, 0.11, 0.12, x, 0.065, z, '#2a1c28', { seg: 14 })];                                                              // (copper-pink coils on a dark drum, the user's final view)
     for (let k = 0; k < 5; k++) P.push(Kit.cyl(0.108, 0.108, 0.01, x, 0.072 + k * 0.022, z, STEEL, { seg: 14 }));
@@ -143,9 +152,18 @@ class RunnerSprite {
   }
   static buildScooter() {
     const g = new THREE.Group();
-    g.add(Kit.mesh(Kit.merge(RunnerSprite.magScooterParts(0, 0, 0, 0, true))));
+    const parts = RunnerSprite.magScooterParts(0, 0, 0, 0, true), hi = q => { if (q.fpHide) return true; q.geo.computeBoundingBox(); return q.geo.boundingBox.min.y > 1.05; };      // the spike and the stem over the handlebar apart:
+    g.add(Kit.mesh(Kit.merge(parts.filter(q => !hi(q))))); const top = Kit.mesh(Kit.merge(parts.filter(hi))); g.add(top); g.userData.top = top;          // hidden in the rider's-eyes camera (they would stand in the middle of the view)
     const wheel = (z, c) => { const w = Kit.mesh(Kit.merge(RunnerSprite.coilParts(0, 0, c).concat([Kit.box(0.2, 0.012, 0.02, 0, 0.1, 0, '#ffffff', { glow: true })]))); w.position.set(0, 0, z); w.userData.mag = true; g.add(w); return w; };
     g.userData.wheels = [wheel(-0.24, '#ff3ad8'), wheel(0.26, '#35e6ff')];
+    // THE LCD ON THE HANDLEBAR (the user): the picture of the handlebar's screen (MAG_PAD_ART) on a canvas, the live speed written over its own number (RunnerSprite.lcdSpeed), on a small
+    // plate between the grips, tilted up toward the rider
+    if (typeof MAG_PAD_ART !== 'undefined') {
+      const cv = document.createElement('canvas'); cv.width = 256; cv.height = 216; const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+      const lcd = new THREE.Mesh(new THREE.PlaneGeometry(0.24, 0.2), new THREE.MeshBasicMaterial({ map: tex, transparent: true })); lcd.position.set(0, 1.16, -0.35); lcd.rotation.x = -0.75; g.add(lcd);
+      const back = Kit.mesh(Kit.merge([Kit.box(0.25, 0.21, 0.01, 0, -0.105 - 0.011, -0.012, '#15121c', { rx: -0.75 })]));      // (its plate, behind the screen along the screen's normal) back.position.set(0, 1.16, -0.35); g.add(back);
+      g.userData.lcd = { cv, ctx: cv.getContext('2d'), tex, kmh: -1 };
+    }
     return g;
   }
 

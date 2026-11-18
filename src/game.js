@@ -18,6 +18,7 @@ const TOUCH = [
   { id: 'slide', x: 233, y: 137, w: 46, h: 42 },
   { id: 'jump',  x: 289, y: 137, w: 46, h: 42 },
   { id: 'pause', x: 145, y: 2,   w: 30, h: 18 },
+  { id: 'cam', x: 132, y: 132, w: 56, h: 18 },          // the second camera on a vehicle (the rider's eyes), only while riding; V on a keyboard
   { id: 'scooter', x: 132, y: 154, w: 56, h: 20 },       // 'hop off' (only while riding the scooter); getting on is a tap on the indicator over a parked scooter
 ];
 // THE MAGNETIC SCOOTER'S CONTROLLER (the user, 2026-11-17: "when the user takes this scooter, the control buttons change to this sophisticated controller"): while riding it, the four
@@ -28,6 +29,7 @@ const TOUCH_MAG = [
   { id: 'left',  x: 177, y: 133, w: 28, h: 24, mag: true },
   { id: 'right', x: 235, y: 133, w: 28, h: 24, mag: true },
   { id: 'pause', x: 145, y: 2,   w: 30, h: 18 },
+  { id: 'cam', x: 132, y: 132, w: 56, h: 18 },
   { id: 'scooter', x: 132, y: 154, w: 56, h: 20 },
 ];
 TOUCH_MAG.lcd = { x: 265, y: 108, w: 70, h: 59 };
@@ -62,7 +64,7 @@ class Game {
     cv.addEventListener('pointermove', at);
     cv.addEventListener('pointerleave', () => { this.mouse.x = this.mouse.y = -1; this.mouse.down = false; });
     cv.addEventListener('contextmenu', e => e.preventDefault());
-    const zone = () => this.touchSet().find(c => (c.id !== 'scooter' || this.riding) && this.mouse.x >= c.x && this.mouse.x <= c.x + c.w && this.mouse.y >= c.y && this.mouse.y <= c.y + c.h);
+    const zone = () => this.touchSet().find(c => ((c.id !== 'scooter' && c.id !== 'cam') || this.riding) && this.mouse.x >= c.x && this.mouse.x <= c.x + c.w && this.mouse.y >= c.y && this.mouse.y <= c.y + c.h);
     const overHint = () => { const h = this.scooterHint, m = this.mouse; return !!h && !this.riding && Math.abs(m.x - h.x) <= 14 + Math.min(36, h.rx * 1.4) + 24 && m.y >= h.y - 80 && m.y <= h.y + h.ry * 1.6 + 36; };      // the ring under a parked scooter and the scooter above it, with a very generous touch area (it passes at running speed)
     addEventListener('pointerdown', e => {
       if (e.target !== cv && !((this.state === 'play' || this.state === 'race') && e.pointerType === 'touch')) return;      // (the touch buttons stand partly outside the screen canvas: in the race too, or the accelerator's outer edge did nothing)
@@ -154,7 +156,7 @@ class Game {
     this.fx = []; this.dustT = 0; this.shake = 0; this.coinPulse = 0; this.jumpBuf = 0;
     this.scene = null; this.fadeIn = 0;                                                 // no cutscene running, no fade
     this.corner = null; this.detour = null; if (this.world) { this.world.extraLift = null; this.world.extraOff = null; }                                             // the neon corner: no pivot running, not in the picture district (NEON_CORNER)
-    this.riding = false; this.vehicle = 'scooter'; this.scooterHint = null; this.surf = false;                // on foot, no indicator, not on the water
+    this.camFP = false; this.riding = false; this.vehicle = 'scooter'; this.scooterHint = null; this.surf = false;                // on foot, no indicator, not on the water
     this.carryC = 0; this.lane2 = 0; this.lean = 0; this.kick = null; this.sway = 0; this.prompt = null; this.banner = null;
     if (this.r.onReset) this.r.onReset(this);
   }
@@ -207,7 +209,7 @@ class Game {
     if (id === null) delete this.held[pid]; else this.held[pid] = id;
     this.syncTouch();
     if (!fresh || this.state !== 'play') return;
-    if (id === 'jump') this.jump(); else if (id === 'slide') this.slideKey(); else if (id === 'scooter') this.dismount(); else if (id === 'pause') { this.state = 'pause'; this.releaseTouch(); }
+    if (id === 'jump') this.jump(); else if (id === 'slide') this.slideKey(); else if (id === 'scooter') this.dismount(); else if (id === 'cam') this.camFP = !this.camFP; else if (id === 'pause') { this.state = 'pause'; this.releaseTouch(); }
   }
   // THE RACE'S PEDALS: accelerate = the up key (Z / W / arrow) or the jump button held (touch, or the VR controllers through the same touch channel); brake = the down key or the slide button held
   pedal(id) { return id === 'jump' ? !!(this.keys.up || Object.values(this.held).includes('jump')) : !!(this.keys.down || Object.values(this.held).includes('slide')); }
@@ -243,7 +245,8 @@ class Game {
     else if (s === 'play') {
       if (c === 'Space' || U) this.jump();
       else if (D) this.slideKey();
-      else if (c === 'KeyE' || k === 'e') { if (this.riding) this.dismount(); else this.mount(); }          // E: get on the scooter that has an indicator / get off
+      else if (c === 'KeyE' || k === 'e') { if (this.riding) this.dismount(); else this.mount(); }
+      else if (c === 'KeyV' || k === 'v') { if (this.riding) this.camFP = !this.camFP; }          // V: on a vehicle, the second camera (the rider's own eyes) on / off          // E: get on the scooter that has an indicator / get off
       else if (c === 'KeyP' || c === 'Escape') this.state = 'pause';
     } else if (s === 'pause' && (c === 'KeyP' || c === 'Escape')) this.state = 'play';
   }

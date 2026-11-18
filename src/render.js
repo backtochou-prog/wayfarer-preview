@@ -405,6 +405,12 @@ class Renderer {
         else { c.globalAlpha = 0.95; this.padLcd(c, im, L2); this.padSpeed(c, g, L2, 1); c.globalAlpha = 1; } }
     }
     for (const t of set) {
+      if (t.id === 'cam') {                                                      // the second camera's switch: only while riding
+        if (!g.riding) continue;
+        c.globalAlpha = 0.85; c.fillStyle = C.ink; c.fillRect(t.x - 1, t.y - 1, t.w + 2, t.h + 2); c.fillStyle = g.camFP ? '#3a2a66' : C.plum; c.fillRect(t.x, t.y, t.w, t.h);
+        c.fillStyle = g.camFP ? '#35e6ff' : C.amberD; c.fillRect(t.x, t.y, t.w, 1); c.fillRect(t.x, t.y + t.h - 1, t.w, 1); c.globalAlpha = 1;
+        c.fillStyle = C.bone; c.fillRect(t.x + 4, t.y + 6, 9, 6); c.fillRect(t.x + 13, t.y + 7, 3, 4); this.txt(g.camFP ? 'EYES' : 'CAMERA', t.x + 19, t.y + 7, C.bone, 1); continue;
+      }
       if (t.id === 'scooter') {                                                  // 'hop off': only while riding
         if (!g.riding) continue;
         c.globalAlpha = 0.85; c.fillStyle = C.ink; c.fillRect(t.x - 1, t.y - 1, t.w + 2, t.h + 2); c.fillStyle = on.has('scooter') ? C.burgD : C.plum; c.fillRect(t.x, t.y, t.w, t.h);

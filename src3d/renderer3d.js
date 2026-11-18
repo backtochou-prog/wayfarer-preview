@@ -526,7 +526,7 @@ class Renderer3D {
     let cornerA = 0; if (g.corner && !(this.xr && this.xr.presenting)) { const k = Math.min(1, g.corner.t / NEON_CORNER.T); cornerA = Math.PI / 2 * k * k * (3 - 2 * k); }   // THE NEON CORNER's pivot angle
     this.runner.group.rotation.y = Math.PI * mm + this.heading * (1 - mm) + cornerA;
     this.runner.update(dt, { beat: pulse, faceYaw: Math.atan2(this.cam.x - relX, this.cam.z) + cornerA, time: g.time, runRate: 2.3 + p.speed / 340 * 1.1, airborne: p.jy > 0, vy: p.vy, sliding: p.slide > 0,
-                             absorb: absK, absorbSpin: absSpin, lean: Math.max(-1, Math.min(1, p.vx / STEER)), state: g.state, scooter: this.riding(g) || !!g.surf, vehicle: g.surf ? 'surf' : g.vehicle || 'scooter' });
+                             absorb: absK, absorbSpin: absSpin, lean: Math.max(-1, Math.min(1, p.vx / STEER)), state: g.state, scooter: this.riding(g) || !!g.surf, vehicle: g.surf ? 'surf' : g.vehicle || 'scooter', kmh: Math.round(p.speed * 0.36 * (g.pk ? g.pk.speedMul : 1)) });
     if (absK && !(this.runner instanceof RunnerSprite)) this.runner.group.rotation.y += absSpin;      // (the 3D-model avatar has no card to turn: its group turns)
 
     // ---- camera: chase (behind and above, centred on the 2D camera) blended with the menu showcase orbit; looks down the active route
@@ -535,9 +535,16 @@ class Renderer3D {
     const ahead = this.axisLat(w, p.z + TRACK3D.LOOK_AHEAD, Lref);
     this.lookX += (ahead * 0.8 - this.lookX) * (1 - Math.exp(-4 * dt));
     this.look.set(this.lookX + ((relX - 1.0) - this.lookX) * mm, 0.8 + 0.3 * mm, -20 * (1 - mm));
+    // THE SECOND CAMERA ON A VEHICLE (the user chose the rider's eyes; optional: the CAMERA button, or V): the camera at the rider's eyes, a little behind the handlebar, looking down the road;
+    // the rider's body is hidden (its vehicle stays: the plank, the coils, the stem under the view). Eased in and out over 0.3 s.
+    const fpOn = !!(g.camFP && this.riding(g) && g.state === 'play' && !(this.xr && this.xr.presenting));
+    this.fpK = (this.fpK || 0) + ((fpOn ? 1 : 0) - (this.fpK || 0)) * (1 - Math.exp(-8 * dt));
+    if (this.fpK > 0.01) { const k = this.fpK, eyeY = 1.72 + p.jy * U.Y + lift; this.cam.x += (relX - this.cam.x) * k; this.cam.y += (eyeY - this.cam.y) * k; this.cam.z += (0.3 - this.cam.z) * k;
+      this.look.x += (this.lookX - this.look.x) * k; this.look.y += (1.0 - this.look.y) * k; this.look.z += (-18 - this.look.z) * k; }
+    if (this.runner.pivot) this.runner.pivot.visible = this.fpK < 0.6; { const tp = this.runner.scooter && this.runner.scooter.userData.top; if (tp) tp.visible = this.fpK < 0.6; }
     // THE CLOSE-UP OF THE MAGNETIC SCOOTER (the user: now and then the camera comes close to the scooter, to show the action): while riding it, every 22 s, for 3.5 s, the camera eases
     // down to a low three-quarter view beside the runner (the scooter, its coils and its balance in full view), then eases back to the chase view. Not in VR, not in the menu.
-    if (this.riding(g) && g.vehicle !== 'board' && !g.surf && g.state === 'play' && !(this.xr && this.xr.presenting)) {
+    if (!fpOn && this.riding(g) && g.vehicle !== 'board' && !g.surf && g.state === 'play' && !(this.xr && this.xr.presenting)) {
       if (this.cineT0 === undefined || this.cineT0 === null) this.cineT0 = g.time;
       const u = (g.time - this.cineT0) % 22 - 14, e = t => t * t * (3 - 2 * t), k = u < 0 || u > 3.5 ? 0 : e(Math.min(1, u / 0.8)) * e(Math.min(1, (3.5 - u) / 0.8)), side = Math.floor((g.time - this.cineT0) / 22) % 2 ? -1 : 1;
       if (k > 0) { this.cam.x += (relX + side * 2.2 - this.cam.x) * k; this.cam.y += (1.15 - this.cam.y) * k; this.cam.z += (2.4 - this.cam.z) * k; this.look.x += (relX - this.look.x) * k; this.look.y += (0.9 - this.look.y) * k; this.look.z += (-0.6 - this.look.z) * k; }
