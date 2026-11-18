@@ -127,7 +127,7 @@ class RunnerSprite {
     P.push(Kit.box(0.05, 0.05, 0.12, 0, 0.12, -0.02, STEEL));                                                                                                     // the coupling between the drums
     const stem = [[0, 0.06, -0.46], [0, 0.3, -0.5], [0, 0.56, -0.5], [0, 0.8, -0.46], [0, 1.02, -0.4], [0, 1.16, -0.33]];                                  // the sickle: up from the sole, bowing back
     for (let k = 0; k < stem.length - 1; k++) { const [, y0, z0] = stem[k], [, y1, z1] = stem[k + 1], len = Math.hypot(y1 - y0, z1 - z0), w = 0.07 - k * 0.008;
-      P.push(Kit.box(0.05, len + 0.02, w, 0, (y0 + y1) / 2 - (len + 0.02) / 2, (z0 + z1) / 2, STEEL, { rx: Math.atan2(z1 - z0, y1 - y0) })); }
+      const sq = Kit.box(0.05, len + 0.02, w, 0, (y0 + y1) / 2 - (len + 0.02) / 2, (z0 + z1) / 2, STEEL, { rx: Math.atan2(z1 - z0, y1 - y0) }); if (y1 > 0.95) sq.fpHide = true; P.push(sq); }      // (the stem's top, at the LCD's height: hidden in the rider's eyes, where it stood in front of the screen)
     for (let k = 0; k < stem.length - 1; k++) { const [, y0, z0] = stem[k], [, y1, z1] = stem[k + 1], len = Math.hypot(y1 - y0, z1 - z0), w = 0.07 - k * 0.008;              // the magenta neon down the stem's back
       const nq = Kit.box(0.054, len + 0.02, 0.012, 0, (y0 + y1) / 2 - (len + 0.02) / 2, (z0 + z1) / 2 + w / 2, MAG, { glow: true, rx: Math.atan2(z1 - z0, y1 - y0) }); nq.fpHide = true; P.push(nq); }
     P.push(Kit.cone(0.04, 0.26, 0, 1.12, -0.31, STEEL, { rx: 0.75 }), Kit.box(0.01, 0.2, 0.01, 0.02, 1.13, -0.3, CY, { glow: true, rx: 0.75 }));                   // the black spike, a cyan edge                                                                                              // the spike on top

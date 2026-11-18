@@ -26,11 +26,11 @@ const TOUCH = [
 // THE VEHICLE LAYOUT (the user, 2026-11-18): on a vehicle, left and right are apart at the bottom left, with the STUNT keys (spin, flip) just over them, and up / down on the right; on the
 // magnetic scooter its handlebar LCD (MAG_PAD_ART) stands at the right edge, except in the rider's-eyes camera (the LCD is on the handlebar then): up / down take its place
 const rideKeys = (ux) => [
-  { id: 'left',  x: -6, y: 148, w: 30, h: 26, mag: true },
-  { id: 'right', x: 28, y: 148, w: 30, h: 26, mag: true },
-  { id: 'ollie', x: 11, y: 92, w: 30, h: 22, mag: true },
-  { id: 'spin',  x: -6, y: 118, w: 30, h: 24, mag: true },
-  { id: 'flip',  x: 28, y: 118, w: 30, h: 24, mag: true },
+  { id: 'left',  x: -15, y: 148, w: 30, h: 26, mag: true },      // (the user: the left group pushed to the left edge of the phone)
+  { id: 'right', x: 18, y: 148, w: 30, h: 26, mag: true },
+  { id: 'ollie', x: 1, y: 92, w: 30, h: 22, mag: true },
+  { id: 'spin',  x: -15, y: 118, w: 30, h: 24, mag: true },
+  { id: 'flip',  x: 18, y: 118, w: 30, h: 24, mag: true },
   { id: 'jump',  x: ux, y: 112, w: 30, h: 26, mag: true },
   { id: 'slide', x: ux, y: 146, w: 30, h: 26, mag: true },
   { id: 'pause', x: 145, y: 2,   w: 30, h: 18 },
