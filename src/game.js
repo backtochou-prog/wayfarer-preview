@@ -163,7 +163,7 @@ class Game {
     this.fx = []; this.dustT = 0; this.shake = 0; this.coinPulse = 0; this.jumpBuf = 0;
     this.scene = null; this.fadeIn = 0;                                                 // no cutscene running, no fade
     this.corner = null; this.detour = null; if (this.world) { this.world.extraLift = null; this.world.extraOff = null; }                                             // the neon corner: no pivot running, not in the picture district (NEON_CORNER)
-    this.trick = null; this.olliePop = null; this.ollieDone = false; this.combo = 0; this.stuntPts = 0; this.camFP = false; this.riding = false; this.vehicle = 'scooter'; this.scooterHint = null; this.surf = false;                // on foot, no indicator, not on the water
+    this.onLane = false; this.trick = null; this.olliePop = null; this.ollieDone = false; this.combo = 0; this.stuntPts = 0; this.camFP = false; this.riding = false; this.vehicle = 'scooter'; this.scooterHint = null; this.surf = false;                // on foot, no indicator, not on the water
     this.carryC = 0; this.lane2 = 0; this.lean = 0; this.kick = null; this.sway = 0; this.prompt = null; this.banner = null;
     if (this.r.onReset) this.r.onReset(this);
   }
@@ -237,6 +237,14 @@ class Game {
     if (T.t >= T.dur) { this.combo = (this.combo || 0) + 1; const pts = (T.kind === 'flip' ? (this.vehicle === 'bike' ? 10 : 8) : (this.vehicle === 'bike' ? 6 : 5)) * this.combo; this.stuntPts = (this.stuntPts || 0) + pts; this.banner = { t: 1.4, text: this.stuntName(T.kind) + '! +' + pts + (this.combo > 1 ? ' X' + this.combo : '') }; this.emit('coin'); }
     else { this.combo = 0; this.banner = { t: 1.2, text: 'BAD LANDING' }; this.shake = 0.25; }
   }
+  // the bike lane at z: { edge: the road's right edge, c: the lane's centre (lateral units), entry: an entrance is there } or null. Where the scenery puts the coastBike strip (the renderer's
+  // cached layout of the biome at that slot), single road only, the biome well in.
+  bikeLane(z) {
+    const w = this.world; if (!this.r || !this.r.layoutFor) return null; const bands = w.bandsAt(z); if (bands.length !== 1) return null; const b = bands[0];
+    if (!(b.t > 0.6) || !/^coast/.test(b.to) || !this.r.envs || !this.r.envs[b.to] || !this.r.layouts[b.to]) return null;
+    const i = Math.floor(z * U3.Z / SEG_LEN); if (!this.r.layoutFor(b.to, i).some(q => q.prop === 'coastBike')) return null;
+    const m = ((i % 20) + 20) % 20; return { edge: b.hi - 0.12, c: b.hi + 0.31, entry: m <= 1 };
+  }
   touchSet() { return !this.riding ? TOUCH : this.vehicle !== 'board' && !this.camFP && typeof MAG_PAD_ART !== 'undefined' ? TOUCH_MAG : TOUCH_RIDE; }      // (on foot / the scooter with its LCD / any vehicle without, or in the rider's eyes)      // (the magnetic scooter's controller while riding it)
   syncTouch() { const h = Object.values(this.held); this.tleft = h.includes('left'); this.tright = h.includes('right'); }
   releaseTouch() { this.held = {}; this.syncTouch(); }
@@ -282,7 +290,7 @@ class Game {
     if (this.sfx) this.sfx.tick(this, dt);                                          // beat clock, music volume and state-change sounds (also while paused)
     if (this.state === 'pause') return;
     this.time += dt;
-    if (this.riding && !((this.bgTo === 'tram' || this.bgTo === 'gare' || this.bgTo === 'neon') && this.bgT > 0.25)) this.riding = false;          // the vehicles belong to Saint-Gilles and the Neon Quarter: getting out of those zones puts the runner back on foot
+    if (this.riding && !((this.bgTo === 'tram' || this.bgTo === 'gare' || this.bgTo === 'neon' || /^coast(?!Aqua)/.test(this.bgTo)) && this.bgT > 0.25)) this.riding = false;      // (and the coast: its bike lane)          // the vehicles belong to Saint-Gilles and the Neon Quarter: getting out of those zones puts the runner back on foot
     this.updateFx(dt);
     if (this.state === 'play') { if (this.corner) this.cornerStep(dt); else this.step(dt); }
     else if (this.state === 'scene') this.sceneStep(dt);
@@ -517,9 +525,17 @@ class Game {
     const c0 = w.playerBand(p.z, p.x).c;
     if (Math.abs(c0 - this.carryC) < 0.2) p.x += c0 - this.carryC;
     this.carryC = c0;
-    const cx = w.clampX(p.x, p.z), pc = w.pieceAt(p.z);
+    let cx = w.clampX(p.x, p.z); const pc = w.pieceAt(p.z);
+    // THE BIKE LANE (the user, 2026-11-18): where the road has a bike lane on its right (the coast, the island: the coastBike strip of the scenery), a runner on the e-bike or the scooter can ride
+    // it, but only gets on (or off) it at an ENTRANCE (a lowered kerb every 240 m, 24 m long): a missed entrance waits for the next one; on foot or on the skateboard, never. The lane is clear.
+    const BL = this.bikeLane(p.z), onVeh = this.riding && (this.vehicle === 'bike' || this.vehicle === 'scooter');
+    if (BL && onVeh && (this.onLane || BL.entry)) {
+      const b = w.bandsAt(p.z)[0], lo = BL.entry ? b.lo + 0.12 : BL.c - 0.05, hi = BL.c + 0.05;     // at an entrance: anywhere from the road to the lane; between two: kept in the lane
+      cx = Math.min(hi, Math.max(lo, p.x));
+      const was = this.onLane; this.onLane = cx > BL.edge + 0.08; if (this.onLane !== was) { this.banner = { t: 1.4, text: this.onLane ? 'BIKE LANE' : 'BACK ON THE ROAD' }; this.emit('choose'); }
+    } else if (this.onLane) { this.onLane = false; this.laneEase = 0.6; }                                                    // (the lane ends, or the runner got off the vehicle: back onto the road, eased by the clamp)
     // ease onto the chosen road at the start of the junction, hard clamp everywhere else
-    if (pc.type === 'fork' && p.z < pc.z0 + 120) p.x += (cx - p.x) * Math.min(1, dt * 14); else p.x = cx;
+    if (pc.type === 'fork' && p.z < pc.z0 + 120) p.x += (cx - p.x) * Math.min(1, dt * 14); else if (this.laneEase > 0) { this.laneEase -= dt; p.x += (cx - p.x) * Math.min(1, dt * 8); } else p.x = cx;
   }
 
   // running dust on the road, drifting leaves in the forest (1px specks, a handful per second)

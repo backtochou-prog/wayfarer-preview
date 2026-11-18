@@ -220,7 +220,7 @@ class Renderer3D {
   artK(g) { const R = this.artRange(g); if (!R) return 0; const z = g.p.z, s = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); }; return s((z - (R[0] - 600)) / 600) * s((R[1] + 300 - z) / 600); }
 
   // the neon quarter's layout depends on the game's detour (the picture district, NEON_CORNER): a change clears its cache
-  syncDetour(g) { if (g.detour !== this._detour) { this._detour = g.detour; if (this.layouts.neon) this.layouts.neon.clear(); } }
+  syncDetour(g) { if (g.detour !== this._detour) { this._detour = g.detour; if (this.layouts.neon) this.layouts.neon.clear(); this.armedSpot = null; } if (g.corner) this.armedSpot = null; }      // (a vehicle offered on the neon street is not carried round the corner into the district: the user saw a skateboard's indicator there)
 
   layoutFor(envId, i) {
     const m = this.layouts[envId];
