@@ -158,9 +158,9 @@ const NeonAvenue = {
     // the middle: the cyan screen block, the round screen tower, the two spire towers
     box(655, 762, 600, 0); cyl(1283, 78, 78, 1333, 300, 0, 16); cyl(1283, 78, 40, 300, 270, 0, 16);
     box(482, 580, 600, -8); cyl(531, 34, 0, 600, 470, -8, 6); box(1122, 1196, 600, -8); cyl(1159, 30, 0, 600, 455, -8, 6);
-    // the back: the low city, and the twin towers (stepped crowns, a spire each)
+    // the back: the low city
     box(430, 1452, 1010, -16, 10);
-    for (const cx of [912, 1047]) { cyl(cx, 43, 43, 1333, 780, -24); cyl(cx, 38, 36, 780, 640, -24); cyl(cx, 31, 28, 640, 520, -24); cyl(cx, 23, 19, 520, 440, -24); cyl(cx, 14, 9, 440, 390, -24); cyl(cx, 6, 0, 390, 308, -24, 8); }
+    // (the user: the twin towers are removed)
     // the two roofed pavilions in front (their roof lines), and palms standing before them (their colours taken from the picture's own palms)
     poly([[0, 790], [110, 800], [430, 1060], [430, 1333], [0, 1333]], 36, 12); poly([[2000, 960], [1600, 1170], [1600, 1333], [2000, 1333]], 36, 12);
     for (const [px, z, hh] of [[600, 44, 13], [1470, 44, 15], [760, 30, 11], [1340, 30, 12]]) { const x = X(px);
