@@ -167,6 +167,7 @@ const NeonAvenue = {
         P.push(Kit.box(S - 0.5, 2.6, S - 0.5, ex, y * 0.45, ez, '#f2f5fa'), Kit.box(S - 0.4, 0.12, S - 0.4, ex, y * 0.45 - 0.1, ez, F.lime, { glow: true }), Kit.box(S - 0.44, 1.0, S - 0.44, ex, y * 0.45 + 1.1, ez, '#16233a'), Kit.box(0.12, 2.4, 1.6, ex - S / 2 - 0.02, 0, ez, F.lime, { glow: true }), Kit.box(4, 0.1, 5, ex - S / 2 - 2, 0.02, ez, '#3a4468'));
         G.push(Kit.box(S, y + 3.4, 0.08, ex, 0, ez - S / 2, GL), Kit.box(S, y + 3.4, 0.08, ex, 0, ez + S / 2, GL), Kit.box(0.08, y + 3.4, S, ex - S / 2, 0, ez, GL), Kit.box(0.08, y + 3.4, S, ex + S / 2, 0, ez, GL)); }
       return { merged: Kit.merge(P), sprite: Kit.merge(G).lit, material: () => NeonAvenue._stGlass || (NeonAvenue._stGlass = new THREE.MeshBasicMaterial({ color: '#9fe6ff', transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide })) }; }])),
+    ftRailArm: () => Kit.merge([Kit.box(5.4, 0.35, 0.7, -2.7, 10.05, 0, '#a89880'), Kit.box(0.3, 0.3, 0.72, -5.2, 10.4, 0, '#8a8f99')]),      // the arm that holds the glass track beside the rail
     ftHangTrain: () => { const P = []; for (let c = 0; c < 3; c++) { const z = -9.2 + c * 9.2; P.push(Kit.box(2.5, 3.0, 8.7, 0, 17.4, z, '#f2f5fa'), Kit.box(2.56, 1.0, 7.9, 0, 18.7, z, '#16233a'), Kit.box(2.2, 0.12, 8.2, 0, 17.3, z, F.cyan, { glow: true }), Kit.box(0.5, 1.6, 0.7, 0, 20.4, z - 2.6, '#8a94a8'), Kit.box(0.5, 1.6, 0.7, 0, 20.4, z + 2.6, '#8a94a8'), Kit.box(2.6, 0.2, 8.7, 0, 20.4, z, '#d6dce8')); }
       P.push(Kit.box(1.8, 0.5, 0.15, 0, 18.2, -13.6, '#fff2c0', { glow: true })); return Kit.merge(P); },
     // towers of 2455 (their facade at x 0 toward the road, the body toward +X). The green ones carry their gardens up the building:
@@ -222,6 +223,9 @@ const NeonAvenue = {
   props.cnMainRoad = () => Kit.merge([Kit.box(6.6, 0.05, 12.3, 0, 0, 0, '#4a4d58'), Kit.box(0.14, 0.02, 12.3, -3.1, 0.05, 0, '#ffffff'), Kit.box(0.14, 0.02, 12.3, 3.1, 0.05, 0, '#ffffff'), Kit.box(0.12, 0.02, 3, -1.1, 0.05, -3, '#ffffff'), Kit.box(0.12, 0.02, 3, 1.1, 0.05, -3, '#ffffff'),
     Kit.box(0.25, 0.75, 12.3, -3.75, 0, 0, '#5a4ad8'), Kit.box(0.27, 0.08, 12.3, -3.75, 0.75, 0, '#8f7bff', { glow: true }), Kit.box(0.25, 0.75, 12.3, 3.75, 0, 0, '#5a4ad8'), Kit.box(0.27, 0.08, 12.3, 3.75, 0.75, 0, '#8f7bff', { glow: true })]);
 
+  // (the user, "sans goudron": under the avenue the circuit has no asphalt, only its lines and its barriers on the floor)
+  props.cnMainRoadBare = () => Kit.merge([Kit.box(0.14, 0.02, 12.3, -3.1, 0.03, 0, '#ffffff'), Kit.box(0.14, 0.02, 12.3, 3.1, 0.03, 0, '#ffffff'), Kit.box(0.12, 0.02, 3, -1.1, 0.03, -3, '#ffffff'), Kit.box(0.12, 0.02, 3, 1.1, 0.03, -3, '#ffffff'),
+    Kit.box(0.25, 0.75, 12.3, -3.75, 0, 0, '#5a4ad8'), Kit.box(0.27, 0.08, 12.3, -3.75, 0.75, 0, '#8f7bff', { glow: true }), Kit.box(0.25, 0.75, 12.3, 3.75, 0, 0, '#5a4ad8'), Kit.box(0.27, 0.08, 12.3, 3.75, 0.75, 0, '#8f7bff', { glow: true })]);
   // (the user: the circuit beside the ramp was a staircase of straight pieces; each slot's piece is now bent along the curve, cnMainRoadU0.. on the way up, cnMainRoadD0.. on the way down)
   { const bend = (k, n, dir) => () => { const m = props.cnMainRoad(), f = z => NeonAvenue.shift(dir > 0 ? (k + (6 - z) / 12.2) / n : 1 - (k + (6 - z) / 12.2) / n), c = f(0);
       for (const g of [m.lit, m.glow]) if (g) { const P = g.attributes.position; for (let i = 0; i < P.count; i++) P.setX(i, P.getX(i) + f(P.getZ(i)) - c); P.needsUpdate = true; g.computeBoundingSphere(); g.computeBoundingBox(); }
@@ -288,13 +292,17 @@ const NeonAvenue = {
     if (liftM > 3) {                                                                   // UNDER THE GLASS ROAD (the user): no asphalt, a floor of big glossy black tiles under it and on both sides, its tint
       out.push({ prop: 'cnFloor' + (Math.floor(q / 17) % 5), x: 0.001, dist: 6, dy: -liftM });   //   changing every 200 m to another dark glossy colour; a big concrete planter of flowers and greens every 50 m in the
       if (q % 4 === 1) out.push({ prop: 'cnPlanter', x: 0.001, dist: 6, dy: -liftM });             //   middle, under the road; a terrace (a kiosk, tables and chairs) every 350 m on the right
-      if (q % 29 === 14) out.push({ prop: 'cnTerrace', x: 13, dist: 6, dy: -liftM });
+      if (q % 29 === 14) out.push({ prop: 'cnTerrace', x: 25.5, dist: 6, dy: -liftM });
     }
     if (liftM > 3) out.push({ prop: 'cnWall', x: -5.45, dist: 6, dy: -liftM });
     // THE MONORAIL CITY (the user's picture, METRO_ART) on the free ground of the right, after the open space: the picture itself, standing tall far out (it is the city's skyline, its towers,
     // the art deco block and the roof gardens), turned toward the road and the runner; in front of it an elevated monorail rail along the avenue with its white trains
     if (q < (typeof NEON_CORNER !== 'undefined' ? NEON_CORNER.EXIT : 2)) { out.push({ prop: 'neonTunnel' + (q % 6), x: NeonAvenue.D, dist: 6, dy: -liftM, solo: true }); if (q === 0) out.push({ prop: 'neonTunnelMouth', x: NeonAvenue.D, dist: 6, dy: -liftM, solo: true }); }      // (the user: seen from the ramp, the circuit ran to nothing: its tunnel is there now, under the bridge)
     if (liftM > 3) out.push({ prop: 'cnRail', x: 32, dist: 6, dy: -liftM });
+    // (the user, two circuits "to be reached later": 1. THE CIRCUIT ON THE GROUND goes on out of its tunnel, all along under the avenue's right side, to where the way down meets it;
+    //  2. A GLASS TRACK like the glass road, one lane wide, 1 m from the rail and 1 m under its top, all along the rail, held by an arm on every pillar. Both are scenery for now: no way in yet.)
+    if (liftM > 3 && q >= (typeof NEON_CORNER !== 'undefined' ? NEON_CORNER.EXIT : 2)) out.push({ prop: 'cnMainRoadBare', x: NeonAvenue.D, dist: 6, dy: -liftM });
+    if (liftM > 3) out.push({ prop: 'cnGlassN', x: 28.55, dist: 6, dy: 11 - liftM }, { prop: 'ftRailArm', x: 32, dist: 6, dy: -liftM });
     if (liftM > 3 && q >= 15) { if (q % 13 === 4) out.push({ prop: 'cnTrain', x: 32, dist: 6, dy: -liftM }); }
     // THE GREAT QUARTER OF 2455 (the user), all along the rail: the two-floor street with the hanging line over it (a hanging train every 110 m), then the towers in two rows, 2 of every 3
     // with vertical gardens (67 %); in the middle of the avenue the park (9 slots, 110 m) in place of the towers; no tower where the built skyline stands
