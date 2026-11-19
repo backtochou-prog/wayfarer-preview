@@ -131,18 +131,41 @@ const NeonAvenue = {
       P.push(Kit.box(0.9, 1.0, L, 0, 22, 0, '#c9d2e0'), Kit.box(0.3, 0.12, L, 0, 21.9, 0, F.cyan, { glow: true }), Kit.box(0.7, 23.4, 0.7, 5.2, 0, 0, '#aab4c8'), Kit.box(5.6, 0.6, 0.7, 2.6, 22.9, 0, '#aab4c8'), Kit.box(0.3, 0.3, 0.3, 5.2, 23.5, 0, F.pink, { glow: true }));
       return Kit.merge(P); },
     // the hanging train: three white cars under the beam, hung by their roofs (the rail on their back), a dark window band, light under the floor
-    // A STATION for every building (the user: no aerial train without stations): a glass platform beside the hanging line, at the cars' floor, and a GLASS TUNNEL from it into the building
-    // (N: the near row, 10 m away; F: the far row, 30 m). Local x = 0 is the line; the glass is one see-through material, the floor and the hoops are solid.
-    ...Object.fromEntries([['N', 10], ['F', 30]].map(([n, far]) => ['ftStation' + n, () => { const y = 17.3, x0 = 1.5, P = [], G = [];
-      P.push(Kit.box(3, 0.25, 11, x0 + 1.5, y - 0.25, 0, '#2a3358'), Kit.box(0.12, 0.06, 11, x0 + 0.1, y, 0, F.lime, { glow: true }), Kit.box(3.2, 0.14, 11.2, x0 + 1.5, y + 3.3, 0, F.cyan, { glow: true }));
-      for (const z of [-5.4, 5.4]) P.push(Kit.box(0.16, 3.3, 0.16, x0 + 2.9, y, z, '#c9d2e0'));
-      G.push(Kit.box(3, 0.1, 11, x0 + 1.5, y + 3.2, 0, '#9fe6ff'), Kit.box(0.08, 3.2, 3.8, x0 + 3, y, -3.6, '#9fe6ff'), Kit.box(0.08, 3.2, 3.8, x0 + 3, y, 3.6, '#9fe6ff'));
-      const a = x0 + 3, L = far - a;                                                                         // the tunnel: from the platform's back to the building's face
-      P.push(Kit.box(L, 0.2, 3, a + L / 2, y - 0.2, 0, '#2a3358'), Kit.box(L, 0.06, 0.1, a + L / 2, y, 0, F.cyan, { glow: true }));
-      for (let x = a; x <= far + 0.01; x += L / Math.max(2, Math.round(L / 4.5))) P.push(Kit.box(0.16, 0.12, 3.3, x, y + 3.0, 0, F.pink, { glow: true }), Kit.box(0.16, 3.1, 0.12, x, y, -1.6, F.pink, { glow: true }), Kit.box(0.16, 3.1, 0.12, x, y, 1.6, F.pink, { glow: true }));
-      G.push(Kit.box(L, 3, 0.08, a + L / 2, y, -1.55, '#9fe6ff'), Kit.box(L, 3, 0.08, a + L / 2, y, 1.55, '#9fe6ff'), Kit.box(L, 0.08, 3.1, a + L / 2, y + 3, 0, '#9fe6ff'));
-      if (far > 20) for (const x of [a + L * 0.35, a + L * 0.7]) P.push(Kit.box(0.5, y - 0.2, 0.5, x, 0, 0, '#3a4468'));      // (the long one stands on two legs)
-      P.push(Kit.box(0.3, 3.6, 3.6, far - 0.1, y - 0.2, 0, F.lime, { glow: true }));                                              // the lit door in the building's face
+    // A STATION for every building (the user: no aerial train without stations): a glass platform beside the hanging line, at the cars' floor, a GLASS TUNNEL from it, and at its end
+    // THE HALL (the user): a zone of the building under a glass vault, a station of its own (benches, ticket posts, screens, planters, people), with a BIG LIFT in a glass shaft that takes
+    // people down to the street. All the ceilings are CURVED (the user): vaults of flat glass panels. (N: the near row, 10 m away; F: the far row, 30 m.) Local x = 0 is the line.
+    ...Object.fromEntries([['N', 10], ['F', 30]].map(([n, far]) => ['ftStation' + n, () => { const y = 17.3, x0 = 1.5, P = [], G = [], GL = '#9fe6ff', DK = '#2a3358';
+      const vaultX = (L, xc, yb, R, zc, out, col, o, th = 0.08, nn = 6) => { for (let k = 0; k < nn; k++) { const t = (k + 0.5) / nn * Math.PI; out.push(Kit.box(L, th, 2 * R * Math.sin(Math.PI / 2 / nn) * 1.04, xc, yb + R * Math.sin(t) - th / 2, zc + R * Math.cos(t), col, Object.assign({ rx: Math.PI / 2 - t }, o))); } };      // a vault whose axis runs along x
+      const vaultZ = (L, zc, yb, R, xc, out, col, o, th = 0.08, nn = 6) => { for (let k = 0; k < nn; k++) { const t = (k + 0.5) / nn * Math.PI; out.push(Kit.box(2 * R * Math.sin(Math.PI / 2 / nn) * 1.04, th, L, xc + R * Math.cos(t), yb + R * Math.sin(t) - th / 2, zc, col, Object.assign({ rz: t - Math.PI / 2 }, o))); } };      // ... along z
+      // the platform under its curved canopy
+      P.push(Kit.box(3, 0.25, 11, x0 + 1.5, y - 0.25, 0, DK), Kit.box(0.12, 0.06, 11, x0 + 0.1, y, 0, F.lime, { glow: true }));
+      for (const z of [-5.4, 0, 5.4]) { P.push(Kit.box(0.14, 2.2, 0.14, x0 + 2.93, y, z, '#c9d2e0'), Kit.box(0.14, 2.2, 0.14, x0 + 0.07, y, z, '#c9d2e0')); vaultZ(0.16, z, y + 2.2, 1.5, x0 + 1.5, P, F.cyan, { glow: true }, 0.1); }
+      vaultZ(11, 0, y + 2.2, 1.5, x0 + 1.5, G, GL);
+      G.push(Kit.box(0.08, 2.2, 3.6, x0 + 3, y, -3.7, GL), Kit.box(0.08, 2.2, 3.6, x0 + 3, y, 3.7, GL));
+      for (const z of [-3.6, 3.6]) P.push(Kit.box(0.5, 0.45, 1.8, x0 + 2.5, y, z, '#e8ecf4'));                                                       // (two benches)
+      // the tunnel: straight glass walls, a curved glass ceiling, lit hoops
+      const hd = far > 20 ? 8 : 4.6, a = x0 + 3, hx = far - hd, L = hx - a;
+      P.push(Kit.box(L, 0.2, 3, a + L / 2, y - 0.2, 0, DK), Kit.box(L, 0.06, 0.1, a + L / 2, y, 0, F.cyan, { glow: true }));
+      for (let k = 0, nH = Math.max(1, Math.round(L / 4.5)); k <= nH; k++) { const x = a + L * k / nH; P.push(Kit.box(0.16, 1.7, 0.12, x, y, -1.5, F.pink, { glow: true }), Kit.box(0.16, 1.7, 0.12, x, y, 1.5, F.pink, { glow: true })); vaultX(0.16, x, y + 1.7, 1.5, 0, P, F.pink, { glow: true }, 0.1); }
+      G.push(Kit.box(L, 1.7, 0.08, a + L / 2, y, -1.5, GL), Kit.box(L, 1.7, 0.08, a + L / 2, y, 1.5, GL)); vaultX(L, a + L / 2, y + 1.7, 1.5, 0, G, GL);
+      if (far > 20) for (const x of [a + L * 0.3, a + L * 0.75]) P.push(Kit.box(0.5, y - 0.2, 0.5, x, 0, 0, '#3a4468'));                              // (the long one stands on two legs)
+      // THE HALL, against the building: a floor, glass walls 2.4 m high and a wide glass vault over them
+      const hw = 4.6, hc = hx + hd / 2;
+      P.push(Kit.box(hd, 0.35, hw * 2, hc, y - 0.35, 0, DK), Kit.box(hd, 0.08, 0.14, hc, y, -hw, F.cyan, { glow: true }), Kit.box(hd, 0.08, 0.14, hc, y, hw, F.cyan, { glow: true }), Kit.box(0.5, y - 0.35, 0.5, hx + 0.5, 0, -hw + 0.5, '#3a4468'));
+      for (const x of [hx, hx + hd / 2, far - 0.1]) { vaultX(0.2, x, y + 2.4, hw, 0, P, F.lime, { glow: true }, 0.12, 8); P.push(Kit.box(0.2, 2.4, 0.14, x, y, -hw, F.lime, { glow: true }), Kit.box(0.2, 2.4, 0.14, x, y, hw, F.lime, { glow: true })); }
+      G.push(Kit.box(hd, 2.4, 0.08, hc, y, -hw, GL), Kit.box(hd, 2.4, 0.08, hc, y, hw, GL), Kit.box(0.08, 2.4, hw - 1.5, hx, y, -(hw + 1.5) / 2, GL), Kit.box(0.08, 2.4, hw - 1.5, hx, y, (hw + 1.5) / 2, GL)); vaultX(hd, hc, y + 2.4, hw, 0, G, GL, {}, 0.08, 8);
+      // ... full of a station's things: benches, ticket posts, a departures screen, planters with small trees, a kiosk, people
+      for (const z of [-2.6, 2.6]) P.push(Kit.box(Math.min(2.4, hd - 2.4), 0.45, 0.6, hc, y, z, '#e8ecf4'), Kit.box(0.9, 0.5, 0.9, far - 0.9, y, z * 1.25, '#5a6078'), Kit.cyl(0.07, 0.09, 1.2, far - 0.9, y + 0.5, z * 1.25, '#6a4a36'), Kit.ico(0.75, far - 0.9, y + 2.2, z * 1.25, F.leaf), Kit.ico(0.5, far - 0.6, y + 2.8, z * 1.25 + 0.2, F.leafL));
+      for (const z of [-1.1, 1.1]) P.push(Kit.box(0.35, 1.2, 0.35, hx + 0.9, y, z * 2.4, '#d6dce8'), Kit.box(0.37, 0.3, 0.3, hx + 0.9, y + 0.8, z * 2.4, F.cyan, { glow: true }));
+      P.push(Kit.box(0.12, 1.0, 2.6, far - 0.25, y + 2.6, 0, '#10182c'), Kit.box(0.06, 0.8, 2.4, far - 0.33, y + 2.7, 0, F.cyan, { glow: true }), Kit.box(0.3, 3.2, 2.6, far - 0.1, y, 0, F.lime, { glow: true }));                          // the screen over the lit door into the building
+      if (hd > 6) P.push(Kit.box(1.6, 2.1, 1.6, hc + 1.6, y, -3.4, '#ff8a5a'), Kit.box(1.9, 0.14, 1.9, hc + 1.6, y + 2.1, -3.4, F.pink, { glow: true }));                                                                                    // (a kiosk)
+      for (const [dx, z, c] of [[1.4, 0.7, '#ffd27a'], [hd * 0.5, -1.2, '#ff8ac0'], [hd * 0.62, 1.6, '#8ad0ff'], [hd - 1.6, -0.5, '#c8ff9a']]) P.push(Kit.box(0.36, 1.05, 0.26, hx + dx, y, z, c), Kit.ico(0.2, hx + dx, y + 1.3, z, '#e8c2a0'));  // people
+      // THE BIG LIFT: a glass shaft down the side of the hall to the street, its lit cabin half-way, a lit door at the bottom
+      { const ex = far - 2, ez = hw + 1.7, S = 3.2;
+        for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) P.push(Kit.box(0.18, y + 3.4, 0.18, ex + dx * S / 2, 0, ez + dz * S / 2, '#c9d2e0'));
+        for (let yy = 0; yy <= y + 3.4; yy += (y + 3.4) / 5) P.push(Kit.box(S + 0.2, 0.14, S + 0.2, ex, yy, ez, F.cyan, { glow: true }));
+        P.push(Kit.box(S - 0.5, 2.6, S - 0.5, ex, y * 0.45, ez, '#f2f5fa'), Kit.box(S - 0.4, 0.12, S - 0.4, ex, y * 0.45 - 0.1, ez, F.lime, { glow: true }), Kit.box(S - 0.44, 1.0, S - 0.44, ex, y * 0.45 + 1.1, ez, '#16233a'), Kit.box(0.12, 2.4, 1.6, ex - S / 2 - 0.02, 0, ez, F.lime, { glow: true }), Kit.box(4, 0.1, 5, ex - S / 2 - 2, 0.02, ez, '#3a4468'));
+        G.push(Kit.box(S, y + 3.4, 0.08, ex, 0, ez - S / 2, GL), Kit.box(S, y + 3.4, 0.08, ex, 0, ez + S / 2, GL), Kit.box(0.08, y + 3.4, S, ex - S / 2, 0, ez, GL), Kit.box(0.08, y + 3.4, S, ex + S / 2, 0, ez, GL)); }
       return { merged: Kit.merge(P), sprite: Kit.merge(G).lit, material: () => NeonAvenue._stGlass || (NeonAvenue._stGlass = new THREE.MeshBasicMaterial({ color: '#9fe6ff', transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide })) }; }])),
     ftHangTrain: () => { const P = []; for (let c = 0; c < 3; c++) { const z = -9.2 + c * 9.2; P.push(Kit.box(2.5, 3.0, 8.7, 0, 17.4, z, '#f2f5fa'), Kit.box(2.56, 1.0, 7.9, 0, 18.7, z, '#16233a'), Kit.box(2.2, 0.12, 8.2, 0, 17.3, z, F.cyan, { glow: true }), Kit.box(0.5, 1.6, 0.7, 0, 20.4, z - 2.6, '#8a94a8'), Kit.box(0.5, 1.6, 0.7, 0, 20.4, z + 2.6, '#8a94a8'), Kit.box(2.6, 0.2, 8.7, 0, 20.4, z, '#d6dce8')); }
       P.push(Kit.box(1.8, 0.5, 0.15, 0, 18.2, -13.6, '#fff2c0', { glow: true })); return Kit.merge(P); },
