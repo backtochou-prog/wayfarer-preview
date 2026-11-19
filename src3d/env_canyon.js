@@ -140,6 +140,42 @@ const NeonAvenue = {
 
   // slot q of the avenue (0 .. CANYON + DOWN - 1, the high road and its way down); liftM: the road's height there (m)
   const TW = ['cnWhite', 'cnTeal', 'cnMagenta', 'cnViolet', 'cnGreen', 'cnPurple', 'cnOrange', 'cnRed'];
+  // THE NEON SKYLINE, BUILT (the user: "construire"): the city of the user's picture (SKYLINE_ART) standing in 3D beyond the monorail rail on the right. Every tower of the picture is a
+  // real volume at its own depth (the big screen towers in front, the twin towers with their stepped crowns and spires at the back, the low city between them, the two roofed pavilions and
+  // palms in front); the picture itself is projected on them from the front, so each building wears exactly its own part of it (sides and tops darker). Measures: the picture is 165 m wide
+  // and 110 m tall, its smeared bottom 9 m under the ground. A far group of its own (the renderer places it, seen from 390 m: Renderer3D "skies"), at the slots SKY_Q, SKY_X m to the right.
+  NeonAvenue.SKY_Q = [24, 54]; NeonAvenue.SKY_X = 120;
+  NeonAvenue.skyMesh = () => {
+    const H = 110, W = H * SKYLINE_ART.w / SKYLINE_ART.h, SINK = 9, X = px => (px / 2000 - 0.5) * W, Y = py => (1 - py / 1333) * H - SINK, M = W / 2000, geos = [];
+    const add = (g, x, y, z, flat) => { g = g.index ? g.toNonIndexed() : g; g.translate(x, y, z); g.computeVertexNormals(); if (flat) g.userData.flat = flat; geos.push(g); };
+    const box = (x0, x1, top, z, d) => { const w = (x1 - x0) * M, h = Y(top) + SINK; add(new THREE.BoxGeometry(w, h, d || Math.min(w, 16)), X((x0 + x1) / 2), h / 2 - SINK, z); };
+    const cyl = (cx, r0, r1, y0, y1, z, seg) => add(new THREE.CylinderGeometry(r1 * M, r0 * M, Y(y1) - Y(y0), seg || 12), X(cx), (Y(y0) + Y(y1)) / 2, z);
+    const poly = (pts, z, d) => { const sh = new THREE.Shape(); pts.forEach((q, k) => k ? sh.lineTo(X(q[0]), Y(q[1])) : sh.moveTo(X(q[0]), Y(q[1]))); add(new THREE.ExtrudeGeometry(sh, { depth: d, bevelEnabled: false }), 0, 0, z - d); };
+    // the front row: the big screen towers of both edges
+    box(55, 232, 70, 22); box(232, 316, 0, 18, 10); box(316, 440, 60, 14);
+    box(1545, 1890, 0, 22, 18); box(1452, 1548, 0, 15, 8); box(1830, 2000, 0, 12, 12);
+    // the middle: the cyan screen block, the round screen tower, the two spire towers
+    box(655, 762, 600, 0); cyl(1283, 78, 78, 1333, 300, 0, 16); cyl(1283, 78, 40, 300, 270, 0, 16);
+    box(482, 580, 600, -8); cyl(531, 34, 0, 600, 470, -8, 6); box(1122, 1196, 600, -8); cyl(1159, 30, 0, 600, 455, -8, 6);
+    // the back: the low city, and the twin towers (stepped crowns, a spire each)
+    box(430, 1452, 1010, -16, 10);
+    for (const cx of [912, 1047]) { cyl(cx, 43, 43, 1333, 780, -24); cyl(cx, 38, 36, 780, 640, -24); cyl(cx, 31, 28, 640, 520, -24); cyl(cx, 23, 19, 520, 440, -24); cyl(cx, 14, 9, 440, 390, -24); cyl(cx, 6, 0, 390, 308, -24, 8); }
+    // the two roofed pavilions in front (their roof lines), and palms standing before them (their colours taken from the picture's own palms)
+    poly([[0, 790], [110, 800], [430, 1060], [430, 1333], [0, 1333]], 36, 12); poly([[2000, 960], [1600, 1170], [1600, 1333], [2000, 1333]], 36, 12);
+    for (const [px, z, hh] of [[600, 44, 13], [1470, 44, 15], [760, 30, 11], [1340, 30, 12]]) { const x = X(px);
+      add(new THREE.CylinderGeometry(0.28, 0.45, hh, 6), x, hh / 2, z, [1420, 1100]);
+      for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2, g = new THREE.ConeGeometry(0.9, 6.5, 4); g.scale(1, 1, 0.25); g.rotateZ(-Math.PI / 2 + 0.5); g.translate(2.6, -0.9, 0); g.rotateY(a); add(g, x, hh, z, k % 2 ? [640, 960] : [1500, 930]); } }
+    // one geometry: the picture projected from the front (uv from x and y), faces that do not look to the front darker
+    let n = 0; for (const g of geos) n += g.attributes.position.count;
+    const P = new Float32Array(n * 3), UV = new Float32Array(n * 2), CL = new Float32Array(n * 3); let o = 0;
+    for (const g of geos) { const p = g.attributes.position, nm = g.attributes.normal, f = g.userData.flat;
+      for (let k = 0; k < p.count; k++, o++) { const x = p.getX(k), y = p.getY(k); P[o * 3] = x; P[o * 3 + 1] = y; P[o * 3 + 2] = p.getZ(k);
+        UV[o * 2] = f ? f[0] / 2000 : x / W + 0.5; UV[o * 2 + 1] = f ? 1 - f[1] / 1333 : (y + SINK) / H;
+        const sh = f ? 0.75 + 0.5 * Math.max(0, nm.getY(k)) : 0.42 + 0.58 * Math.max(0, nm.getZ(k)); CL[o * 3] = CL[o * 3 + 1] = CL[o * 3 + 2] = sh; } g.dispose(); }
+    const G = new THREE.BufferGeometry(); G.setAttribute('position', new THREE.BufferAttribute(P, 3)); G.setAttribute('uv', new THREE.BufferAttribute(UV, 2)); G.setAttribute('color', new THREE.BufferAttribute(CL, 3)); G.computeBoundingSphere();
+    if (!NeonAvenue._skyMat) { const tex = new THREE.Texture(SKYLINE_ART.img); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; const m = new THREE.MeshBasicMaterial({ map: tex, vertexColors: true, fog: false });
+      const up = () => { tex.needsUpdate = true; m.visible = true; }; if (SKYLINE_ART.img.complete && SKYLINE_ART.img.naturalWidth) up(); else { m.visible = false; SKYLINE_ART.img.addEventListener('load', up); } NeonAvenue._skyMat = m; }
+    const mesh = new THREE.Mesh(G, NeonAvenue._skyMat); mesh.rotation.y = -0.4; mesh.visible = false; return mesh; };
   NeonAvenue.layout = (q, rnd, liftM) => {
     const CN0 = typeof NEON_CORNER !== 'undefined' ? NEON_CORNER.CANYON : 40, out = [{ prop: q >= CN0 ? 'cnGlassD' + (q - CN0) : 'cnGlass', x: 0.001, dist: 6 }], CN = typeof NEON_CORNER !== 'undefined' ? NEON_CORNER.CANYON : 40, DN = typeof NEON_CORNER !== 'undefined' ? NEON_CORNER.DOWN : 6;
     if (q >= CN) {                                                                     // THE WAY DOWN, a glass ramp too (the user): it comes down from the left onto the circuit, which runs below on the right and meets it

@@ -403,6 +403,16 @@ class Renderer3D {
       }
     }
 
+    // the far skyline of the NEON AVENUE (the user's picture beyond the monorail rail, src3d/env_canyon.js): its picture planes, seen from 390 m ahead (the slots' scenery lives 150 m only)
+    if (this.skies) for (const m of this.skies) m.visible = false;
+    if (typeof NeonAvenue !== 'undefined' && NeonAvenue.skyMesh && typeof NEON_CORNER !== 'undefined' && g.detour && g.detour.up && g.detour.decided) {
+      if (!this.skies) this.skies = NeonAvenue.SKY_Q.map(() => { const m = NeonAvenue.skyMesh(); this.scene.add(m); return m; });
+      const C = NEON_CORNER, d = g.detour, zA = d.z0 + (C.STREET + C.TUNNEL + C.ART) * C.SLOT;
+      NeonAvenue.SKY_Q.forEach((q, k) => { const zf = zA + (q + 0.5) * C.SLOT, ahead = (zf - p.z) * U.Z; if (ahead < -80 || ahead > 392) return;
+        const bs = w.bandsAt(zf), m = this.skies[k];
+        m.position.set(this.centreOf(bs, bs[0].side) - Lref + NeonAvenue.SKY_X, WALK_Y + dy(zf) - C.lift(d, zf) * U.Z, -ahead); m.visible = true; });
+    }
+
     // ---- scenery: slots of SEG_LEN, per road and side; the biome of each side is chosen by the blend at that spot
     for (const k in this.propUsed) this.propUsed[k] = 0;
     this.spots.length = 0;
