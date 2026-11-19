@@ -144,7 +144,8 @@ const NeonAvenue = {
   // real volume at its own depth (the big screen towers in front, the twin towers with their stepped crowns and spires at the back, the low city between them, the two roofed pavilions and
   // palms in front); the picture itself is projected on them from the front, so each building wears exactly its own part of it (sides and tops darker). Measures: the picture is 165 m wide
   // and 110 m tall, its smeared bottom 9 m under the ground. A far group of its own (the renderer places it, seen from 390 m: Renderer3D "skies"), at the slots SKY_Q, SKY_X m to the right.
-  NeonAvenue.SKY_Q = [24, 54]; NeonAvenue.SKY_X = 120;
+  NeonAvenue.SKY_Q = [54]; NeonAvenue.SKY_X = 114; NeonAvenue.SKY_S = 75.6 / 110;      // (the user: at the scale of the towers of the left, the tallest 75.6 m like theirs; as far beyond the rail as
+  // theirs stand from the road, 20 m: its nearest corner 52 m from the road's centre; the first of the two cities removed)
   NeonAvenue.skyMesh = () => {
     const H = 110, W = H * SKYLINE_ART.w / SKYLINE_ART.h, SINK = 9, X = px => (px / 2000 - 0.5) * W, Y = py => (1 - py / 1333) * H - SINK, M = W / 2000, geos = [];
     const add = (g, x, y, z, flat) => { g = g.index ? g.toNonIndexed() : g; g.translate(x, y, z); g.computeVertexNormals(); if (flat) g.userData.flat = flat; geos.push(g); };
@@ -175,7 +176,7 @@ const NeonAvenue = {
     const G = new THREE.BufferGeometry(); G.setAttribute('position', new THREE.BufferAttribute(P, 3)); G.setAttribute('uv', new THREE.BufferAttribute(UV, 2)); G.setAttribute('color', new THREE.BufferAttribute(CL, 3)); G.computeBoundingSphere();
     if (!NeonAvenue._skyMat) { const tex = new THREE.Texture(SKYLINE_ART.img); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; const m = new THREE.MeshBasicMaterial({ map: tex, vertexColors: true, fog: false });
       const up = () => { tex.needsUpdate = true; m.visible = true; }; if (SKYLINE_ART.img.complete && SKYLINE_ART.img.naturalWidth) up(); else { m.visible = false; SKYLINE_ART.img.addEventListener('load', up); } NeonAvenue._skyMat = m; }
-    const mesh = new THREE.Mesh(G, NeonAvenue._skyMat); mesh.rotation.y = -0.4; mesh.visible = false; return mesh; };
+    const mesh = new THREE.Mesh(G, NeonAvenue._skyMat); mesh.rotation.y = -0.4; mesh.scale.setScalar(NeonAvenue.SKY_S); mesh.visible = false; return mesh; };
   NeonAvenue.layout = (q, rnd, liftM) => {
     const CN0 = typeof NEON_CORNER !== 'undefined' ? NEON_CORNER.CANYON : 40, out = [{ prop: q >= CN0 ? 'cnGlassD' + (q - CN0) : 'cnGlass', x: 0.001, dist: 6 }], CN = typeof NEON_CORNER !== 'undefined' ? NEON_CORNER.CANYON : 40, DN = typeof NEON_CORNER !== 'undefined' ? NEON_CORNER.DOWN : 6;
     if (q >= CN) {                                                                     // THE WAY DOWN, a glass ramp too (the user): it comes down from the left onto the circuit, which runs below on the right and meets it
