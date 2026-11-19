@@ -165,7 +165,7 @@ const NeonAvenue = {
     if (liftM > 3) out.push({ prop: 'cnWall', x: -5.45, dist: 6, dy: -liftM });
     // THE MONORAIL CITY (the user's picture, METRO_ART) on the free ground of the right, after the open space: the picture itself, standing tall far out (it is the city's skyline, its towers,
     // the art deco block and the roof gardens), turned toward the road and the runner; in front of it an elevated monorail rail along the avenue with its white trains
-    if (liftM > 3 && q >= 15) { out.push({ prop: 'cnRail', x: 32, dist: 6, dy: -liftM }); if (q % 13 === 4) out.push({ prop: 'cnTrain', x: 32, dist: 6, dy: -liftM }); if (q === 20 || q === 46) out.push({ prop: 'cnMetroView', x: q === 20 ? 62 : 70, dist: 6, dy: -liftM, rotY: q === 20 ? -0.55 : -0.35 }); }                       // THE PROTECTION WALL on the left (the user): from the ground up to 2 m over the glass road, 2 m from its edge
+    if (liftM > 3 && q >= 15) { out.push({ prop: 'cnRail', x: 32, dist: 6, dy: -liftM }); if (q % 13 === 4) out.push({ prop: 'cnTrain', x: 32, dist: 6, dy: -liftM }); }      // (the user: the train stays, with its rail; the city picture (cnMetroView) is removed)                       // THE PROTECTION WALL on the left (the user): from the ground up to 2 m over the glass road, 2 m from its edge
     for (const o of out) o.solo = true;
     return out;
   };

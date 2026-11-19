@@ -391,7 +391,7 @@ class Game {
     const c = this.corner, w = this.world, p = this.p; c.t += dt;
     if (c.t < NEON_CORNER.T) return;
     this.corner = null; this.detour = { z0: c.z0, z1: c.z0 + (NEON_CORNER.STREET + NEON_CORNER.TUNNEL + NEON_CORNER.ART + NEON_CORNER.EXIT) * NEON_CORNER.SLOT };
-    w.items = w.items.filter(it => !(OBST[it.kind] && it.z >= this.detour.z0 - 40 && it.z <= this.detour.z1));
+    w.items = w.items.filter(it => !((OBST[it.kind] || it.kind === 'raceGate') && it.z >= this.detour.z0 - 40 && it.z <= this.detour.z1));      // (no race entrance in the district: the user)
     p.x = w.playerBand(p.z, 0).c; this.camRel = 0; this.camErr = 0; this.prevTgt = p.x;
   }
 
@@ -410,7 +410,7 @@ class Game {
         const dx = p.x - w.playerBand(zD, p.x).c, up = dx < -LANE_W * 0.3 || (dx < 0 && (this.keys.left || this.tleft)), d = Object.assign({}, this.detour, { decided: true, up });      // (forgiving: nearly in the left lane, or on the way to it)
         if (up) { d.z1 = d.z0 + (C.STREET + C.TUNNEL + C.ART + C.CANYON + C.DOWN + C.EXIT) * C.SLOT; const rampL = (a, b) => { const c = w.playerBand(a, 0).c; return it => it.z >= a && it.z <= b && Math.abs(it.x - c) > 0.2; };
           const onUp = rampL(zD, zD + (C.UP + C.CANYON) * C.SLOT), onDown = rampL(zD + (C.UP + C.CANYON) * C.SLOT, zD + (C.UP + C.CANYON + C.DOWN) * C.SLOT);      // (the whole glass route has one lane: no coin left in the side lanes, the user)
-          w.items = w.items.filter(it => !(OBST[it.kind] && it.z >= zD && it.z <= d.z1) && !(it.kind === 'coin' && (onUp(it) || onDown(it))));      // (the ramps have one lane: only the coins of the middle stay)
+          w.items = w.items.filter(it => !((OBST[it.kind] || it.kind === 'raceGate') && it.z >= zD && it.z <= d.z1) && !(it.kind === 'coin' && (onUp(it) || onDown(it))));      // (the ramps have one lane: only the coins of the middle stay)
           w.extraLift = z => C.lift(d, z); w.extraOff = z => C.off(d, z); w.ver++; this.emit('corner'); }
         else { d.down = true; d.z1 = d.z0 + (C.STREET + C.TUNNEL + C.ART + C.DIVE + C.UNDER + C.RISE + C.EXIT) * C.SLOT; w.items = w.items.filter(it => !(OBST[it.kind] && it.z >= zD + C.UP * C.SLOT && it.z <= d.z1)); w.extraLift = z => C.lift(d, z); }      // no ramp: the underground tunnel
         this.detour = d;
@@ -418,7 +418,7 @@ class Game {
     }
     if (this.detour && this.detour.decided && (this.detourSweep = (this.detourSweep || 0) + 1) % 20 === 0) {      // (items the world builds later along the glass route or the underground tunnel: the same rule as at the choice)
       const C = NEON_CORNER, up = this.detour.up, a = this.detour.z0 + (C.STREET + C.TUNNEL + C.ART - C.UP) * C.SLOT + (up ? 0 : C.UP * C.SLOT), b2 = this.detour.z1;
-      const gone = it => it.z >= a && it.z <= b2 && (OBST[it.kind] || (up && it.kind === 'coin' && Math.abs(it.x) > 0.2));
+      const gone = it => it.z >= a && it.z <= b2 && (OBST[it.kind] || it.kind === 'raceGate' || (up && it.kind === 'coin' && Math.abs(it.x) > 0.2));
       if (w.items.some(gone)) w.items = w.items.filter(it => !gone(it));
     }
     if (this.detour && p.z > this.detour.z1) { this.detour = null; w.extraLift = null; if (w.extraOff) { w.extraOff = null; w.ver++; } }      // out of the tunnel: back on the neon street
