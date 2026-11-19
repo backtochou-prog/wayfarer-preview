@@ -110,6 +110,9 @@ const NeonAvenue = {
       return Kit.merge(P); },
     // the monorail's rail: a concrete beam 12 m over the ground on a pillar, a steel guide on top
     cnRail: () => Kit.merge([Kit.box(1.4, 1.1, 12.25, 0, 11, 0, '#b8a890'), Kit.box(0.5, 0.25, 12.25, 0, 12.1, 0, '#8a8f99'), Kit.box(1.1, 11, 1.1, 0, 0, 0, '#a89880'), Kit.box(2.2, 0.6, 1.6, 0, 10.4, 0, '#a89880'), Kit.box(1.45, 0.08, 12.25, 0, 10.98, 0, '#ffd27a', { glow: true })]),
+    // (the user: the first rail is stretched BACK over the bridge and the glass ramp, and fades away among ART CITY's buildings: cnRailF0..9, more and more solid towards the ramp)
+    ...Object.fromEntries(Array.from({ length: 10 }, (_, j) => ['cnRailF' + j, () => ({ merged: Kit.merge([Kit.box(0.05, 0.05, 0.05, 0, -60, 0, '#a89880')]), sprite: Kit.merge([Kit.box(1.4, 1.1, 12.25, 0, 11, 0, '#b8a890'), Kit.box(0.5, 0.25, 12.25, 0, 12.1, 0, '#8a8f99'), Kit.box(1.1, 11, 1.1, 0, 0, 0, '#a89880'), Kit.box(2.2, 0.6, 1.6, 0, 10.4, 0, '#a89880'), Kit.box(1.45, 0.08, 12.25, 0, 10.98, 0, '#ffd27a')]).lit,
+      material: () => (NeonAvenue._railF = NeonAvenue._railF || [])[j] || (NeonAvenue._railF[j] = new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: (j + 1) / 11, depthWrite: j > 5 })) })])),
     // a white monorail train of three cars on its rail (as in the picture: rounded white cars, a dark band of windows, a lit nose)
     cnTrain: () => { const P = []; for (let c = 0; c < 3; c++) { const z = -9 + c * 9.2; P.push(Kit.box(2.6, 2.6, 8.8, 0, 12.35, z, '#f2efe8'), Kit.box(2.66, 0.9, 8.0, 0, 13.4, z, '#2a3240'), Kit.box(2.2, 0.3, 8.6, 0, 15.0, z, '#e2ded6')); }
       P.push(Kit.cone(1.3, 2.2, 0, 13.6, -14.4, '#f2efe8', { rx: -Math.PI / 2, seg: 10 }), Kit.box(1.6, 0.4, 0.2, 0, 13.0, -15.2, '#e8fbff', { glow: true })); return Kit.merge(P); },
@@ -183,6 +186,13 @@ const NeonAvenue = {
   props.cnMainRoad = () => Kit.merge([Kit.box(6.6, 0.05, 12.3, 0, 0, 0, '#4a4d58'), Kit.box(0.14, 0.02, 12.3, -3.1, 0.05, 0, '#ffffff'), Kit.box(0.14, 0.02, 12.3, 3.1, 0.05, 0, '#ffffff'), Kit.box(0.12, 0.02, 3, -1.1, 0.05, -3, '#ffffff'), Kit.box(0.12, 0.02, 3, 1.1, 0.05, -3, '#ffffff'),
     Kit.box(0.25, 0.75, 12.3, -3.75, 0, 0, '#5a4ad8'), Kit.box(0.27, 0.08, 12.3, -3.75, 0.75, 0, '#8f7bff', { glow: true }), Kit.box(0.25, 0.75, 12.3, 3.75, 0, 0, '#5a4ad8'), Kit.box(0.27, 0.08, 12.3, 3.75, 0.75, 0, '#8f7bff', { glow: true })]);
 
+  // (the user: the circuit beside the ramp was a staircase of straight pieces; each slot's piece is now bent along the curve, cnMainRoadU0.. on the way up, cnMainRoadD0.. on the way down)
+  { const bend = (k, n, dir) => () => { const m = props.cnMainRoad(), f = z => NeonAvenue.shift(dir > 0 ? (k + (6 - z) / 12.2) / n : 1 - (k + (6 - z) / 12.2) / n), c = f(0);
+      for (const g of [m.lit, m.glow]) if (g) { const P = g.attributes.position; for (let i = 0; i < P.count; i++) P.setX(i, P.getX(i) + f(P.getZ(i)) - c); P.needsUpdate = true; g.computeBoundingSphere(); g.computeBoundingBox(); }
+      return m; };
+    const DN0 = typeof NEON_CORNER !== 'undefined' ? NEON_CORNER.DOWN : 6;
+    for (let k = 0; k < UPN; k++) props['cnMainRoadU' + k] = bend(k, UPN, 1);
+    for (let k = 0; k < DN0; k++) props['cnMainRoadD' + k] = bend(k, DN0, -1); }
   // slot q of the avenue (0 .. CANYON + DOWN - 1, the high road and its way down); liftM: the road's height there (m)
   const TW = ['cnWhite', 'cnTeal', 'cnMagenta', 'cnViolet', 'cnGreen', 'cnPurple', 'cnOrange', 'cnRed'];
   // THE NEON SKYLINE, BUILT (the user: "construire"): the city of the user's picture (SKYLINE_ART) standing in 3D beyond the monorail rail on the right. Every tower of the picture is a
@@ -226,7 +236,7 @@ const NeonAvenue = {
     const CN0 = typeof NEON_CORNER !== 'undefined' ? NEON_CORNER.CANYON : 40, out = [{ prop: q >= CN0 ? 'cnGlassD' + (q - CN0) : 'cnGlass', x: 0.001, dist: 6 }], CN = typeof NEON_CORNER !== 'undefined' ? NEON_CORNER.CANYON : 40, DN = typeof NEON_CORNER !== 'undefined' ? NEON_CORNER.DOWN : 6;
     if (q >= CN) {                                                                     // THE WAY DOWN, a glass ramp too (the user): it comes down from the left onto the circuit, which runs below on the right and meets it
       const k = q - CN, sh = d => NeonAvenue.shift(1 - (k + d / 12.2) / DN);
-      out.push({ prop: 'cnMainRoad', x: sh(6) + 0.001, dist: 6, dy: -liftM });
+      out.push({ prop: 'cnMainRoadD' + k, x: sh(6) + 0.001, dist: 6, dy: -liftM });
       for (const s of [1]) { const kk = mod(q * 3 + Math.floor(rnd(q, 44) * 4), TW.length); out.push({ prop: TW[kk], x: sh(6) + 12 + rnd(q, 45) * 6, dist: 6, dy: -liftM }); }
       if (k % 2 === 0 && liftM > 3) out.push({ prop: 'cnPillar', x: 0.001, dist: 3 });
       for (const o of out) o.solo = true;
@@ -247,7 +257,9 @@ const NeonAvenue = {
     if (liftM > 3) out.push({ prop: 'cnWall', x: -5.45, dist: 6, dy: -liftM });
     // THE MONORAIL CITY (the user's picture, METRO_ART) on the free ground of the right, after the open space: the picture itself, standing tall far out (it is the city's skyline, its towers,
     // the art deco block and the roof gardens), turned toward the road and the runner; in front of it an elevated monorail rail along the avenue with its white trains
-    if (liftM > 3 && q >= 15) { out.push({ prop: 'cnRail', x: 32, dist: 6, dy: -liftM }); if (q % 13 === 4) out.push({ prop: 'cnTrain', x: 32, dist: 6, dy: -liftM }); }
+    if (q < (typeof NEON_CORNER !== 'undefined' ? NEON_CORNER.EXIT : 2)) { out.push({ prop: 'neonTunnel' + (q % 6), x: NeonAvenue.D, dist: 6, dy: -liftM, solo: true }); if (q === 0) out.push({ prop: 'neonTunnelMouth', x: NeonAvenue.D, dist: 6, dy: -liftM, solo: true }); }      // (the user: seen from the ramp, the circuit ran to nothing: its tunnel is there now, under the bridge)
+    if (liftM > 3) out.push({ prop: 'cnRail', x: 32, dist: 6, dy: -liftM });
+    if (liftM > 3 && q >= 15) { if (q % 13 === 4) out.push({ prop: 'cnTrain', x: 32, dist: 6, dy: -liftM }); }
     // THE GREAT QUARTER OF 2455 (the user), all along the rail: the two-floor street with the hanging line over it (a hanging train every 110 m), then the towers in two rows, 2 of every 3
     // with vertical gardens (67 %); in the middle of the avenue the park (9 slots, 110 m) in place of the towers; no tower where the built skyline stands
     if (liftM > 3 && q >= 15 && q < CN) { const mid = Math.floor((15 + CN) / 2), inPark = Math.abs(q - mid) <= 4, sky = NeonAvenue.SKY_Q.some(z => q >= z - 6 && q <= z + 5);

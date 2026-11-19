@@ -121,8 +121,13 @@ const ArtCity = {
     if (up && r >= N - U) {                                                                                     // ON THE RAMP: what stands on the ground stays there, and the circuit parts to the right (NeonAvenue.shift)
       const k = r - (N - U), sh = d => NeonAvenue.shift((k + d / 12.2) / U), keep = out.filter(o => o.prop !== 'artRail');
       for (const o of keep) { if (o.dy === undefined) o.dy = -liftM; o.x += sh(o.dist); }
-      for (let n = keep.length - 1; n >= 0; n--) if (keep[n].x < 4 && !/^(artFloor|cnMainRoad)$/.test(keep[n].prop)) keep.splice(n, 1);      // (the ramp goes off to the left: what stood on the left of the circuit is where it passes)
-      keep.push({ prop: 'cnMainRoad', x: sh(6), dist: 6, dy: -liftM }); out.length = 0; out.push(...keep);
+      for (let n = keep.length - 1; n >= 0; n--) if (keep[n].x < 4 && !/^(artFloor|cnMainRoad.*)$/.test(keep[n].prop)) keep.splice(n, 1);      // (the ramp goes off to the left: what stood on the left of the circuit is where it passes)
+      keep.push({ prop: 'cnMainRoadU' + k, x: sh(6), dist: 6, dy: -liftM }); out.length = 0; out.push(...keep);
+    }
+    if (typeof NeonAvenue !== 'undefined' && r >= N - U - 10) {                                              // THE AVENUE'S RAIL, stretched back (the user): it fades in among the buildings and is solid by the glass ramp, which it follows over the bridge
+      const k = r - (N - U), x0 = 32 - NeonAvenue.D;
+      if (k < 0) out.push({ prop: 'cnRailF' + (k + 10), x: x0, dist: 6 });
+      else out.push({ prop: 'cnRail', x: x0 + (up ? NeonAvenue.shift((k + 0.5) / U) : 0), dist: 6, dy: -liftM });
     }
     for (const q of out) q.solo = true;
     return out;
