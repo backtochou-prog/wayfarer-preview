@@ -44,6 +44,17 @@ const NeonAvenue = {
     return tex(parts, [NeonAvenue.quad(CANYON_ASSETS, cell, [-0.02, 0, F / 2], [-0.02, 0, -F / 2], [-0.02, H, -F / 2], [-0.02, H, F / 2]), NeonAvenue.quad(CANYON_ASSETS, cell, [0, 0, F / 2 + 0.02], [D, 0, F / 2 + 0.02], [D, H, F / 2 + 0.02], [0, H, F / 2 + 0.02])], () => NeonAvenue.material());
   };
 
+  // the colours of the quarter of 2455, a tree (trunk and a crown of three balls), and a slot of its park
+  const F = { cyan: '#7fe8ff', pink: '#ff5ad8', violet: '#8a5cff', lime: '#9dff7a', leaf: '#3fae5a', leafD: '#2c8448', leafL: '#6fd070' };
+  const tree = (x, y, z, r) => [Kit.cyl(r * 0.1, r * 0.16, r * 1.3, x, y, z, '#6a4a36'), Kit.ico(r * 0.62, x, y + r * 1.75, z, F.leaf), Kit.ico(r * 0.46, x + r * 0.42, y + r * 1.45, z + r * 0.25, F.leafD), Kit.ico(r * 0.42, x - r * 0.4, y + r * 1.5, z - r * 0.3, F.leafL)];
+  const park = v => { const L = 12.25, P = [Kit.box(40, 0.3, L, 0, 0, 0, v ? '#2f9450' : '#34a058'), Kit.box(3, 0.06, L, v ? -6 : -8, 0.3, 0, '#d9c9a0'), Kit.box(0.14, 0.1, L, -20, 0.3, 0, F.lime, { glow: true }), Kit.box(0.14, 0.1, L, 20, 0.3, 0, F.lime, { glow: true })];
+    const T = v ? [[-14, 3, 9], [-1, -3, 13], [9, 2, 10], [16, -4, 8]] : [[-15, -3, 8], [-2, 3, 12], [6, -2, 9], [15, 3, 11]];
+    for (const [x, z, r] of T) P.push(...tree(x, 0.3, z, r));
+    if (v) P.push(Kit.cyl(4.5, 4.5, 0.12, 3, 0.3, 4, '#3aa0c8', { seg: 10 }), Kit.cyl(0.25, 0.25, 0.12, 3, 0.4, 4, '#e8fbff', { glow: true, seg: 6 }));
+    else P.push(Kit.box(5, 0.5, 2, 10, 0.3, 4.5, '#ff7ab8'), Kit.box(5, 0.5, 2, -10, 0.3, 4.5, '#ffd24a'), Kit.box(4, 0.5, 2, 1, 0.3, -5, '#c084ff'));
+    P.push(Kit.box(1.8, 0.45, 0.5, v ? -4 : -6, 0.3, 2, '#e8eef6'), Kit.cyl(0.06, 0.08, 3.2, v ? -8 : -10, 0.3, -3, '#c9d2e0'), Kit.ico(0.3, v ? -8 : -10, 3.7, -3, '#fff2c0', { glow: true }));
+    return Kit.merge(P); };
+
   const props = {
     // THE HIGH ROAD's sides, one slot: a glass skirt hanging under each edge (transparent cyan), a pink light along each edge and a cyan one under it
     cnGlass: () => glassSides(3.45), cnGlassN: () => glassSides(1.75),      // (N: the one-lane glass ramps, up and down)
@@ -107,6 +118,40 @@ const NeonAvenue = {
       if (!NeonAvenue._metroMat) { const tex = new THREE.Texture(METRO_ART.img); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; const m = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, fog: false });
         const up = () => { tex.needsUpdate = true; m.visible = true; }; if (METRO_ART.img.complete && METRO_ART.img.naturalWidth) up(); else { m.visible = false; METRO_ART.img.addEventListener('load', up); } NeonAvenue._metroMat = m; }
       return { merged: Kit.merge([Kit.box(W, 0.5, 2, 0, -0.3, 0, '#0c0b12')]), sprite: g, material: () => NeonAvenue._metroMat }; },
+    // ---- THE GREAT QUARTER OF 2455 (the user), all along the monorail rail on the right of the glass avenue: a street on two floors with a hanging train line over it (the rail on the
+    // train's back), towers of the future behind it, 2 of every 3 with vertical gardens (67 %), and a park in the middle of the avenue, the breathing point. All local: metres, the ground at y 0.
+    // the two-floor street, one slot (its centre at x 0, 7.4 m wide): the ground lane, the upper deck 9 m up on pillars, light along its edges, a few pods; over it the hanging line's beam, 22 m
+    // up on a pylon with an arm
+    ftStreet: () => { const L = 12.25, P = [Kit.box(7, 0.12, L, 0, 0, 0, '#17152a'), Kit.box(0.12, 0.05, L * 0.5, 0, 0.12, 0, F.cyan, { glow: true }), Kit.box(7.4, 0.5, L, 0, 9, 0, '#232a4a'), Kit.box(0.14, 0.05, L * 0.5, 0, 9.5, 0, F.lime, { glow: true })];
+      for (const s of [-1, 1]) P.push(Kit.box(0.14, 0.14, L, s * 3.7, 9.5, 0, s < 0 ? F.cyan : F.pink, { glow: true }), Kit.box(0.08, 0.9, L, s * 3.7, 9.6, 0, '#2f3a66'), Kit.box(0.6, 9, 0.6, s * 3.2, 0, 0, '#2a3156'), Kit.box(0.14, 0.14, L, s * 3.5, 0.12, 0, F.violet, { glow: true }));
+      P.push(Kit.box(1.5, 0.9, 3, -1.7, 9.7, 3, '#e8eef6'), Kit.box(1.52, 0.35, 2, -1.7, 10.3, 3, '#1c2a44'), Kit.box(1.2, 0.12, 0.1, -1.7, 9.95, 1.48, '#fff2c0', { glow: true }), Kit.box(1.5, 0.9, 3, 1.7, 0.3, -2, '#ffb050'), Kit.box(1.52, 0.35, 2, 1.7, 0.9, -2, '#1c2a44'), Kit.box(1.2, 0.12, 0.1, 1.7, 0.55, -3.52, '#ff5a6a', { glow: true }));
+      P.push(Kit.box(0.9, 1.0, L, 0, 22, 0, '#c9d2e0'), Kit.box(0.3, 0.12, L, 0, 21.9, 0, F.cyan, { glow: true }), Kit.box(0.7, 23.4, 0.7, 5.2, 0, 0, '#aab4c8'), Kit.box(5.6, 0.6, 0.7, 2.6, 22.9, 0, '#aab4c8'), Kit.box(0.3, 0.3, 0.3, 5.2, 23.5, 0, F.pink, { glow: true }));
+      return Kit.merge(P); },
+    // the hanging train: three white cars under the beam, hung by their roofs (the rail on their back), a dark window band, light under the floor
+    ftHangTrain: () => { const P = []; for (let c = 0; c < 3; c++) { const z = -9.2 + c * 9.2; P.push(Kit.box(2.5, 3.0, 8.7, 0, 17.4, z, '#f2f5fa'), Kit.box(2.56, 1.0, 7.9, 0, 18.7, z, '#16233a'), Kit.box(2.2, 0.12, 8.2, 0, 17.3, z, F.cyan, { glow: true }), Kit.box(0.5, 1.6, 0.7, 0, 20.4, z - 2.6, '#8a94a8'), Kit.box(0.5, 1.6, 0.7, 0, 20.4, z + 2.6, '#8a94a8'), Kit.box(2.6, 0.2, 8.7, 0, 20.4, z, '#d6dce8')); }
+      P.push(Kit.box(1.8, 0.5, 0.15, 0, 18.2, -13.6, '#fff2c0', { glow: true })); return Kit.merge(P); },
+    // towers of 2455 (their facade at x 0 toward the road, the body toward +X). The green ones carry their gardens up the building:
+    //   A: a stepped tower, a garden with trees on every step and a living wall down its face
+    ftGreenA: () => { const P = []; let y = 0; for (let k = 0; k < 5; k++) { const d = 14 - k * 2.2, f = 11 - k * 1.5, h = 13 - k; P.push(Kit.box(d, h, f, d / 2, y, 0, k % 2 ? '#1d2748' : '#243258'), Kit.box(0.1, h - 2, f * 0.5, -0.03, y + 1, 0, '#3f6f9a'), Kit.box(d + 0.4, 0.5, f + 0.4, d / 2, y + h, 0, F.leaf));
+        P.push(...tree(d - 1.2, y + h + 0.5, f / 2 - 1.3, 3.2), ...tree(1.0, y + h + 0.5, -f / 2 + 1.2, 2.6), Kit.box(0.5, h * 0.8, 1.6, -0.2, y + h * 0.1, f / 2 - 1.2, k % 2 ? F.leaf : F.leafD), Kit.box(0.12, 0.12, f, -0.05, y + h - 0.2, 0, F.lime, { glow: true })); y += h; }
+      P.push(Kit.cyl(0.1, 0.25, 7, 2.5, y + 0.5, 0, '#c9d2e0'), Kit.ico(0.4, 2.5, y + 7.8, 0, F.pink, { glow: true })); return Kit.merge(P); },
+    //   B: two slabs joined by garden bridges (trees in the sky), planted balconies up both faces
+    ftGreenB: () => { const P = [], H = 72; for (const z of [-4.2, 4.2]) { P.push(Kit.box(11, H, 4.6, 5.5, 0, z, '#1b2a4c'), Kit.box(0.1, H - 4, 2.4, -0.03, 2, z, '#35608a'), Kit.box(11.2, 0.3, 4.8, 5.5, H, z, F.cyan, { glow: true }));
+        for (let y = 5; y < H - 3; y += 6) P.push(Kit.box(1.2, 0.9, 4.2, -0.5, y, z, (y / 6 | 0) % 2 ? F.leaf : F.leafD), Kit.box(1.0, 0.5, 3.6, -0.5, y + 0.9, z, F.leafL)); }
+      for (const y of [18, 38, 58]) P.push(Kit.box(9, 0.6, 4, 5.5, y, 0, '#2a3a66'), Kit.box(8.6, 0.5, 3.8, 5.5, y + 0.6, 0, F.leaf), ...tree(3, y + 1.1, 0, 3.4), ...tree(7.6, y + 1.1, 0.4, 2.8), Kit.box(0.1, 0.1, 4, 1, y + 0.3, 0, F.lime, { glow: true }));
+      P.push(...tree(3, H + 0.3, -4.2, 3), ...tree(8, H + 0.3, 4.2, 3)); return Kit.merge(P); },
+    //   C: a round tower ringed with gardens every 9 m, a glass dome with a tree at its top
+    ftGreenC: () => { const P = [Kit.cyl(4.6, 5.4, 60, 5.4, 0, 0, '#22305a', { seg: 10 }), Kit.cyl(4.7, 4.7, 0.3, 5.4, 60, 0, F.pink, { glow: true, seg: 10 })];
+      for (let y = 7; y < 58; y += 9) { P.push(Kit.cyl(7.2, 6.6, 0.7, 5.4, y, 0, '#2c3c6c', { seg: 10 }), Kit.cyl(7.0, 7.0, 0.5, 5.4, y + 0.7, 0, (y / 9 | 0) % 2 ? F.leaf : F.leafD, { seg: 10 }), Kit.cyl(5.5, 5.5, 0.12, 5.4, y - 0.2, 0, F.lime, { glow: true, seg: 10 }));
+        for (let a = 0; a < 5; a++) { const t = a / 5 * 6.283 + y; P.push(Kit.ico(1.3, 5.4 + Math.cos(t) * 6.1, y + 2.1, Math.sin(t) * 6.1, a % 2 ? F.leafL : F.leaf)); } }
+      P.push(Kit.cyl(0.6, 4.4, 4.5, 5.4, 60.3, 0, '#3f6f9a', { seg: 10 }), ...tree(5.4, 64, 0, 3.2)); return Kit.merge(P); },
+    //   the plain ones: a glass prism with lines of light; a slim pair with a bridge
+    ftPlainA: () => Kit.merge([Kit.box(11, 66, 9, 5.5, 0, 0, '#16203e'), Kit.box(0.1, 62, 6.5, -0.03, 2, 0, '#2f5a88'), Kit.box(0.14, 66, 0.14, -0.05, 0, -4.5, F.cyan, { glow: true }), Kit.box(0.14, 66, 0.14, -0.05, 0, 4.5, F.pink, { glow: true }), Kit.box(0.12, 0.14, 9, -0.05, 22, 0, F.cyan, { glow: true }), Kit.box(0.12, 0.14, 9, -0.05, 44, 0, F.violet, { glow: true }), Kit.box(8, 6, 6.5, 5.5, 66, 0, '#1d2a50'), Kit.cyl(0.08, 0.2, 9, 5.5, 72, 0, '#c9d2e0'), Kit.ico(0.35, 5.5, 81.2, 0, F.cyan, { glow: true })]),
+    ftPlainB: () => { const P = []; for (const [z, H] of [[-3.6, 58], [3.6, 50]]) P.push(Kit.box(8, H, 4.4, 4, 0, z, '#1a2444'), Kit.box(0.1, H - 3, 2.6, -0.03, 1.5, z, '#3a4f8a'), Kit.box(8.2, 0.3, 4.6, 4, H, z, F.violet, { glow: true }), Kit.box(0.12, H, 0.12, -0.05, 0, z + (z < 0 ? -2.2 : 2.2), F.pink, { glow: true }));
+      P.push(Kit.box(5, 2.4, 3, 4, 34, 0, '#2a3a66'), Kit.box(5.1, 0.14, 3.1, 4, 34, 0, F.cyan, { glow: true })); return Kit.merge(P); },
+    // THE PARK in the middle of the avenue (the breathing point), one slot, 40 m wide (its centre at x 0): lawn, a pale path, a pond, giant trees whose crowns rise over the high road, flower
+    // beds, benches and soft lamps. Two slots that alternate.
+    ftParkA: () => park(0), ftParkB: () => park(1),
     // THE PROTECTION WALL (the user): a dark glass wall standing on the ground on the left of the high road, 2 m from its edge, up to 2 m over its deck (NEON_CORNER.H + 2 m), lit edges
     cnWall: () => { const H = (typeof NEON_CORNER !== 'undefined' ? NEON_CORNER.H / 10 : 14) + 2, L = 12.25, parts = [Kit.box(0.35, H, L, 0, 0, 0, '#1a1438'), Kit.box(0.4, 0.14, L, 0, H, 0, C.pink, { glow: true }), Kit.box(0.4, 0.1, L, 0, H - 2.4, 0, C.cyan, { glow: true })];
       for (const z of [-L / 2 + 0.2, 0]) parts.push(Kit.box(0.42, H, 0.18, 0, 0, z, '#2a2f6a'), Kit.box(0.44, H * 0.9, 0.05, 0, H * 0.05, z, C.violet, { glow: true }));
@@ -202,7 +247,13 @@ const NeonAvenue = {
     if (liftM > 3) out.push({ prop: 'cnWall', x: -5.45, dist: 6, dy: -liftM });
     // THE MONORAIL CITY (the user's picture, METRO_ART) on the free ground of the right, after the open space: the picture itself, standing tall far out (it is the city's skyline, its towers,
     // the art deco block and the roof gardens), turned toward the road and the runner; in front of it an elevated monorail rail along the avenue with its white trains
-    if (liftM > 3 && q >= 15) { out.push({ prop: 'cnRail', x: 32, dist: 6, dy: -liftM }); if (q % 13 === 4) out.push({ prop: 'cnTrain', x: 32, dist: 6, dy: -liftM }); }      // (the user: the train stays, with its rail; the city picture (cnMetroView) is removed)                       // THE PROTECTION WALL on the left (the user): from the ground up to 2 m over the glass road, 2 m from its edge
+    if (liftM > 3 && q >= 15) { out.push({ prop: 'cnRail', x: 32, dist: 6, dy: -liftM }); if (q % 13 === 4) out.push({ prop: 'cnTrain', x: 32, dist: 6, dy: -liftM }); }
+    // THE GREAT QUARTER OF 2455 (the user), all along the rail: the two-floor street with the hanging line over it (a hanging train every 110 m), then the towers in two rows, 2 of every 3
+    // with vertical gardens (67 %); in the middle of the avenue the park (9 slots, 110 m) in place of the towers; no tower where the built skyline stands
+    if (liftM > 3 && q >= 15 && q < CN) { const mid = Math.floor((15 + CN) / 2), inPark = Math.abs(q - mid) <= 4, sky = NeonAvenue.SKY_Q.some(z => q >= z - 6 && q <= z + 5);
+      out.push({ prop: 'ftStreet', x: 42, dist: 6, dy: -liftM }); if (q % 9 === 2) out.push({ prop: 'ftHangTrain', x: 42, dist: 6, dy: -liftM });
+      if (inPark) out.push({ prop: q % 2 ? 'ftParkA' : 'ftParkB', x: 68, dist: 6, dy: -liftM });
+      else if (!sky) out.push({ prop: q % 3 === 2 ? (q % 2 ? 'ftPlainA' : 'ftPlainB') : ['ftGreenA', 'ftGreenB', 'ftGreenC'][(Math.floor(q / 3) + q % 3) % 3], x: q % 2 ? 72 : 52, dist: 6, dy: -liftM }); }      // (the user: the train stays, with its rail; the city picture (cnMetroView) is removed)                       // THE PROTECTION WALL on the left (the user): from the ground up to 2 m over the glass road, 2 m from its edge
     for (const o of out) o.solo = true;
     return out;
   };
