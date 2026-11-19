@@ -415,9 +415,10 @@ class Game {
         this.detour = d;
       }
     }
-    if (this.detour && this.detour.up && (this.detourSweep = (this.detourSweep || 0) + 1) % 20 === 0) {      // (items the world builds later along the glass route: the same rule, no obstacle, coins in the middle only)
-      const C = NEON_CORNER, a = this.detour.z0 + (C.STREET + C.TUNNEL + C.ART - C.UP) * C.SLOT, b2 = a + (C.UP + C.CANYON + C.DOWN) * C.SLOT;
-      if (w.items.some(it => it.z >= a && it.z <= b2 && (OBST[it.kind] || (it.kind === 'coin' && Math.abs(it.x) > 0.2)))) w.items = w.items.filter(it => !(it.z >= a && it.z <= b2 && (OBST[it.kind] || (it.kind === 'coin' && Math.abs(it.x) > 0.2))));
+    if (this.detour && this.detour.decided && (this.detourSweep = (this.detourSweep || 0) + 1) % 20 === 0) {      // (items the world builds later along the glass route or the underground tunnel: the same rule as at the choice)
+      const C = NEON_CORNER, up = this.detour.up, a = this.detour.z0 + (C.STREET + C.TUNNEL + C.ART - C.UP) * C.SLOT + (up ? 0 : C.UP * C.SLOT), b2 = this.detour.z1;
+      const gone = it => it.z >= a && it.z <= b2 && (OBST[it.kind] || (up && it.kind === 'coin' && Math.abs(it.x) > 0.2));
+      if (w.items.some(gone)) w.items = w.items.filter(it => !gone(it));
     }
     if (this.detour && p.z > this.detour.z1) { this.detour = null; w.extraLift = null; if (w.extraOff) { w.extraOff = null; w.ver++; } }      // out of the tunnel: back on the neon street
     this.steer(dt);

@@ -75,7 +75,8 @@ class Renderer3D {
     this.road = new Road3D(this.scene, envs, this.baseId);
 
     // scenery: one shared geometry per prop name (first biome that defines it wins), a bounded pool per name
-    const CAP = { lamp: 100, tree: 120, bench: 50, planter: 130, bush: 60, stall: 40, stallB: 40, pine: 110, pineTall: 90, oak: 90, birch: 70, fbush: 80, rock: 60, log: 40, fence: 60, gore: 4,
+    const CAP = { artRail: 60, artFloor: 60, cnGlass: 40, cnFloor0: 20, cnFloor1: 20, cnFloor2: 20, cnFloor3: 20, cnFloor4: 20, cnWall: 30, cnRail: 30, lamp: 100,      // (ART CITY's rails and floor: both sides of every slot in view)
+       tree: 120, bench: 50, planter: 130, bush: 60, stall: 40, stallB: 40, pine: 110, pineTall: 90, oak: 90, birch: 70, fbush: 80, rock: 60, log: 40, fence: 60, gore: 4,
                   wall: 70, cafe: 40, bollard: 40, barrel: 40, boulder: 30, stump: 30, flowers: 40,                       // street furniture and roadside details
                   fountain: 6, clockTower: 6, statue: 6, cabin: 6, giantOak: 8, standingStones: 6, marketHall: 6, bigTent: 6,   // landmarks: at most one per stretch and side
                   gateCity: 8, gateWood: 8, gateMarket: 8, gateNeon: 8, gateTerrace: 8, cafeFront: 40, terrace: 40, bigPlanter: 70, treeRing: 40, aBoard: 30,      /* (the Terrasse Gasperi) */                                                    // entrance markers where the biome changes

@@ -97,6 +97,16 @@ const NeonAvenue = {
       for (const [x, z] of [[-1.6, 0.4], [1.6, 0.4], [-1.6, 3.4], [1.6, 3.4]]) { P.push(Kit.cyl(0.45, 0.45, 0.05, x, 0.72, z, '#e8e4dc', { seg: 12 }), Kit.cyl(0.05, 0.05, 0.72, x, 0, z, '#3a3a44'));
         for (const [dx, dz] of [[-0.75, 0], [0.75, 0], [0, 0.75], [0, -0.75]]) P.push(Kit.box(0.4, 0.06, 0.4, x + dx, 0.45, z + dz, '#c8553d'), Kit.box(0.04, 0.45, 0.04, x + dx, 0, z + dz, '#3a3a44'), Kit.box(dx ? 0.05 : 0.4, 0.4, dz ? 0.05 : 0.4, x + dx * 1.25, 0.5, z + dz * 1.25, '#c8553d')); }
       return Kit.merge(P); },
+    // the monorail's rail: a concrete beam 12 m over the ground on a pillar, a steel guide on top
+    cnRail: () => Kit.merge([Kit.box(1.4, 1.1, 12.25, 0, 11, 0, '#b8a890'), Kit.box(0.5, 0.25, 12.25, 0, 12.1, 0, '#8a8f99'), Kit.box(1.1, 11, 1.1, 0, 0, 0, '#a89880'), Kit.box(2.2, 0.6, 1.6, 0, 10.4, 0, '#a89880'), Kit.box(1.45, 0.08, 12.25, 0, 10.98, 0, '#ffd27a', { glow: true })]),
+    // a white monorail train of three cars on its rail (as in the picture: rounded white cars, a dark band of windows, a lit nose)
+    cnTrain: () => { const P = []; for (let c = 0; c < 3; c++) { const z = -9 + c * 9.2; P.push(Kit.box(2.6, 2.6, 8.8, 0, 12.35, z, '#f2efe8'), Kit.box(2.66, 0.9, 8.0, 0, 13.4, z, '#2a3240'), Kit.box(2.2, 0.3, 8.6, 0, 15.0, z, '#e2ded6')); }
+      P.push(Kit.cone(1.3, 2.2, 0, 13.6, -14.4, '#f2efe8', { rx: -Math.PI / 2, seg: 10 }), Kit.box(1.6, 0.4, 0.2, 0, 13.0, -15.2, '#e8fbff', { glow: true })); return Kit.merge(P); },
+    // the picture itself, standing on the ground, 115 m tall (its towers at their scale), its bottom a little under the ground
+    cnMetroView: () => { const H = 115, W = H * METRO_ART.w / METRO_ART.h, g = new THREE.PlaneGeometry(W, H); g.translate(0, H / 2 - 4, 0); g.computeBoundingSphere(); g.computeBoundingBox();
+      if (!NeonAvenue._metroMat) { const tex = new THREE.Texture(METRO_ART.img); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; const m = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, fog: false });
+        const up = () => { tex.needsUpdate = true; m.visible = true; }; if (METRO_ART.img.complete && METRO_ART.img.naturalWidth) up(); else { m.visible = false; METRO_ART.img.addEventListener('load', up); } NeonAvenue._metroMat = m; }
+      return { merged: Kit.merge([Kit.box(W, 0.5, 2, 0, -0.3, 0, '#0c0b12')]), sprite: g, material: () => NeonAvenue._metroMat }; },
     // THE PROTECTION WALL (the user): a dark glass wall standing on the ground on the left of the high road, 2 m from its edge, up to 2 m over its deck (NEON_CORNER.H + 2 m), lit edges
     cnWall: () => { const H = (typeof NEON_CORNER !== 'undefined' ? NEON_CORNER.H / 10 : 14) + 2, L = 12.25, parts = [Kit.box(0.35, H, L, 0, 0, 0, '#1a1438'), Kit.box(0.4, 0.14, L, 0, H, 0, C.pink, { glow: true }), Kit.box(0.4, 0.1, L, 0, H - 2.4, 0, C.cyan, { glow: true })];
       for (const z of [-L / 2 + 0.2, 0]) parts.push(Kit.box(0.42, H, 0.18, 0, 0, z, '#2a2f6a'), Kit.box(0.44, H * 0.9, 0.05, 0, H * 0.05, z, C.violet, { glow: true }));
@@ -144,15 +154,18 @@ const NeonAvenue = {
     for (const s of [-1, 1]) {
       const k = mod(q * 3 + (s > 0 ? 5 : 0) + Math.floor(rnd(q * 2 + (s > 0 ? 1 : 0), 41) * 4), TW.length);
       const far = s > 0 ? 14 : 0;                                                    // (the user: the buildings on the right step back, so the ground down there is wide and seen from the road)
-      out.push({ prop: TW[k], x: s * (11 + far + rnd(q * 2 + (s > 0 ? 1 : 0), 42) * 9), dist: 6, dy: -liftM });
-      if (mod(q, 3) === 1) out.push({ prop: TW[mod(k + 3, TW.length)], x: s * (24 + far + rnd(q, 43 + s) * 8), dist: 2, dy: -liftM });
+      if (s < 0) out.push({ prop: TW[k], x: s * (11 + far + rnd(q * 2 + (s > 0 ? 1 : 0), 42) * 9), dist: 6, dy: -liftM });      // (the user: a very large open space first on the right, for the joint to come; then (choice A) no tower on the right at all: the monorail city is seen whole)
+      if (mod(q, 3) === 1 && s < 0) out.push({ prop: TW[mod(k + 3, TW.length)], x: s * (24 + far + rnd(q, 43 + s) * 8), dist: 2, dy: -liftM });      // (the user: no second row on the right: free ground behind the first, kept for the material to come)
     }
     if (liftM > 3) {                                                                   // UNDER THE GLASS ROAD (the user): no asphalt, a floor of big glossy black tiles under it and on both sides, its tint
       out.push({ prop: 'cnFloor' + (Math.floor(q / 17) % 5), x: 0.001, dist: 6, dy: -liftM });   //   changing every 200 m to another dark glossy colour; a big concrete planter of flowers and greens every 50 m in the
       if (q % 4 === 1) out.push({ prop: 'cnPlanter', x: 0.001, dist: 6, dy: -liftM });             //   middle, under the road; a terrace (a kiosk, tables and chairs) every 350 m on the right
       if (q % 29 === 14) out.push({ prop: 'cnTerrace', x: 13, dist: 6, dy: -liftM });
     }
-    if (liftM > 3) out.push({ prop: 'cnWall', x: -5.45, dist: 6, dy: -liftM });                       // THE PROTECTION WALL on the left (the user): from the ground up to 2 m over the glass road, 2 m from its edge
+    if (liftM > 3) out.push({ prop: 'cnWall', x: -5.45, dist: 6, dy: -liftM });
+    // THE MONORAIL CITY (the user's picture, METRO_ART) on the free ground of the right, after the open space: the picture itself, standing tall far out (it is the city's skyline, its towers,
+    // the art deco block and the roof gardens), turned toward the road and the runner; in front of it an elevated monorail rail along the avenue with its white trains
+    if (liftM > 3 && q >= 15) { out.push({ prop: 'cnRail', x: 32, dist: 6, dy: -liftM }); if (q % 13 === 4) out.push({ prop: 'cnTrain', x: 32, dist: 6, dy: -liftM }); if (q === 20 || q === 46) out.push({ prop: 'cnMetroView', x: q === 20 ? 62 : 70, dist: 6, dy: -liftM, rotY: q === 20 ? -0.55 : -0.35 }); }                       // THE PROTECTION WALL on the left (the user): from the ground up to 2 m over the glass road, 2 m from its edge
     for (const o of out) o.solo = true;
     return out;
   };
