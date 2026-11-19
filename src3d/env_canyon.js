@@ -131,6 +131,19 @@ const NeonAvenue = {
       P.push(Kit.box(0.9, 1.0, L, 0, 22, 0, '#c9d2e0'), Kit.box(0.3, 0.12, L, 0, 21.9, 0, F.cyan, { glow: true }), Kit.box(0.7, 23.4, 0.7, 5.2, 0, 0, '#aab4c8'), Kit.box(5.6, 0.6, 0.7, 2.6, 22.9, 0, '#aab4c8'), Kit.box(0.3, 0.3, 0.3, 5.2, 23.5, 0, F.pink, { glow: true }));
       return Kit.merge(P); },
     // the hanging train: three white cars under the beam, hung by their roofs (the rail on their back), a dark window band, light under the floor
+    // A STATION for every building (the user: no aerial train without stations): a glass platform beside the hanging line, at the cars' floor, and a GLASS TUNNEL from it into the building
+    // (N: the near row, 10 m away; F: the far row, 30 m). Local x = 0 is the line; the glass is one see-through material, the floor and the hoops are solid.
+    ...Object.fromEntries([['N', 10], ['F', 30]].map(([n, far]) => ['ftStation' + n, () => { const y = 17.3, x0 = 1.5, P = [], G = [];
+      P.push(Kit.box(3, 0.25, 11, x0 + 1.5, y - 0.25, 0, '#2a3358'), Kit.box(0.12, 0.06, 11, x0 + 0.1, y, 0, F.lime, { glow: true }), Kit.box(3.2, 0.14, 11.2, x0 + 1.5, y + 3.3, 0, F.cyan, { glow: true }));
+      for (const z of [-5.4, 5.4]) P.push(Kit.box(0.16, 3.3, 0.16, x0 + 2.9, y, z, '#c9d2e0'));
+      G.push(Kit.box(3, 0.1, 11, x0 + 1.5, y + 3.2, 0, '#9fe6ff'), Kit.box(0.08, 3.2, 3.8, x0 + 3, y, -3.6, '#9fe6ff'), Kit.box(0.08, 3.2, 3.8, x0 + 3, y, 3.6, '#9fe6ff'));
+      const a = x0 + 3, L = far - a;                                                                         // the tunnel: from the platform's back to the building's face
+      P.push(Kit.box(L, 0.2, 3, a + L / 2, y - 0.2, 0, '#2a3358'), Kit.box(L, 0.06, 0.1, a + L / 2, y, 0, F.cyan, { glow: true }));
+      for (let x = a; x <= far + 0.01; x += L / Math.max(2, Math.round(L / 4.5))) P.push(Kit.box(0.16, 0.12, 3.3, x, y + 3.0, 0, F.pink, { glow: true }), Kit.box(0.16, 3.1, 0.12, x, y, -1.6, F.pink, { glow: true }), Kit.box(0.16, 3.1, 0.12, x, y, 1.6, F.pink, { glow: true }));
+      G.push(Kit.box(L, 3, 0.08, a + L / 2, y, -1.55, '#9fe6ff'), Kit.box(L, 3, 0.08, a + L / 2, y, 1.55, '#9fe6ff'), Kit.box(L, 0.08, 3.1, a + L / 2, y + 3, 0, '#9fe6ff'));
+      if (far > 20) for (const x of [a + L * 0.35, a + L * 0.7]) P.push(Kit.box(0.5, y - 0.2, 0.5, x, 0, 0, '#3a4468'));      // (the long one stands on two legs)
+      P.push(Kit.box(0.3, 3.6, 3.6, far - 0.1, y - 0.2, 0, F.lime, { glow: true }));                                              // the lit door in the building's face
+      return { merged: Kit.merge(P), sprite: Kit.merge(G).lit, material: () => NeonAvenue._stGlass || (NeonAvenue._stGlass = new THREE.MeshBasicMaterial({ color: '#9fe6ff', transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide })) }; }])),
     ftHangTrain: () => { const P = []; for (let c = 0; c < 3; c++) { const z = -9.2 + c * 9.2; P.push(Kit.box(2.5, 3.0, 8.7, 0, 17.4, z, '#f2f5fa'), Kit.box(2.56, 1.0, 7.9, 0, 18.7, z, '#16233a'), Kit.box(2.2, 0.12, 8.2, 0, 17.3, z, F.cyan, { glow: true }), Kit.box(0.5, 1.6, 0.7, 0, 20.4, z - 2.6, '#8a94a8'), Kit.box(0.5, 1.6, 0.7, 0, 20.4, z + 2.6, '#8a94a8'), Kit.box(2.6, 0.2, 8.7, 0, 20.4, z, '#d6dce8')); }
       P.push(Kit.box(1.8, 0.5, 0.15, 0, 18.2, -13.6, '#fff2c0', { glow: true })); return Kit.merge(P); },
     // towers of 2455 (their facade at x 0 toward the road, the body toward +X). The green ones carry their gardens up the building:
@@ -265,7 +278,7 @@ const NeonAvenue = {
     if (liftM > 3 && q >= 15 && q < CN) { const mid = Math.floor((15 + CN) / 2), inPark = Math.abs(q - mid) <= 4, sky = NeonAvenue.SKY_Q.some(z => q >= z - 6 && q <= z + 5);
       out.push({ prop: 'ftStreet', x: 42, dist: 6, dy: -liftM }); if (q % 9 === 2) out.push({ prop: 'ftHangTrain', x: 42, dist: 6, dy: -liftM });
       if (inPark) out.push({ prop: q % 2 ? 'ftParkA' : 'ftParkB', x: 68, dist: 6, dy: -liftM });
-      else if (!sky) out.push({ prop: q % 3 === 2 ? (q % 2 ? 'ftPlainA' : 'ftPlainB') : ['ftGreenA', 'ftGreenB', 'ftGreenC'][(Math.floor(q / 3) + q % 3) % 3], x: q % 2 ? 72 : 52, dist: 6, dy: -liftM }); }      // (the user: the train stays, with its rail; the city picture (cnMetroView) is removed)                       // THE PROTECTION WALL on the left (the user): from the ground up to 2 m over the glass road, 2 m from its edge
+      else if (!sky) out.push({ prop: q % 3 === 2 ? (q % 2 ? 'ftPlainA' : 'ftPlainB') : ['ftGreenA', 'ftGreenB', 'ftGreenC'][(Math.floor(q / 3) + q % 3) % 3], x: q % 2 ? 72 : 52, dist: 6, dy: -liftM }, { prop: q % 2 ? 'ftStationF' : 'ftStationN', x: 42, dist: 6, dy: -liftM }); }      // (the user: the train stays, with its rail; the city picture (cnMetroView) is removed)                       // THE PROTECTION WALL on the left (the user): from the ground up to 2 m over the glass road, 2 m from its edge
     for (const o of out) o.solo = true;
     return out;
   };
