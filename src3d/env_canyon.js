@@ -82,7 +82,26 @@ const NeonAvenue = {
     // the second highway of light, lower down on the other side: streaks of light along it
     cnTrail: () => { const p = []; for (let k = 0; k < 5; k++) p.push(Kit.box(0.08 + 0.04 * (k % 2), 0.08, 12.4, k * 0.5, k % 3 * 0.25, 0, [C.cyan, C.white, C.pink, C.cyan, C.violet][k], { glow: true }));
       p.push(Kit.box(3.2, 0.3, 12.3, 1.0, -0.4, 0, '#1a1d40')); return Kit.merge(p); },
-    // THE BRIDGE across the road over the tunnel, under the spiral (ART CITY's last slot): a deck on pillars (foundations), its sides wearing the race zone's ramp picture
+      // the floor under the high road: 3 m tiles, glossy black (two near blacks in a checker, a faint lighter grout, a sheen line on every other one), 60 m wide; FLOOR_TINTS: the 200 m tints
+    ...Object.fromEntries([['#0b0b10', '#121219'], ['#0a0f1c', '#101829'], ['#140a18', '#1d1024'], ['#0a1411', '#0f1d18'], ['#0b0b10', '#131320']].map(([a, b], n) => ['cnFloor' + n, () => {
+      const P = [], W = 60, L = 12.2, T = 3.05; for (let x = -W / 2; x < W / 2; x += T) for (let z = -L / 2; z < L / 2 - 0.01; z += T * 1.02) { const odd = (Math.round(x / T) + Math.round(z / T)) & 1;
+        P.push(Kit.box(T - 0.06, 0.04, Math.min(T, L / 2 - z) - 0.06, x + T / 2, 0, z + Math.min(T, L / 2 - z) / 2, odd ? a : b)); if (!odd) P.push(Kit.box(T * 0.7, 0.002, 0.05, x + T / 2, 0.042, z + 0.4, '#3a3a52')); }
+      P.push(Kit.box(W, 0.02, L, 0, -0.02, 0, '#2a2a3a')); return Kit.merge(P); }])),
+    // a big concrete planter: a low wide box of grey concrete, filled with greens and flowers
+    cnPlanter: () => { const P = [Kit.box(3.6, 0.9, 3.6, 0, 0, 0, '#8a8a90'), Kit.box(3.8, 0.12, 3.8, 0, 0.9, 0, '#a0a0a8'), Kit.box(3.3, 0.1, 3.3, 0, 0.88, 0, '#3a2a1c')], cols = ['#ff4fa0', '#ffd23a', '#ffffff', '#b06bff', '#ff7a3a'];
+      for (let k = 0; k < 9; k++) { const x = -1.1 + (k % 3) * 1.1, z = -1.1 + Math.floor(k / 3) * 1.1; P.push(Kit.ico(0.45 + (k % 2) * 0.12, x, 1.25, z, k % 2 ? '#2f8a3a' : '#3fa548')); }
+      for (let k = 0; k < 14; k++) { const a = k * 2.4, r = 0.4 + (k % 4) * 0.35; P.push(Kit.ico(0.12, Math.cos(a) * r, 1.6 + (k % 3) * 0.1, Math.sin(a) * r, cols[k % cols.length])); }
+      P.push(Kit.cyl(0.08, 0.1, 1.6, 0, 0.9, 0, '#5a3a22'), Kit.ico(0.7, 0, 2.7, 0, '#2a7a34')); return Kit.merge(P); },
+    // a terrace: a little kiosk (counter, dark roof with a neon rim) and four round tables with their chairs, on the tiles
+    cnTerrace: () => { const P = [Kit.box(2.6, 2.3, 2.0, 0, 0, -3.5, '#1d1a2a'), Kit.box(2.6, 0.12, 2.1, 0, 1.0, -2.45, '#d8d0c0'), Kit.box(3.2, 0.2, 2.8, 0, 2.3, -3.5, '#121018'), Kit.box(3.25, 0.08, 2.85, 0, 2.5, -3.5, C.pink, { glow: true }), Kit.box(2.0, 0.8, 0.05, 0, 1.3, -2.48, '#ffd27a', { glow: true })];
+      for (const [x, z] of [[-1.6, 0.4], [1.6, 0.4], [-1.6, 3.4], [1.6, 3.4]]) { P.push(Kit.cyl(0.45, 0.45, 0.05, x, 0.72, z, '#e8e4dc', { seg: 12 }), Kit.cyl(0.05, 0.05, 0.72, x, 0, z, '#3a3a44'));
+        for (const [dx, dz] of [[-0.75, 0], [0.75, 0], [0, 0.75], [0, -0.75]]) P.push(Kit.box(0.4, 0.06, 0.4, x + dx, 0.45, z + dz, '#c8553d'), Kit.box(0.04, 0.45, 0.04, x + dx, 0, z + dz, '#3a3a44'), Kit.box(dx ? 0.05 : 0.4, 0.4, dz ? 0.05 : 0.4, x + dx * 1.25, 0.5, z + dz * 1.25, '#c8553d')); }
+      return Kit.merge(P); },
+    // THE PROTECTION WALL (the user): a dark glass wall standing on the ground on the left of the high road, 2 m from its edge, up to 2 m over its deck (NEON_CORNER.H + 2 m), lit edges
+    cnWall: () => { const H = (typeof NEON_CORNER !== 'undefined' ? NEON_CORNER.H / 10 : 14) + 2, L = 12.25, parts = [Kit.box(0.35, H, L, 0, 0, 0, '#1a1438'), Kit.box(0.4, 0.14, L, 0, H, 0, C.pink, { glow: true }), Kit.box(0.4, 0.1, L, 0, H - 2.4, 0, C.cyan, { glow: true })];
+      for (const z of [-L / 2 + 0.2, 0]) parts.push(Kit.box(0.42, H, 0.18, 0, 0, z, '#2a2f6a'), Kit.box(0.44, H * 0.9, 0.05, 0, H * 0.05, z, C.violet, { glow: true }));
+      return Kit.merge(parts); },
+  // THE BRIDGE across the road over the tunnel, under the spiral (ART CITY's last slot): a deck on pillars (foundations), its sides wearing the race zone's ramp picture
     artBridge: () => { const W = 50, y = 12.6, parts = [Kit.box(W, 1.0, 7, 0, y - 1.0, 0, '#22264a'), Kit.box(W, 0.14, 0.14, 0, y, 3.5, C.pink, { glow: true }), Kit.box(W, 0.14, 0.14, 0, y, -3.5, C.cyan, { glow: true })];
       for (const x of [-20, -12, 12, 20]) parts.push(Kit.box(1.6, y - 1, 1.6, x, 0, 0, C.pillar), Kit.box(1.7, 0.14, 1.7, x, 4, 0, C.pink, { glow: true }));
       const fasc = [3.52, -3.52].map(z => NeonAvenue.plain([-W / 2, y - 3.2, z], [W / 2, y - 3.2, z], [W / 2, y, z], [-W / 2, y, z]));
@@ -124,10 +143,16 @@ const NeonAvenue = {
     if (q % 2 === 0 && liftM > 3) out.push({ prop: 'cnPillar', x: 0.001, dist: 3 });
     for (const s of [-1, 1]) {
       const k = mod(q * 3 + (s > 0 ? 5 : 0) + Math.floor(rnd(q * 2 + (s > 0 ? 1 : 0), 41) * 4), TW.length);
-      out.push({ prop: TW[k], x: s * (11 + rnd(q * 2 + (s > 0 ? 1 : 0), 42) * 9), dist: 6, dy: -liftM });
-      if (mod(q, 3) === 1) out.push({ prop: TW[mod(k + 3, TW.length)], x: s * (24 + rnd(q, 43 + s) * 8), dist: 2, dy: -liftM });
+      const far = s > 0 ? 14 : 0;                                                    // (the user: the buildings on the right step back, so the ground down there is wide and seen from the road)
+      out.push({ prop: TW[k], x: s * (11 + far + rnd(q * 2 + (s > 0 ? 1 : 0), 42) * 9), dist: 6, dy: -liftM });
+      if (mod(q, 3) === 1) out.push({ prop: TW[mod(k + 3, TW.length)], x: s * (24 + far + rnd(q, 43 + s) * 8), dist: 2, dy: -liftM });
     }
-    if (liftM > 3) { out.push({ prop: 'cnPosters', x: 0.6, dist: 6, dy: -liftM }, { prop: 'cnTrail', x: -9, dist: 6, dy: -liftM * 0.45 }); }
+    if (liftM > 3) {                                                                   // UNDER THE GLASS ROAD (the user): no asphalt, a floor of big glossy black tiles under it and on both sides, its tint
+      out.push({ prop: 'cnFloor' + (Math.floor(q / 17) % 5), x: 0.001, dist: 6, dy: -liftM });   //   changing every 200 m to another dark glossy colour; a big concrete planter of flowers and greens every 50 m in the
+      if (q % 4 === 1) out.push({ prop: 'cnPlanter', x: 0.001, dist: 6, dy: -liftM });             //   middle, under the road; a terrace (a kiosk, tables and chairs) every 350 m on the right
+      if (q % 29 === 14) out.push({ prop: 'cnTerrace', x: 13, dist: 6, dy: -liftM });
+    }
+    if (liftM > 3) out.push({ prop: 'cnWall', x: -5.45, dist: 6, dy: -liftM });                       // THE PROTECTION WALL on the left (the user): from the ground up to 2 m over the glass road, 2 m from its edge
     for (const o of out) o.solo = true;
     return out;
   };
@@ -142,7 +167,7 @@ const NeonAvenue = {
     fog: { color: '#a8306e', near: 70, far: 280 },
     hemi: { sky: '#ffb0e8', ground: '#5a2a80', intensity: 1.9 },
     sun: { color: '#ffc8a0', intensity: 1.6, position: [0, 6, -10] },
-    groundFar: '#2a0c34',
+    groundFar: '#0c0b12',      // (the tiles' black, the user)
     road: { asphalt: ['#1d2550', '#1a2148'], mark: '#9ff4ff', edge: '#ff5ad8', curb: ['#3a3f8a', '#343a80'], curbFace: '#262a66', walk: ['#2a1040', '#261038'], court: '#220c34', verge: ['#1e0a30', '#1c0a2c'] },
     innerOk: new Set(), props: {}, layout() { return []; },
   };
