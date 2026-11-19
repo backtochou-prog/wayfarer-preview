@@ -163,7 +163,8 @@ class Game {
     this.fx = []; this.dustT = 0; this.shake = 0; this.coinPulse = 0; this.jumpBuf = 0;
     this.scene = null; this.fadeIn = 0;                                                 // no cutscene running, no fade
     this.corner = null; this.detour = null; if (this.world) { this.world.extraLift = null; this.world.extraOff = null; }                                             // the neon corner: no pivot running, not in the picture district (NEON_CORNER)
-    this.onLane = false; this.trick = null; this.olliePop = null; this.ollieDone = false; this.combo = 0; this.stuntPts = 0; this.camFP = false; this.riding = false; this.vehicle = 'scooter'; this.scooterHint = null; this.surf = false;                // on foot, no indicator, not on the water
+    this.onLane = false; this.trick = null; this.olliePop = null; this.ollieDone = false; this.combo = 0; this.stuntPts = 0; this.camFP = false; this.riding = false; this.vehicle = 'scooter';
+    { const rm = typeof location !== 'undefined' && location.search.match(/[?&]ride=(scooter|bike)/); if (rm) { this.riding = true; this.vehicle = rm[1]; } }      // ?ride=scooter / ?ride=bike: the run starts on that vehicle (a link to try it) this.scooterHint = null; this.surf = false;                // on foot, no indicator, not on the water
     this.carryC = 0; this.lane2 = 0; this.lean = 0; this.kick = null; this.sway = 0; this.prompt = null; this.banner = null;
     if (this.r.onReset) this.r.onReset(this);
   }
