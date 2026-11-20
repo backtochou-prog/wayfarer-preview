@@ -295,6 +295,7 @@ const NeonAvenue = {
       if (q % 29 === 14) out.push({ prop: 'cnTerrace', x: 25.5, dist: 6, dy: -liftM });
     }
     if (liftM > 3) out.push({ prop: 'cnWall', x: -5.45, dist: 6, dy: -liftM });
+    if (liftM > 3 && NeonAvenue.PK && q >= NeonAvenue.PK.q0 && q < NeonAvenue.PK.q0 + NeonAvenue.PK.n) out.push({ prop: 'pkTop' + (q - NeonAvenue.PK.q0), x: NeonAvenue.PK.x, dist: 6, dy: -liftM });      // (the car park's ramp and stairs come up through the tiled floor here)
     // THE MONORAIL CITY (the user's picture, METRO_ART) on the free ground of the right, after the open space: the picture itself, standing tall far out (it is the city's skyline, its towers,
     // the art deco block and the roof gardens), turned toward the road and the runner; in front of it an elevated monorail rail along the avenue with its white trains
     if (q < (typeof NEON_CORNER !== 'undefined' ? NEON_CORNER.EXIT : 2)) { out.push({ prop: 'neonTunnel' + (q % 6), x: NeonAvenue.D, dist: 6, dy: -liftM, solo: true }); if (q === 0) out.push({ prop: 'neonTunnelMouth', x: NeonAvenue.D, dist: 6, dy: -liftM, solo: true }); }      // (the user: seen from the ramp, the circuit ran to nothing: its tunnel is there now, under the bridge)
@@ -313,6 +314,74 @@ const NeonAvenue = {
     for (const o of out) o.solo = true;
     return out;
   };
+
+  // THE CAR PARK under the avenue (the user: "the tunnel's entrance is the entrance of two tunnels; after 100 m underground, a big car park under the tiled floor, then a ramp and stairs
+  // up to the tiled floor"). NEON_CORNER.PARK: the second tunnel goes down like the first, opens on the car park (pkHall*, PARK slots), and a ramp with stairs on its left (pkRise0..) climbs
+  // through an open trench in the tiled floor, POFF_M m to the left of the circuit on the ground; a slip road (PMERGE slots, the avenue's long props bent: pk<name>k) joins that circuit.
+  { const NC = typeof NEON_CORNER !== 'undefined' ? NEON_CORNER : { DIVE: 6, PARK: 8, PRISE: 6, PMERGE: 4, POFF_M: 8.2, DEPTH: 120, CANYON: 70, DOWN: 6 }, PD = NC.DEPTH / 10, PR = NC.PRISE, PM = NC.PMERGE, OFF = NC.POFF_M, L = 12.2, D = NeonAvenue.D, CH = 5.4, HW = 21;
+    const X0 = -5.85, X1 = 4.1, XM = (X0 + X1) / 2, XW = X1 - X0, WALL = '#262a38', SLAB = '#3a3d46';      // (the trench: the stairs on the left, the ramp, between two walls)
+    const gy = (k, f) => PD * (1 - e(Math.max(0, Math.min(1, (k + f) / PR))));                             // the tiled floor's height over the ramp, slot k, fraction f
+    NeonAvenue.PK = { q0: NC.DIVE + NC.PARK, n: PR, x: D - OFF };
+    const COLS = ['#d8404a', '#3a7bd8', '#e8e8ee', '#f0b030', '#3aa878', '#8a5cff', '#22262e'];
+    const car = (x, z, col, s) => [Kit.box(4.2, 0.75, 1.8, x, 0.25, z, col), Kit.box(2.2, 0.6, 1.6, x + s * 0.3, 1.0, z, '#1a2030'), Kit.box(0.08, 0.16, 1.4, x - s * 2.1, 0.62, z, '#fff2c0', { glow: true })];
+    const hall = v => () => { const P = [Kit.box(2 * HW, 0.2, L + 0.05, 0, -0.2, 0, '#30333c'), Kit.box(2 * HW, 0.4, L + 0.05, 0, CH, 0, '#1b1d26'), Kit.box(0.25, 0.02, 2.4, 0, 0, 0.6, '#ffffff'), Kit.box(0.25, 0.02, 1.3, 0.42, 0, -0.75, '#ffffff', { ry: -0.7 }), Kit.box(0.25, 0.02, 1.3, -0.42, 0, -0.75, '#ffffff', { ry: 0.7 })];
+      for (const s of [-1, 1]) { P.push(Kit.box(0.4, CH, L + 0.05, s * HW, 0, 0, WALL), Kit.box(0.44, 0.5, L, s * (HW - 0.02), 1.6, 0, s < 0 ? '#3a7bd8' : '#ff8a3a'), Kit.box(0.14, 0.02, L, s * 3.6, 0, 0, '#ffffff'),
+          Kit.box(0.5, 0.08, 9, s * 3.4, CH - 0.08, 0, '#eaf6ff', { glow: true }), Kit.box(0.5, 0.08, 9, s * 14, CH - 0.08, 0, '#eaf6ff', { glow: true }),
+          Kit.box(0.8, CH, 0.8, s * 10.8, 0, 0, '#4a4d58'), Kit.box(0.84, 0.5, 0.84, s * 10.8, 0.9, 0, '#f0c020'));
+        for (const row of [0, 1]) { const xc = s * (row ? 15.5 : 6.9), green = v && s < 0 && row;
+          if (green) { P.push(Kit.box(5, 0.6, 8, xc, 0, 0, '#8a8a90'), Kit.box(4.6, 0.1, 7.6, xc, 0.56, 0, '#3a2a1c'), Kit.box(4.6, 0.1, 7.6, xc, CH - 0.06, 0, '#fff6d8', { glow: true }), ...tree(xc, 0.6, 0, 2.1), Kit.ico(0.9, xc - 1.2, 0.6, 2.6, F.leafL), Kit.ico(0.8, xc + 1.1, 0.6, -2.7, F.leafD), Kit.ico(0.35, xc + 1.4, 0.9, 2.4, '#ff7ab8'), Kit.ico(0.35, xc - 1.3, 0.9, -2.2, '#ffd24a')); continue; }
+          for (let b = 0; b < 4; b++) { const z = -L / 2 + b * L / 4; P.push(Kit.box(5, 0.02, 0.12, xc, 0, z + 0.06, '#ffffff'));
+            if ((b * 7 + v * 3 + (s > 0 ? 5 : 0) + row * 2) % 5 < 3) P.push(...car(xc, z + L / 8, COLS[(b + v * 2 + row * 3 + (s > 0 ? 4 : 0)) % 7], row ? -s : s)); } } }
+      return Kit.merge(P); };
+    props.pkHallA = hall(0); props.pkHallB = hall(1);
+    // the hall's two ends: the tunnel comes in through a wall; at the far end the ramp and the stairs leave through an opening
+    props.pkHallIn = () => Kit.merge([Kit.box(2 * HW, 6, 0.3, 0, CH, 6.0, '#1b1d26'), Kit.box(HW - 6.4, CH, 0.3, -(HW + 6.4) / 2, 0, 6.0, WALL), Kit.box(HW - 6.4, CH, 0.3, (HW + 6.4) / 2, 0, 6.0, WALL)]);
+    props.pkHallEnd = () => Kit.merge([Kit.box(HW + X0, CH, 0.3, (X0 - HW) / 2, 0, -6.0, WALL), Kit.box(HW - X1, CH, 0.3, (X1 + HW) / 2, 0, -6.0, WALL), Kit.box(XW, 0.12, 0.34, XM, CH - 0.12, -6.0, C.cyan, { glow: true }),
+      Kit.box(1.5, 0.5, 0.1, -4.75, CH - 0.9, -5.8, '#3aa878', { glow: true }), Kit.box(2.6, 0.5, 0.1, 0, CH - 0.9, -5.8, '#3a7bd8', { glow: true })]);
+    const TINT = [['#0b0b10', '#121219'], ['#0a0f1c', '#101829'], ['#140a18', '#1d1024'], ['#0a1411', '#0f1d18'], ['#0b0b10', '#131320']];
+    const floorHole = (y, tint) => { const P = [], T = 3.05, W = 60, sx = -(D - OFF), [a, b] = TINT[tint];                                 // the avenue's tiled floor (cnFloor's grid), open over the trench
+      for (let x = -W / 2; x < W / 2 - 0.01; x += T) for (let z = -L / 2; z < L / 2 - 0.01; z += T * 1.02) { const odd = (Math.round(x / T) + Math.round(z / T)) & 1, dz = Math.min(T, L / 2 - z);
+        for (const [u0, u1] of [[x + sx, Math.min(x + T + sx, X0)], [Math.max(x + sx, X1), x + T + sx]]) if (u1 - u0 > 0.12) P.push(Kit.box(u1 - u0 - 0.06, 0.04, dz - 0.06, (u0 + u1) / 2, y, z + dz / 2, odd ? a : b)); }
+      const xl = sx - W / 2, xr = sx + W / 2; P.push(Kit.box(X0 - xl, 0.02, L, (X0 + xl) / 2, y - 0.02, 0, '#2a2a3a'), Kit.box(xr - X1, 0.02, L, (X1 + xr) / 2, y - 0.02, 0, '#2a2a3a')); return P; };
+    const rim = (y, k) => { const P = []; for (const [x, col] of [[X0 + 0.15, C.pink], [X1 - 0.15, C.cyan]]) P.push(Kit.box(0.34, 0.1, L, x, y, 0, col, { glow: true }), Kit.box(0.1, 1.0, L, x, y + 0.1, 0, '#5a4ad8'), Kit.box(0.14, 0.08, L, x, y + 1.1, 0, '#8f7bff', { glow: true }));
+      if (k === 0) P.push(Kit.box(XW, 1.0, 0.1, XM, y + 0.1, 6.0, '#5a4ad8'), Kit.box(XW, 0.08, 0.14, XM, y + 1.1, 6.0, '#8f7bff', { glow: true })); return P; };
+    for (let k = 0; k < PR; k++) { const tint = Math.floor((NC.DIVE + NC.PARK + k) / 17) % 5;
+      props['pkRise' + k] = () => { const g0 = gy(k, 0.5), ry = f => g0 - gy(k, f), m = 8, P = [...floorHole(g0 - 0.04, tint), ...rim(g0, k)];
+        for (let a = 0; a < m; a++) { const f0 = a / m, f1 = (a + 1) / m, z0 = L / 2 - f0 * L, z1 = L / 2 - f1 * L, y0 = ry(f0), y1 = ry(f1), len = Math.hypot(z1 - z0, y1 - y0) + 0.02, rx = Math.atan2(y1 - y0, z0 - z1), ym = (y0 + y1) / 2, zm = (z0 + z1) / 2;
+          P.push(Kit.box(7.4, 0.2, len, 0, ym - 0.2, zm, SLAB, { rx }), Kit.box(0.14, 0.02, len, -3.4, ym + 0.005, zm, '#ffffff', { rx }), Kit.box(0.14, 0.02, len, 3.4, ym + 0.005, zm, '#ffffff', { rx }), Kit.box(0.08, 0.08, len, -3.72, ym + 0.95, zm, C.cyan, { glow: true, rx }));
+          if (a % 2 === 0) P.push(Kit.box(0.12, 0.02, len * 0.6, 0, ym + 0.005, zm, '#ffffff', { rx }));
+          for (const x of [X0 + 0.15, X1 - 0.15]) if (g0 - y0 > 0.05) P.push(Kit.box(0.3, g0 - y0 + 0.4, L / m + 0.02, x, y0 - 0.4, zm, WALL)); }
+        const n = 20; for (let a = 0; a < n; a++) { const y0 = ry(a / n), y1 = ry((a + 1) / n); P.push(Kit.box(1.8, 0.4 + y1 - y0, L / n + 0.01, -4.65, y0 - 0.4, L / 2 - (a + 0.5) * L / n, a % 2 ? '#8e929c' : '#a4a8b2')); }      // the stairs
+        if (k === 0) P.push(Kit.box(XW, Math.max(0.1, PD - CH), 0.3, XM, ry(0) + CH, 6.0, WALL));
+        return Kit.merge(P); };
+      // the same opening seen from the high road: its lit rim, its guard rails, the dark way down (the ramp's top in the last slot)
+      props['pkTop' + k] = () => Kit.merge([...rim(0, k), Kit.box(XW - 0.3, 0.03, L, XM, 0.045, 0, k === PR - 1 ? SLAB : k === PR - 2 ? '#1c1e26' : '#050507'), ...(k >= PR - 2 ? [Kit.box(0.14, 0.02, L, -3.4, 0.08, 0, '#ffffff'), Kit.box(0.14, 0.02, L, 3.4, 0.08, 0, '#ffffff'), Kit.box(1.8, 0.03, L, -4.65, 0.08, 0, '#a4a8b2')] : [])]); }
+    // the runner's own lane on the tiles after the ramp, the circuit without its left barrier (the slip road opens into it), the car park's sign
+    props.pkLane = () => Kit.merge([Kit.box(0.14, 0.02, L, -3.4, 0.03, 0, '#ffffff'), Kit.box(0.14, 0.02, L, 3.4, 0.03, 0, '#ffffff'), Kit.box(0.12, 0.02, 3, 0, 0.03, -3, '#ffffff')]);
+    props.cnMainRoadBareR = () => Kit.merge([Kit.box(0.14, 0.02, 12.3, 3.1, 0.03, 0, '#ffffff'), Kit.box(0.12, 0.02, 3, -1.1, 0.03, -3, '#ffffff'), Kit.box(0.12, 0.02, 3, 1.1, 0.03, -3, '#ffffff'), Kit.box(0.25, 0.75, 12.3, 3.75, 0, 0, '#5a4ad8'), Kit.box(0.27, 0.08, 12.3, 3.75, 0.75, 0, '#8f7bff', { glow: true })]);
+    props.pkSign = () => { const P = [Kit.box(0.14, 3.2, 0.14, 0, 0, 0, '#c9d2e0'), Kit.box(1.7, 2.3, 0.1, 0, 3.2, 0, '#1f5fd0')];      // (a blue panel, a white P and an arrow to the left, readable from both faces)
+      for (const s of [1, -1]) { P.push(Kit.box(1.5, 2.1, 0.02, 0, 3.3, s * 0.06, '#2f7bff', { glow: true }));
+        for (const [w, h, x, y, rz] of [[0.16, 0.9, -0.25, 4.3, 0], [0.5, 0.14, 0, 5.06, 0], [0.5, 0.14, 0, 4.66, 0], [0.14, 0.5, 0.25, 4.68, 0], [0.9, 0.14, 0.05, 3.7, 0], [0.14, 0.5, -0.3, 3.62, 0.8], [0.14, 0.5, -0.3, 3.4, -0.8]]) P.push(Kit.box(w, h, 0.02, s * x, y, s * 0.09, '#ffffff', { glow: true, rz: s * rz })); }
+      return Kit.merge(P); };
+    // a prop bent sideways along its slot: x moved by f(z) - f(0)
+    const shearX = (m, f) => { const c = f(0), sh = g => { if (!g || !g.attributes || !g.attributes.position) return; const P = g.attributes.position; for (let i = 0; i < P.count; i++) P.setX(i, P.getX(i) + f(P.getZ(i)) - c); P.needsUpdate = true; g.computeBoundingSphere(); g.computeBoundingBox(); };
+      sh(m.lit); sh(m.glow); if (m.merged) { sh(m.merged.lit); sh(m.merged.glow); } sh(m.sprite); return m; };
+    const xs = t => OFF * (1 - e(Math.max(0, Math.min(1, t)))), BENT = ['cnGlass', 'cnWall', 'cnRail', 'cnGlassN', 'ftStreet', 'cnMainRoadBareR'];
+    for (let k = 0; k < PM; k++) for (const nm of BENT) props['pk' + nm + k] = () => shearX(props[nm](), z => xs((k + (L / 2 - z) / L) / PM));
+    for (let k = 0; k < NC.DOWN; k++) props['pkGlassD' + k] = () => shearX(rampSides(k, NC.DOWN, -1), z => -NeonAvenue.shift(1 - (k + (L / 2 - z) / L) / NC.DOWN));
+    // slot q of the car park's way (from the end of the way down in the tunnel to the end of the avenue's way down)
+    NeonAvenue.park = (q, rnd) => { const h0 = NC.DIVE, r0 = h0 + NC.PARK, m0 = r0 + PR, g1 = m0 + PM, CN = NC.CANYON, DN = NC.DOWN, solo = o => { for (const p of o) p.solo = true; return o; };
+      if (q < r0) { const j = q - h0, o = [{ prop: j % 2 ? 'pkHallB' : 'pkHallA', x: 0.001, dist: 6 }]; if (j === 0) o.push({ prop: 'pkHallIn', x: 0.001, dist: 6 }); if (j === NC.PARK - 1) o.push({ prop: 'pkHallEnd', x: 0.001, dist: 6 }); return solo(o); }
+      if (q < m0) { const k = q - r0, o = [{ prop: 'pkRise' + k, x: 0.001, dist: 6 }];                                                    // the ramp: the avenue stands around the trench, at the tiled floor's height
+        for (const p of NeonAvenue.layout(q, rnd, HM)) if (!/^(cnFloor|pkTop)/.test(p.prop)) o.push(Object.assign(p, { x: p.x - (D - OFF), dy: (p.dy || 0) + HM + gy(k, p.dist / 12) }));
+        return solo(o); }
+      if (q < g1) { const k = q - m0, x1 = xs((k + 0.5) / PM), o = [{ prop: 'pkLane', x: 0.001, dist: 6 }];                              // the slip road
+        for (const p of NeonAvenue.layout(q, rnd, HM)) { if (/^pkTop/.test(p.prop)) continue; if (p.prop === 'cnMainRoadBare') p.prop = 'cnMainRoadBareR'; if (BENT.includes(p.prop)) p.prop = 'pk' + p.prop + k; o.push(Object.assign(p, { x: p.x - D + x1, dy: (p.dy || 0) + HM })); }
+        return solo(o); }
+      if (q < CN) return solo(NeonAvenue.layout(q, rnd, HM).map(p => Object.assign(p, { x: p.x - D, dy: (p.dy || 0) + HM })));          // the circuit on the ground, under the avenue's right side
+      const k = q - CN, Hk = d => HM * (1 - e(Math.max(0, Math.min(1, (k + d / 12) / DN)))), sh = d => NeonAvenue.shift(1 - (k + d / 12) / DN);      // the avenue's way down, seen from the circuit it comes down to
+      return solo(NeonAvenue.layout(q, rnd, Hk(6)).map(p => { if (/^cnGlassD/.test(p.prop)) p.prop = 'pkGlassD' + k; if (/^cnMainRoadD/.test(p.prop)) return { prop: 'cnMainRoadBare', x: 0.001, dist: 6 }; return Object.assign(p, { x: p.x - sh(p.dist), dy: (p.dy || 0) + Hk(p.dist) }); })); };
+  }
   NeonAvenue.props = props;
   if (ENV3D.neon) Object.assign(ENV3D.neon.props, props);
 

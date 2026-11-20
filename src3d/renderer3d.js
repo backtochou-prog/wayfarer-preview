@@ -101,7 +101,7 @@ class Renderer3D {
       const props = envs[id].props; if (!props) continue;
       for (const name of Object.keys(props)) {
         if (this.props[name]) continue;
-        const m = props[name](), cap = /^house/.test(name) ? 26 : /^sign/.test(name) ? 4 : CAP[name] || 28, list = [];
+        const m = props[name](), cap = /^house/.test(name) ? 26 : /^pk(cn|ft|GlassD|Rise|Top)/.test(name) ? 3 : /^sign/.test(name) ? 4 : CAP[name] || 28, list = [];
         for (let i = 0; i < cap; i++) {
           // textured panels (trees: TreeSprite; the neon billboard and tower facades: NeonArt) are a `sprite` geometry with its own material, optionally beside ordinary merged geometry (`merged`)
           let g;
@@ -216,6 +216,7 @@ class Renderer3D {
   canyonRange(g) { const d = g.detour; if (!d || !d.up || !this.envs.canyon) return null; const C = NEON_CORNER, c0 = d.z0 + (C.STREET + C.TUNNEL + C.ART - C.UP) * C.SLOT; return [c0, c0 + (C.UP + C.CANYON + C.DOWN) * C.SLOT]; }
   canyonK(g) { const d = g.detour; if (!d || !this.envs.canyon || typeof NEON_CORNER === 'undefined') return 0; const C = NEON_CORNER, c0 = d.z0 + (C.STREET + C.TUNNEL + C.ART - C.UP) * C.SLOT, z = g.p.z, s = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
     const inK = s((z - (c0 - 1100)) / 900);                                                                                       // (the user: the next stage's sky opens from the end of ART CITY, where the wall was)
+    if (d.park) return inK * s((c0 + (C.UP + C.CANYON + C.DOWN) * C.SLOT - z) / 700);                                                // (the car park's way comes back up under the avenue)
     if (d.down) return inK * s((c0 + C.UP * C.SLOT + 500 - z) / 500);                                                            // (into the underground tunnel: out again)
     if (d.up) return inK * s((c0 + (C.UP + C.CANYON + C.DOWN) * C.SLOT - z) / 700); return inK; }
   artK(g) { const R = this.artRange(g); if (!R) return 0; const z = g.p.z, s = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); }; return s((z - (R[0] - 600)) / 600) * s((R[1] + 300 - z) / 600); }
@@ -368,6 +369,7 @@ class Renderer3D {
     { const rf = w.riseFork(p.z); this.groundPivot.position.y = -0.03 - (rf && rf.fork.rise && rf.choice === rf.fork.rise.side ? w.riseAt(rf, p.z) * U.Z : 0); }       // (on the raised road, the upper circuit of Utrecht, the ground is the level of the water: 3.45 m under the runner)
     if (w.extraLift) { const el = w.extraLift(p.z) * U.Z; this.groundPivot.position.y = -0.03 - el; this.groundBack.position.y = -0.03 - el; this.groundPivot.rotation.x = 0; }      // (the glass ramps of ART CITY and the underground tunnel: the ground stays flat at street level, under or over the road; it was reset by the line above)
     else this.groundBack.position.y = -0.03;
+    this.groundPivot.visible = this.groundBack.visible = !(g.detour && g.detour.park && w.extraLift && w.extraLift(p.z) < -0.5);      // (the car park and its open ramp are under the ground: the far ground would lie over them)
     // under the sea: the coast road beside the tunnel is not seen once the runner is deep (hide = the side of the junction not drawn); the surface of the sea is a plane at the sea's own height over the tunnel, from mouth
     // to mouth, but only visible where the road under it is deep (its alpha follows the depth: the entrance and its surroundings stay dry), seen from above on the way down and up and from below in the deep
     const depthM = w.seaDepth(p.z) * U.Z, hide = depthM >= 3.5 ? -1 : 0; this.road.hide = hide; this.hide = hide;
@@ -405,12 +407,12 @@ class Renderer3D {
 
     // the far skyline of the NEON AVENUE (the user's picture beyond the monorail rail, src3d/env_canyon.js): its picture planes, seen from 390 m ahead (the slots' scenery lives 150 m only)
     if (this.skies) for (const m of this.skies) m.visible = false;
-    if (typeof NeonAvenue !== 'undefined' && NeonAvenue.skyMesh && typeof NEON_CORNER !== 'undefined' && g.detour && g.detour.up && g.detour.decided) {
+    if (typeof NeonAvenue !== 'undefined' && NeonAvenue.skyMesh && typeof NEON_CORNER !== 'undefined' && g.detour && (g.detour.up || g.detour.park) && g.detour.decided) {
       if (!this.skies) this.skies = NeonAvenue.SKY_Q.map(() => { const m = NeonAvenue.skyMesh(); this.scene.add(m); return m; });
       const C = NEON_CORNER, d = g.detour, zA = d.z0 + (C.STREET + C.TUNNEL + C.ART) * C.SLOT;
       NeonAvenue.SKY_Q.forEach((q, k) => { const zf = zA + (q + 0.5) * C.SLOT, ahead = (zf - p.z) * U.Z; if (ahead < -80 || ahead > 392) return;
         const bs = w.bandsAt(zf), m = this.skies[k];
-        m.position.set(this.centreOf(bs, bs[0].side) - Lref + NeonAvenue.SKY_X, WALK_Y + dy(zf) - C.lift(d, zf) * U.Z, -ahead); m.visible = true; });
+        m.position.set(this.centreOf(bs, bs[0].side) - Lref + NeonAvenue.SKY_X - (d.park ? NeonAvenue.D : 0), WALK_Y + dy(zf) - C.lift(d, zf) * U.Z, -ahead); m.visible = true; });
     }
 
     // ---- scenery: slots of SEG_LEN, per road and side; the biome of each side is chosen by the blend at that spot

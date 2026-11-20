@@ -116,6 +116,10 @@ const NEON_CORNER = {
   // THE UNDERGROUND TUNNEL (the user): a runner who does not take the glass ramp goes on into the tunnel under the spiral, which goes DOWN (DIVE slots, DEPTH units of run under the street),
   // runs underground (UNDER slots: the place of the tunnel's own scenario, to come) and comes back UP (RISE slots) to the short tunnel out to the neon street.
   DIVE: 6, UNDER: 20, RISE: 6, DEPTH: 120,
+  // THE CAR PARK (the user: "the entrance of the tunnel is the entrance of two tunnels"): a runner in the LEFT lane at the tunnel's mouth takes the second tunnel. It goes down like the first
+  // (the same DIVE), opens on a big car park under the tiled floor of the avenue (PARK slots, about 100 m), then a ramp with stairs beside it (PRISE slots) climbs back to the tiled floor,
+  // POFF_M metres to the left of the circuit, and a slip road (PMERGE slots) joins the circuit that runs on the ground all along under the avenue, to the way down and the short tunnel back.
+  PARK: 8, PRISE: 6, PMERGE: 4, POFF_M: 8.2,
   // THE RAMP BENDS LEFT (the user: seen from below it curves away, so riding it must curve the same way): the lateral offset of the road (lateral units) on the glass ramp, up and down:
   // SHIFT_M metres to the left by the top (the circuit stays where it is, to the right), back by the end of the way down. Lateral units are U3.X = 2.2 / 0.62 metres.
   SHIFT_M: 17,
@@ -126,7 +130,7 @@ const NEON_CORNER = {
   },
   // the height of the road (units of run) at z for a detour that took the glass ramp (positive), or the underground tunnel (negative)
   lift(d, z) {
-    if (d && d.down) { const S = this.SLOT, z0 = d.z0 + (this.STREET + this.TUNNEL + this.ART) * S, zA = z0 + this.DIVE * S, zB = zA + this.UNDER * S, zC = zB + this.RISE * S, e = t => t * t * (3 - 2 * t);
+    if (d && (d.down || d.park)) { const S = this.SLOT, z0 = d.z0 + (this.STREET + this.TUNNEL + this.ART) * S, zA = z0 + this.DIVE * S, zB = zA + (d.park ? this.PARK : this.UNDER) * S, zC = zB + (d.park ? this.PRISE : this.RISE) * S, e = t => t * t * (3 - 2 * t);
       return z <= z0 || z >= zC ? 0 : -this.DEPTH * (z < zA ? e((z - z0) / (zA - z0)) : z < zB ? 1 : 1 - e((z - zB) / (zC - zB))); }
     if (!d || !d.up) return 0;
     const S = this.SLOT, z0 = d.z0 + (this.STREET + this.TUNNEL + this.ART - this.UP) * S, zA = z0 + this.UP * S, zB = zA + this.CANYON * S, zC = zB + this.DOWN * S, e = t => t * t * (3 - 2 * t);

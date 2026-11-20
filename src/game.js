@@ -162,7 +162,7 @@ class Game {
     this.bgT = ahead0.t; this.bgTo = ahead0.t > 0 ? ahead0.to : this.world.baseBiome; this.canopy = 0; this.flash = 0; this.overT = 0; this.overDelay = 0.5;
     this.fx = []; this.dustT = 0; this.shake = 0; this.coinPulse = 0; this.jumpBuf = 0;
     this.scene = null; this.fadeIn = 0;                                                 // no cutscene running, no fade
-    this.corner = null; this.detour = null; if (this.world) { this.world.extraLift = null; this.world.extraOff = null; }                                             // the neon corner: no pivot running, not in the picture district (NEON_CORNER)
+    this.corner = null; this.detour = null; if (this.world) { this.world.extraLift = null; this.world.extraOff = null; this.world.noRoad = null; }                                             // the neon corner: no pivot running, not in the picture district (NEON_CORNER)
     this.onLane = false; this.trick = null; this.olliePop = null; this.ollieDone = false; this.combo = 0; this.stuntPts = 0; this.camFP = false; this.riding = false; this.vehicle = 'scooter';
     { const rm = typeof location !== 'undefined' && location.search.match(/[?&]ride=(scooter|bike)/); if (rm) { this.riding = true; this.vehicle = rm[1]; } }      // ?ride=scooter / ?ride=bike: the run starts on that vehicle (a link to try it) this.scooterHint = null; this.surf = false;                // on foot, no indicator, not on the water
     this.carryC = 0; this.lane2 = 0; this.lean = 0; this.kick = null; this.sway = 0; this.prompt = null; this.banner = null;
@@ -416,12 +416,22 @@ class Game {
         this.detour = d;
       }
     }
+    if (this.detour && this.detour.down && !this.detour.asked) {                             // THE CAR PARK: at the tunnel's mouth the left lane takes the second tunnel (NEON_CORNER.PARK)
+      const C = NEON_CORNER, zT = this.detour.z0 + (C.STREET + C.TUNNEL + C.ART) * C.SLOT;
+      if (prevZ < zT && p.z >= zT) {
+        const dx = p.x - w.playerBand(zT, p.x).c, park = dx < -LANE_W * 0.3 || (dx < 0 && (this.keys.left || this.tleft));
+        if (!park) this.detour.asked = true;
+        else { const d = Object.assign({}, this.detour, { asked: true, down: false, park: true }); d.z1 = d.z0 + (C.STREET + C.TUNNEL + C.ART + C.CANYON + C.DOWN + C.EXIT) * C.SLOT; d.zG = zT + (C.DIVE + C.PARK + C.PRISE + C.PMERGE) * C.SLOT;
+          const zN = zT + C.DIVE * C.SLOT, zE = d.z1 - C.EXIT * C.SLOT; w.noRoad = z => z > zN && z < zE;      // (no asphalt from the car park on: its floor, the ramp, then the tiled floor, "sans goudron")
+          w.extraLift = z => C.lift(d, z); w.ver++; this.detour = d; this.emit('corner'); }
+      }
+    }
     if (this.detour && this.detour.decided && (this.detourSweep = (this.detourSweep || 0) + 1) % 20 === 0) {      // (items the world builds later along the glass route or the underground tunnel: the same rule as at the choice)
-      const C = NEON_CORNER, up = this.detour.up, a = this.detour.z0 + (C.STREET + C.TUNNEL + C.ART - C.UP) * C.SLOT + (up ? 0 : C.UP * C.SLOT), b2 = this.detour.z1;
+      const C = NEON_CORNER, up = this.detour.up, a = this.detour.z0 + (C.STREET + C.TUNNEL + C.ART - C.UP) * C.SLOT + (up ? 0 : C.UP * C.SLOT), b2 = this.detour.park ? this.detour.zG : this.detour.z1;      // (the car park's way: the circuit on the ground keeps its obstacles after the slip road)
       const gone = it => it.z >= a && it.z <= b2 && (OBST[it.kind] || it.kind === 'raceGate' || (up && it.kind === 'coin' && Math.abs(it.x) > 0.2));
       if (w.items.some(gone)) w.items = w.items.filter(it => !gone(it));
     }
-    if (this.detour && p.z > this.detour.z1) { this.detour = null; w.extraLift = null; if (w.extraOff) { w.extraOff = null; w.ver++; } }      // out of the tunnel: back on the neon street
+    if (this.detour && p.z > this.detour.z1) { this.detour = null; w.extraLift = null; w.noRoad = null; if (w.extraOff) { w.extraOff = null; w.ver++; } }      // out of the tunnel: back on the neon street
     this.steer(dt);
     if (this.jumpBuf > 0) { // jump starts on the ground, cancels a slide; a press just before landing is kept briefly
       this.jumpBuf -= dt;

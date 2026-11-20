@@ -241,6 +241,10 @@ window.ENV3D = window.ENV3D || {};
           const o = ArtCity.layout(r, rnd, det, liftM); if (det && det.up && r >= NA - C.UP && typeof NeonAvenue !== 'undefined') o.push({ prop: 'cnGlassU' + (r - (NA - C.UP)), x: 0.001, dist: 6, solo: true }); return o; }
         let q = r - NA;
         if (det && det.up && typeof NeonAvenue !== 'undefined') { if (q >= 0 && q < C.CANYON + C.DOWN) return NeonAvenue.layout(q, rnd, liftM); q -= C.CANYON + C.DOWN; }
+        if (det && det.park && typeof NeonAvenue !== 'undefined' && NeonAvenue.park) {                                                                                        // THE CAR PARK's way: the same way down, the car park, its ramp, the circuit under the avenue
+          if (q >= 0 && q < C.DIVE) { const o = [{ prop: 'neonTunnelDv' + q, x: 0, dist: 6, solo: true }]; if (q === 0) o.push({ prop: 'neonTunnelMouth', x: 0, dist: 6, solo: true }); return o; }
+          if (q >= C.DIVE && q < C.CANYON + C.DOWN) return NeonAvenue.park(q, rnd);
+          q -= C.CANYON + C.DOWN; }
         if (det && det.down) {                                                                                                                                                 // THE UNDERGROUND TUNNEL: down, under, back up
           if (q >= 0 && q < C.DIVE) { const o = [{ prop: 'neonTunnelDv' + q, x: 0, dist: 6, solo: true }]; if (q === 0) o.push({ prop: 'neonTunnelMouth', x: 0, dist: 6, solo: true }); return o; }
           if (q >= C.DIVE && q < C.DIVE + C.UNDER) return [{ prop: 'neonTunnel' + ((q * 5) % 6), x: 0, dist: 6, solo: true }];

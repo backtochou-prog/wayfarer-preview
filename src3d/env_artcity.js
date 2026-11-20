@@ -115,9 +115,10 @@ const ArtCity = {
     if (r % 12 === 9 && r < N - U - 3) out.push({ prop: 'bikeSport', x: r % 24 === 9 ? -4.9 : 4.9, dist: 5 });
     if (r % 20 === 15 && r < N - U - 3) out.push({ prop: 'scooterMag', x: r % 40 === 15 ? 4.9 : -4.9, dist: 7 });                     // a magnetic scooter to ride, now and then, on either side
     if (r === N - 1) out.push({ prop: 'artBridge', x: 0.001, dist: 2.5, dy: -liftM });      // THE BRIDGE over the tunnel (the user removed the lavender wall and the green spiral: the next stage's sky opens there)   // THE BRIDGE over the tunnel, under the spiral
+    if (!up && r === N - 1 && typeof NeonAvenue !== 'undefined') out.push({ prop: 'pkSign', x: -5.3, dist: 9.5 });      // (the car park's sign at the tunnel's mouth: P, to the left)
     if (!up && r >= N - U) out.push({ prop: 'artGlassRamp' + (r - (N - U)), x: 0.001, dist: 6 });
     if (!up && r >= N - U && r < N - U + 3) for (let n = out.length - 1; n >= 0; n--) if (out[n].prop === 'artRail' && out[n].x < 0) out.splice(n, 1);      // (the exit: the left rail opens where the ramp leaves the circuit)
-    if (!up && r >= N - U - 2) for (const o of out) if (o.x < -4 && !/^art(Floor|GlassRamp)/.test(o.prop)) o.x -= NeonAvenue.D + 6;      // (the user: the buildings on the left step aside to give the ramp room)                                                                  // THE GLASS RAMP on the left (the choice: the left lane)
+    if (!up && r >= N - U - 2) for (const o of out) if (o.x < -4 && !/^(art(Floor|GlassRamp)|pkSign)/.test(o.prop)) o.x -= NeonAvenue.D + 6;      // (the user: the buildings on the left step aside to give the ramp room)                                                                  // THE GLASS RAMP on the left (the choice: the left lane)
     if (up && r >= N - U) {                                                                                     // ON THE RAMP: what stands on the ground stays there, and the circuit parts to the right (NeonAvenue.shift)
       const k = r - (N - U), sh = d => NeonAvenue.shift((k + d / 12.2) / U), keep = out.filter(o => o.prop !== 'artRail');
       for (const o of keep) { if (o.dy === undefined) o.dy = -liftM; o.x += sh(o.dist); }
